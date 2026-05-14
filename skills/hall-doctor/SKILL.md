@@ -1,0 +1,93 @@
+---
+name: hall-doctor
+description: Run preflight diagnostics for the Hall of Automata plugin environment
+argument-hint: [--fix]
+allowed-tools: [Bash, Read]
+---
+
+# /hall:doctor
+
+Run a full preflight diagnostic of the Hall of Automata environment. Use `--fix` to automatically repair issues that can be fixed (missing gitignore entry, stale cache).
+
+## Checks to run
+
+Run all checks and display results as a table. Mark each ✓ (pass), ✗ (fail — blocks session), or ⚠ (warn — session possible but degraded).
+
+### 1. gh CLI authentication (✗ if fails)
+
+```bash
+gh auth status
+```
+
+Parse for "Logged in to github.com". Fail if not authenticated.
+
+### 2. GITHUB_PERSONAL_ACCESS_TOKEN set (⚠ if missing)
+
+```bash
+echo "${GITHUB_PERSONAL_ACCESS_TOKEN:-NOT_SET}"
+```
+
+The GitHub MCP needs this. Warn if missing; the session works without it but the GitHub MCP won't connect.
+
+### 3. Hall App installed on target repo's org (✗ if fails)
+
+```bash
+gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/installation 2>&1
+```
+
+If this returns 404, the Hall App is not installed on this repo's org. The plugin cannot dispatch without it.
+
+### 4. User is a Hall invoker (⚠ if fails — plan-only mode)
+
+```bash
+gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/collaborators/$(gh api /user -q .login) 2>&1
+```
+
+Check for write access (push permission). Without it, dispatch is blocked but plan creation works.
+
+### 5. .hall-cache/ in .gitignore (⚠ if missing, fix with --fix)
+
+```bash
+grep -q "\.hall-cache" .gitignore 2>/dev/null && echo "present" || echo "missing"
+```
+
+If `--fix` passed, append `.hall-cache/` to `.gitignore`.
+
+### 6. Persona cache freshness (⚠ if stale or missing)
+
+```bash
+cat .hall-cache/personas/.fetched_at 2>/dev/null || echo "not cached"
+```
+
+Warn if the timestamp is >24h ago or the file doesn't exist.
+
+### 7. MCP connectivity (⚠ for each failed server)
+
+Run `claude mcp list` and check for ✓ Connected status on `sequential-thinking`, `fetch`, `github`, and `google-drive`.
+
+### 8. Hall quota (informational)
+
+```bash
+gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/issues \
+  --jq '[.[] | select(.labels[].name | startswith("hall:")) | select(.state=="open")] | length'
+```
+
+Count open Hall issues on this repo (rough proxy for in-flight work). Display as info; not a pass/fail.
+
+## Output format
+
+Display as a two-column table: check name and result. End with a summary line:
+
+```
+✓ 6/8 checks passed  ⚠ 2 warnings  ✗ 0 blockers
+
+Ready to /hall:open.
+```
+
+or
+
+```
+✓ 5/8 checks passed  ⚠ 1 warning  ✗ 2 blockers
+
+Cannot start session: gh authentication required, Hall App not installed.
+```
