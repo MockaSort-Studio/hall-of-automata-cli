@@ -132,8 +132,8 @@ Expected: FAIL — files don't exist yet.
     "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
   },
   "fetch": {
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    "command": "uvx",
+    "args": ["mcp-server-fetch"]
   },
   "github": {
     "type": "http",
