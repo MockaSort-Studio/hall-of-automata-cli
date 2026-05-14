@@ -29,6 +29,7 @@ Cost: just continued conversation.
 ## Tier 2 — Subagent
 
 Spawn a one-shot subagent using the loaded specialist overlay from `.hall-cache/session/claude-agents/<specialist>.md`.
+(This file bundles the upstream persona + the local consultation overlay; no additional file is needed.)
 
 Triggers: substantive design analysis (architecture tradeoffs, data model review, performance analysis) that is private to this conversation and doesn't need to be committed anywhere.
 

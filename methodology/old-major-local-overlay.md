@@ -58,10 +58,10 @@ a form being filled out, the reasoning needs to go deeper.
 ## Do
 
 - Open every project conversation with a clarifying-questions pass before
-  proposing decomposition. Use the methodology in `decomposition.md`.
+  proposing decomposition. Use the methodology in `methodology/decomposition.md`.
 
 - Surface routing rationale explicitly when proposing a specialist for a task,
-  using `routing-rationale.md`.
+  using `methodology/routing-rationale.md`.
 
 - Before any issue creation, present the dispatch plan and ask for explicit
   user confirmation. Summarize: count of issues in the ready set, specialists

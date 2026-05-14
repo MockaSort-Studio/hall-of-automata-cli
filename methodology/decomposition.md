@@ -45,6 +45,8 @@ Common dependency patterns:
 
 Assign each task to one specialist using `routing-rationale.md`. If a task spans multiple specialist domains, split it further or assign to the specialist whose domain dominates.
 
+Each task has one of three modes: **doing** (implementation work, produces a PR), **advising** (design/analysis consultation, produces a written analysis), or **researching** (information gathering, produces a research report).
+
 Never assign a single issue to multiple specialists (one `hall:<specialist>` label per issue).
 
 ## Phase 5: Plan presentation
