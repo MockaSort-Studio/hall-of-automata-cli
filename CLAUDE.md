@@ -20,4 +20,12 @@ cc --plugin-dir /home/mike/Workspace/hall-of-automata-cli
 
 # Debug plugin loading, hooks, MCP
 cc --plugin-dir . --debug
+
+# Run full plugin validation
+bash tests/validate-plugin.sh
+
+# Run hook unit tests
+bash tests/hooks/test-guard-writes.sh
+bash tests/hooks/test-session-start.sh
+bash tests/hooks/test-watcher.sh
 ```
