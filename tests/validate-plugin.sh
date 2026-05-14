@@ -22,6 +22,7 @@ check "mcp.json has sequential-thinking" "python3 -c \"import json,sys; d=json.l
 check "mcp.json has fetch"      "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'fetch' in d else 1)\""
 check "mcp.json has github"        "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'github' in d else 1)\""
 check "mcp.json has google-drive"  "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'google-drive' in d else 1)\""
+check "plan.json.schema is valid JSON"  "python3 -m json.tool templates/plan.json.schema"
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
