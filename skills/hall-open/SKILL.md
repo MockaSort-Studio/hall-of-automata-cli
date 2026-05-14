@@ -183,6 +183,41 @@ Read and apply the assembled stack directly so Old Major activates now, without 
 
 Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session. The @-imports include all fetched advisory specialist personas — the exact set is determined by what was discovered from the Hall roster in Step 3.
 
+### Step 9.5: Automation config
+
+Check whether an automation preference is already stored for this session:
+
+```bash
+python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('automation_level','missing'))" \
+  < .hall-cache/session/config.json 2>/dev/null || echo "missing"
+```
+
+If the output is `0`, `1`, or `2`, skip this step — do not ask again.
+
+If the output is `missing`, ask the invoker these two questions in sequence. Use the `AskUserQuestion` tool if available in session context; otherwise ask as plain text and wait for a response before continuing.
+
+**Question 1:** "Auto-review? Should Old Major automatically dispatch a review after each specialist PR?"
+
+**Question 2 (only if Question 1 is Yes):** "Auto-merge? If the review verdict is LGTM, should Old Major merge without invoker action?"
+
+Map answers to automation level:
+
+| Auto-review | Auto-merge | Level | Name |
+|---|---|---|---|
+| No | — | 0 | manual |
+| Yes | No | 1 | review |
+| Yes | Yes | 2 | full |
+
+Write the config:
+
+```bash
+python3 -c "import json; open('.hall-cache/session/config.json','w').write(json.dumps({'automation_level': <LEVEL>, 'auto_review': <bool>, 'auto_merge': <bool>}, indent=2))"
+```
+
+Replace `<LEVEL>` with the integer and `<bool>` with `true`/`false` based on the invoker's answers.
+
+Confirm to the invoker: `"Automation level set to <N> (<name>). Stored in .hall-cache/session/config.json."`
+
 ### Step 10: Check for existing plans
 
 ```bash
