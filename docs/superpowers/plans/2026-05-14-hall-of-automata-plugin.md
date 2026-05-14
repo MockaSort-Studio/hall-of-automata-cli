@@ -93,7 +93,8 @@ check ".mcp.json exists"          "test -f .mcp.json"
 check ".mcp.json valid JSON"      "python3 -m json.tool .mcp.json"
 check "mcpServers has sequential-thinking" "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'sequential-thinking' in d else 1)\""
 check "mcpServers has fetch"      "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'fetch' in d else 1)\""
-check "mcpServers has github"     "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'github' in d else 1)\""
+check "mcpServers has github"        "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'github' in d else 1)\""
+check "mcpServers has google-drive"  "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'google-drive' in d else 1)\""
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
@@ -141,6 +142,10 @@ Expected: FAIL — files don't exist yet.
     "headers": {
       "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
     }
+  },
+  "google-drive": {
+    "type": "http",
+    "url": "https://drivemcp.googleapis.com/mcp/v1"
   }
 }
 ```
@@ -472,6 +477,36 @@ You are operating outside the Hall, in a developer's local Claude Code session.
 You retain your full persona (voice, judgment, refusal patterns) but operate
 under additional local-scope constraints.
 
+## Engineering standard
+
+You are the technical lead of this project. Act like it.
+
+You reason like a principal engineer: you have opinions, you push back on bad
+decompositions, you know what good software looks like and you carry that
+judgment into every issue you write and every plan you propose.
+
+Specifically:
+
+- **Small, focused files.** Every implementation issue you file must include the
+  code quality constraint (see below). ~200 lines hard ceiling. Prefer many
+  small files over fewer large ones. No duplicated logic.
+- **Explicit over magic.** Types wherever the language supports them. Naming is
+  documentation. No clever indirection that saves lines but costs readers.
+- **Minimal surface area.** The right API is the smallest one that solves the
+  problem. Push back on scope creep in task descriptions.
+- **Push back on bad decompositions.** If a task would result in a PR too large
+  to review, too tightly coupled to parallelize, or assigned to the wrong
+  specialist, say so and propose better. Do not dispatch work you wouldn't be
+  comfortable reviewing.
+- **Ask the questions that matter.** Not to fill a form — to surface the
+  non-obvious assumptions that will invalidate the plan later. If the user's
+  requirements are ambiguous on something that affects architecture, probe it
+  before proposing decomposition.
+
+The test: would a principal engineer at a high-engineering-standards company
+be comfortable having this plan attributed to them? If the output reads like
+a form being filled out, the reasoning needs to go deeper.
+
 ## Local rules
 
 1. Your working area is `.hall-cache/` at the repo root. All durable session
@@ -655,7 +690,7 @@ OR does it need tools the prepacked MCPs don't provide (LSPs, deep repo introspe
 
 Answer the question yourself using the loaded advisory frameworks.
 
-Triggers: directory structure preferences, technology naming, "is this a reasonable approach", quick API surface sanity checks, "what would Tomashco say about this pattern".
+Triggers: directory structure preferences, technology naming, "is this a reasonable approach", quick API surface sanity checks, "what would the backend specialist say about this pattern".
 
 Cost: just continued conversation.
 
@@ -675,12 +710,14 @@ After a substantive Tier 2 consultation, propose saving the output. Default: `.h
 
 File a `hall:<specialist>` issue.
 
-Always for: implementation work (doing mode — Hamlet, Pyrate, mergio, frontend implementation).
+Always for: implementation work (doing mode). Implementation specialists need their full tooling (LSPs, deep repo access) and are Hall-only.
 
-For advisory work (Tomashco, Frontenzo, aeeeiii) when:
+For advisory work when:
 - The analysis must be durable and team-visible
 - Sustained iteration is expected
 - The specialist needs tools the prepacked MCPs don't cover
+
+For the current specialist roster and their `hall:<label>` values, see [hall-codex — Roster](https://mockasort-studio.github.io/hall-codex/roster/).
 
 ## User overrides
 
@@ -694,38 +731,33 @@ The user can always override: "just file that as a research issue" or "what's yo
 
 When proposing a specialist assignment, record the reasoning explicitly — both in the pre-dispatch conversation and in the issue body. This replaces the audit trail that upstream Old Major would normally produce.
 
-## Specialist roster and domains
+## Specialist roster
 
-| Specialist | Hall label | Domain | Notes |
-|---|---|---|---|
-| Hamlet | `hall:hamlet` | C++ | Systems-level C++, performance-critical code, memory management |
-| Pyrate | `hall:pyrate` | Python | Python services, scripts, data pipelines, ML glue code |
-| mergio | `hall:mergio` | CI/CD | GitHub Actions, Docker, deployment pipelines, infrastructure-as-code |
-| Tomashco | `hall:tomashco` | Backend/systems design | Architecture review, API design, distributed systems (advisory or implementation) |
-| Frontenzo | `hall:frontenzo` | Frontend critique | UI/UX review, accessibility, frontend architecture (advisory) |
-| aeeeiii | `hall:aeeeiii` | Research | Literature review, technology comparison, deep-dive analysis |
+The Hall's specialist roster is maintained at [hall-codex — Roster](https://mockasort-studio.github.io/hall-codex/roster/). Do not hardcode specialist names in this methodology — read the roster. Each specialist has a `hall:<name>` label used for dispatch.
+
+At session start, `/hall:open` fetches the advisory specialist personas and caches them. Old Major should reference the cached files to understand each specialist's domain before routing.
 
 ## Assignment heuristics
 
-**Language is the primary signal for implementation tasks.** If the task is "implement X in Python," Pyrate gets it. Don't over-think it.
+**Language is the primary signal for implementation tasks.** Match the task's primary language/technology to the specialist whose domain covers it. Don't over-think it.
 
-**CI/CD is mergio's domain regardless of language.** A GitHub Actions workflow for a Python project goes to mergio, not Pyrate.
+**CI/CD is its own domain regardless of language.** A GitHub Actions workflow for any project goes to the CI/CD specialist.
 
-**For tasks that span domains, assign by the dominant work.** A task that's 80% Python with a small Actions change goes to Pyrate, who can handle the workflow file.
+**For tasks that span domains, assign by the dominant work.** A task that's 80% Python with a small CI change goes to the Python specialist.
 
-**Advisory specialists (Tomashco, Frontenzo, aeeeiii) take advisory or research tasks.** Implementation that happens to touch their domain (e.g., "build the REST API") goes to a language specialist, not Tomashco.
+**Advisory specialists take advisory or research tasks.** Implementation that touches their domain still goes to an implementation specialist — advisory specialists are for analysis, not implementation.
 
 ## Rationale format
 
 In the dispatch confirmation summary, explain each assignment in one sentence:
-> "Pyrate: pure Python service logic, no frontend surface, no infrastructure changes."
-> "mergio: this task is entirely a CI pipeline addition, language-agnostic."
+> "<Specialist>: pure Python service logic, no frontend surface, no infrastructure changes."
+> "<Specialist>: entirely a CI pipeline addition, language-agnostic."
 
 In the issue body, include a `## Routing` section:
 ```markdown
 ## Routing
 
-Assigned to Pyrate. Rationale: this task implements the deduplication window in Python with no frontend surface, external API dependencies, or infrastructure changes. Pure Python logic within an existing service.
+Assigned to <Specialist>. Rationale: this task implements <description> with no <out-of-domain surfaces>. Dominant work is <domain>.
 ```
 
 ## What not to include in routing rationale
@@ -946,7 +978,7 @@ git commit -m "feat: session stack and subagent overlay templates"
           "title": { "type": "string" },
           "specialist": {
             "type": "string",
-            "enum": ["hamlet", "pyrate", "mergio", "tomashco", "frontenzo", "aeeeiii"]
+            "description": "hall:<name> suffix for the assigned specialist. Valid values from hall-codex roster: https://mockasort-studio.github.io/hall-codex/roster/"
           },
           "mode": {
             "type": "string",
@@ -1063,7 +1095,7 @@ Warn if the timestamp is >24h ago or the file doesn't exist.
 
 ### 7. MCP connectivity (⚠ for each failed server)
 
-Run `claude mcp list` and check for ✓ Connected status on `sequential-thinking`, `fetch`, and `github`.
+Run `claude mcp list` and check for ✓ Connected status on `sequential-thinking`, `fetch`, `github`, and `google-drive`.
 
 ### 8. Hall quota (informational)
 
@@ -1414,9 +1446,9 @@ Find the active plan and read its `plan.json`.
 
 ```
 flowchart LR
-  t1["Task 1 title\nPyrate · MERGED"] --> t3["Task 3 title\nmergio · PLANNED"]
-  t2["Task 2 title\nHamlet · IN_PROGRESS"] --> t3
-  t1 --> t4["Task 4 title\nTomashco · PLANNED"]
+  t1["Task 1 title\nSpecialist-A · MERGED"] --> t3["Task 3 title\nSpecialist-C · PLANNED"]
+  t2["Task 2 title\nSpecialist-B · IN_PROGRESS"] --> t3
+  t1 --> t4["Task 4 title\nSpecialist-D · PLANNED"]
 ```
 
 Color nodes by status: MERGED=green, IN_PROGRESS=blue, AWAITING_INPUT=yellow, BLOCKED=gray, FAILED=red, PLANNED=white.
@@ -1530,10 +1562,10 @@ Display before any filing:
 ```
 Ready to dispatch N tasks:
 
-  Task 1 title → Pyrate (hall:pyrate) [doing]
-    Routing: pure Python service logic, no infrastructure changes.
-  Task 2 title → mergio (hall:mergio) [doing]
-    Routing: entirely a CI pipeline addition.
+  Task 1 title → <specialist-A> (hall:<specialist-A>) [doing]
+    Routing: <rationale>.
+  Task 2 title → <specialist-B> (hall:<specialist-B>) [doing]
+    Routing: <rationale>.
 
 Dispatch order: Task 1 at T+0, Task 2 at T+15s (15s inter-dispatch jitter).
 Estimated turn budget: ~40 turns per task.
@@ -1590,8 +1622,8 @@ After filing, update task status in `plan.json` to DISPATCHED and record `github
 
 ```
 Dispatched N tasks:
-  Issue #142 → Task 1 title (Pyrate)
-  Issue #143 → Task 2 title (mergio) [filed at T+15s]
+  Issue #142 → Task 1 title (<specialist-A>)
+  Issue #143 → Task 2 title (<specialist-B>) [filed at T+15s]
 
 M tasks remain blocked on: [dependency list]
 ```
@@ -1990,7 +2022,7 @@ git commit -m "feat: full plugin validation suite and updated dev commands"
 | Persona fetch + 24h cache | Task 8 (Step 3) |
 | Methodology injection | Task 4 + Task 8 (Step 4) |
 | CLAUDE.md injection (with existing-file detection) | Task 8 (Step 7) |
-| Subagent generation (Tomashco, Frontenzo, aeeeiii) | Task 5 + Task 8 (Step 5) |
+| Subagent generation (advisory specialists) | Task 5 + Task 8 (Step 5) |
 | Guard-writes hook | Task 2 |
 | Session-start hook | Task 3 |
 | Three-tier consultation router (methodology file) | Task 4 (Step 3) |
@@ -2005,7 +2037,7 @@ git commit -m "feat: full plugin validation suite and updated dev commands"
 | Background watcher daemon | Task 13 |
 | plan.json schema | Task 6 |
 | `.hall-cache/` directory structure | Tasks 8, 6 |
-| MCP servers (sequential-thinking, fetch, github) | Task 1 |
+| MCP servers (sequential-thinking, fetch, github, google-drive) | Task 1 |
 | Gitignore auto-management | Tasks 3, 8 |
 
 All spec requirements are covered. No gaps found.

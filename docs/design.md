@@ -6,34 +6,22 @@ Companion brief for [MockaSort-Studio/hall-of-automata](https://github.com/Mocka
 
 ## 1. What This Plugin Is
 
-### The Problem
+The Hall of Automata dispatches specialist AI agents via GitHub Issues — one issue per task, one specialist per issue, everything sandboxed. It handles single tasks well. It breaks down for multi-task projects because agents can't coordinate: no shared state, no dependency awareness, no inter-agent communication.
 
-The Hall of Automata dispatches specialist AI agents via GitHub Issues — one issue per task, one specialist per issue, everything sandboxed and isolated. It works well for single, well-scoped tasks. It breaks down for multi-task projects because agents can't talk to each other, share state, or wait for each other's work to land.
+The documented workaround is manual: describe the whole project to the Hall's Old Major orchestrator, have him decompose it, review the result, then hand-file sub-issues yourself in dependency order while watching for each to complete. This plugin replaces the human doing that work.
 
-The documented workaround is manual: open one issue describing the whole project, ask Old Major (the Hall's orchestrator persona) to decompose it, review the output, then hand-file sub-issues yourself in dependency order, watching for each to complete before filing the next.
+### What it does
 
-This plugin replaces the human doing that coordination work.
+Old Major lives persistently in your Claude Code terminal. You have a design conversation with him; he plans and dispatches the work, holds back dependent tasks until their parents land, surfaces anything that needs your attention, and picks up where he left off if you close and reopen the session.
 
-### What It Does
+It also lowers the entry barrier. Using the Hall well today requires knowing its dispatch mechanics (labels, modes, invoker pools). With this plugin, you describe what you want built; Old Major handles the grammar.
 
-The plugin gives Old Major a persistent local home — your Claude Code terminal — from which he:
+### What it does not do
 
-- Has a design conversation with you until he understands the project well enough to plan it
-- Decomposes the project into well-scoped tasks assigned to the right specialists
-- Files all unblocked tasks in parallel (15 s apart to avoid the Hall's known invoker-pool race), holding back dependent tasks until their parents land
-- Watches for state changes on GitHub (comments needing your input, PRs opening, merges happening, failures triggering post-mortem)
-- Surfaces only what needs your attention; stays quiet otherwise
-- Picks up exactly where he left off if you close and reopen Claude Code
-
-### What It Does Not Do
-
-| Non-goal | Rationale |
-|---|---|
-| Write code | Implementation specialists have the right tools (LSPs, repo access). Local Old Major would do worse work and conflating roles muddles design. |
-| Replace the Hall | The Hall is the substrate. Every implementation task still runs in a Hall runner with its quota, audit log, and post-mortem loop. |
-| Fix failed dispatches | When `hall:post-mortem` fires, the Hall's own Old Major analyzes it. Local Old Major pauses dependent work and waits. |
-| Coordinate teams | State is per-user. Two people on the same repo each have their own Old Major. They coordinate through GitHub Issues. (Shared kanban view is future work — see §9.) |
-| Replace Claude Code's plan mode | Old Major is not a better planner; he's a domain-specific orchestrator that speaks the Hall's dispatch grammar. |
+- **Write code.** Implementation always runs in a Hall specialist's sandboxed runner with the right tooling. Old Major plans and coordinates; he doesn't implement.
+- **Replace the Hall.** Every implementation task still runs in a Hall runner, with its quota, audit log, and post-mortem loop.
+- **Fix failed dispatches.** When `hall:post-mortem` fires, the Hall's own infrastructure handles analysis. Old Major pauses dependent work and waits.
+- **Coordinate teams.** State is per-user. Two people on the same repo each have their own Old Major. They coordinate through GitHub Issues. (Cross-user views are future work — see §9.)
 
 ---
 
@@ -41,311 +29,267 @@ The plugin gives Old Major a persistent local home — your Claude Code terminal
 
 ### GitHub is the only transport
 
-The plugin never touches the Hall's infrastructure directly. Every interaction goes through GitHub: filing issues (with the right `hall:<specialist>` labels), reading comments, watching label changes, viewing PRs. The `gh` CLI handles all of this. The plugin is insulated from changes to the Hall's webhook relay, workflow files, and invoker auth model.
+The plugin never touches the Hall's infrastructure directly. All interaction goes through GitHub: filing issues with the right labels, reading comments, watching label changes, viewing PRs. The `gh` CLI handles everything. The plugin is insulated from changes to the Hall's webhook relay, workflow files, and invoker auth model.
 
 ### Personas live upstream; methodology lives in the plugin
 
-The Hall's persona files (`automaton_base.md`, `old-major.md`, advisory specialist personas) live in the `hall-of-automata` repository and are never edited by this plugin. The plugin fetches them at session start, caches them for 24 hours, and assembles a session stack on top of them.
-
-What the plugin *owns* is the methodology layer: how Old Major decomposes work, routes consultations, manages quota, chooses specialists, and records rationale. There is no persona duplication.
+The Hall's persona files (`automaton_base.md`, `old-major.md`, specialist personas) live in `hall-of-automata` and are fetched at session start, cached 24 hours, never edited by this plugin. The plugin owns only the methodology layer: how Old Major decomposes work, routes consultations, manages quota, and records rationale. No persona duplication.
 
 ### Session mode via CLAUDE.md injection
 
-Claude Code resolves `@`-import directives in CLAUDE.md at session load. The plugin uses this mechanism to assemble Old Major:
+Claude Code resolves `@`-import directives in CLAUDE.md at session load. `/hall:open` assembles the full persona + methodology stack into `.hall-cache/session/CLAUDE-stack.md` and writes (or appends to) a workspace-root `CLAUDE.md` containing one import line pointing to it. The two-level indirection keeps the workspace root clean and lets the stack evolve inside the gitignored cache.
 
-1. `/hall:open` writes `.hall-cache/session/CLAUDE-stack.md` — the assembled stack that imports upstream persona files and plugin methodology overlays in order.
-2. `/hall:open` then writes (or appends to) a workspace-root `CLAUDE.md` containing one line: `@.hall-cache/session/CLAUDE-stack.md`.
-3. Claude Code resolves the chain; the session carries the full persona + methodology.
-4. Within the same `/hall:open` invocation, the command reads and applies the assembled stack directly, so Old Major activates immediately without a session restart.
+Within the same `/hall:open` invocation, the assembled stack is applied directly to the current session — Old Major activates immediately without a restart. The CLAUDE.md injection ensures he loads automatically on future session starts.
 
-The two-level indirection keeps the workspace root clean and lets the session stack evolve inside the gitignored cache without touching the workspace.
+### Direct specialist dispatch
 
-### Direct specialist dispatch (bypassing Hall triage)
+The Hall's normal entry path uses `hall:dispatch-automaton` for upstream triage. The plugin skips this — local Old Major has already done the analysis in conversation. Issues are filed with `hall:<specialist>` labels directly (the [documented power-user path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users)), with routing rationale written into the issue body to preserve the audit trail.
 
-The Hall's normal entry path is `hall:dispatch-automaton`, which asks the Hall's own Old Major to triage and route. The plugin skips this — local Old Major has already done the analysis in conversation. Issues are filed with `hall:<specialist>` labels directly (the [documented power-user path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users)).
+### Dependency tracking is local
 
-The routing rationale that upstream Old Major would normally produce is instead written into the issue body by local Old Major, preserving the audit trail without the round-trip.
-
-### Dependency tracking is entirely local
-
-The Hall has no native notion of inter-task dependencies. The dependency graph lives in `.hall-cache/plans/<plan>/plan.json`, and Old Major is the sole enforcer. GitHub wins on conflict (plan reconciles against GitHub state before every dispatch).
+The Hall has no native notion of inter-task dependencies. The dependency graph lives in `.hall-cache/plans/<plan>/plan.json`. GitHub wins on any conflict — reconciliation runs before every dispatch.
 
 ### Parallel dispatch is the default
 
-The *ready set* at any point is every task whose parent PRs have merged (or whose advisory/research parents have posted their analysis). When the user approves dispatch, Old Major fires the entire ready set as a batch — issues created 15 s apart to respect the invoker-pool race, but specialists run concurrently in their own runners from that point.
+The ready set at any point is every task whose parent PRs have merged (or whose advisory parents have posted analysis). Old Major fires the entire ready set as a batch — issues created 15 s apart to respect the Hall's known invoker-pool race, but specialists then run concurrently in their own runners.
 
 ---
 
-## 3. Component Map
+## 3. Old Major's Persona and Engineering Standard
+
+Old Major is not a process-follower. He operates as the technical lead of the project — a principal engineer with taste, judgment, and opinions. His persona is assembled from upstream Hall files plus plugin-owned methodology overlays, but the quality of his reasoning must match that standard.
+
+### Principal engineer expectations
+
+Old Major applies engineering judgment, not just methodology:
+
+- **He pushes back.** If a proposed decomposition would produce tasks too large to review, too tightly coupled to parallelize, or assigned to the wrong specialist, he says so and proposes better.
+- **He asks the right questions.** Not to fill a form — to surface the non-obvious assumptions that will invalidate a plan later. If the user has answered something ambiguously, he probes it.
+- **He has taste.** He knows what good software looks like: small focused files, no duplicated logic, explicit over implicit, minimal surface area. He carries this into every issue he writes.
+- **He stewards quota like an engineer, not a scheduler.** He understands the Hall's infrastructure limitations and makes recommendations that are good for the project, not just technically compliant.
+
+### Borys Cherny engineering principles (carried into every dispatch)
+
+These are non-negotiable in every implementation issue Old Major files:
+
+- Files are small enough for a human to review in one read (~200 lines hard ceiling)
+- Prefer many small focused files over fewer large ones
+- No duplicated logic
+- Explicit over magic; types wherever the language supports them
+- Code is written to be read; naming is documentation
+
+### Persona quality standard
+
+The methodology overlays are not checklists — they are the reasoning patterns of a senior technical leader. When writing or tuning them, the test is: *would a principal engineer at a company with high engineering standards be comfortable having this attributed to them?* If the output reads like a form being filled out, the methodology needs to be better.
+
+---
+
+## 4. Component Map
 
 ```
 hall-of-automata-cli/
 ├── .claude-plugin/
-│   └── plugin.json                  # manifest
+│   └── plugin.json
 │
-├── skills/                          # all user-invoked commands and any auto-triggers
+├── skills/                          # all user-invoked commands
 │   ├── hall-open/SKILL.md           # /hall:open
 │   ├── hall-close/SKILL.md          # /hall:close
-│   ├── hall-doctor/SKILL.md         # /hall:doctor (preflight diagnostics)
-│   ├── hall-plan/SKILL.md           # /hall:plan (force-dump plan)
-│   ├── hall-status/SKILL.md         # /hall:status (render board)
-│   ├── hall-dispatch/SKILL.md       # /hall:dispatch (explicit dispatch step)
-│   ├── hall-reply/SKILL.md          # /hall:reply <task_id> <message>
-│   ├── hall-reconcile/SKILL.md      # /hall:reconcile (resync from GitHub)
-│   ├── hall-consultations/SKILL.md  # /hall:consultations (list/view/prune)
-│   └── hall-prune/SKILL.md          # /hall:prune (clean old plans/cache)
+│   ├── hall-doctor/SKILL.md         # /hall:doctor
+│   ├── hall-plan/SKILL.md           # /hall:plan
+│   ├── hall-status/SKILL.md         # /hall:status
+│   ├── hall-dispatch/SKILL.md       # /hall:dispatch
+│   ├── hall-reply/SKILL.md          # /hall:reply
+│   ├── hall-reconcile/SKILL.md      # /hall:reconcile
+│   ├── hall-consultations/SKILL.md  # /hall:consultations
+│   └── hall-prune/SKILL.md          # /hall:prune
 │
-├── methodology/                     # plugin-owned Old Major methodology overlays
-│   ├── old-major-local-overlay.md   # the do/don't contract for local session mode
-│   ├── decomposition.md             # how to break a project into well-sized tasks
-│   ├── consultation-router.md       # inline vs subagent vs Hall issue decision tree
-│   ├── routing-rationale.md         # how to choose and document specialist assignment
-│   └── advisory-frameworks/
-│       ├── tomashco.md              # backend/systems analytical lens (inline coverage)
-│       ├── frontenzo.md             # frontend critique lens
-│       └── aeeeiii.md               # research/synthesis lens
+├── methodology/                     # plugin-owned Old Major overlays
+│   ├── old-major-local-overlay.md   # do/don't contract for local session
+│   ├── decomposition.md             # project decomposition methodology
+│   ├── consultation-router.md       # inline vs subagent vs Hall issue
+│   ├── routing-rationale.md         # specialist selection and documentation
+│   └── advisory-frameworks/        # inline advisory coverage per specialist type
 │
 ├── templates/
 │   ├── CLAUDE-stack.md.tpl          # session stack assembly template
-│   ├── subagents/
-│   │   ├── tomashco.md.tpl          # subagent overlay for Tier-2 Tomashco
-│   │   ├── frontenzo.md.tpl         # subagent overlay for Tier-2 Frontenzo
-│   │   └── aeeeiii.md.tpl           # subagent overlay for Tier-2 aeeeiii
-│   └── plan.json.schema             # JSON schema for plan files
+│   ├── subagents/                   # per-specialist subagent overlays
+│   └── plan.json.schema
 │
 ├── hooks/
-│   ├── hooks.json                   # hook configuration
+│   ├── hooks.json
 │   └── scripts/
-│       ├── guard-writes.sh          # PreToolUse: block writes outside allowed paths
-│       ├── session-start.sh         # SessionStart: verify .hall-cache state
+│       ├── guard-writes.sh          # PreToolUse: block writes outside .hall-cache/
+│       ├── session-start.sh         # SessionStart: detect interrupted sessions
 │       └── watcher.sh               # background GitHub polling daemon
 │
-└── .mcp.json                        # sequential-thinking, fetch, github MCPs
+└── .mcp.json                        # sequential-thinking, fetch, github, google-drive
 ```
 
 ---
 
-## 4. Session Lifecycle
+## 5. Session Lifecycle
 
 ### `/hall:open` sequence
 
-1. **Preflight** — run the same checks as `/hall:doctor` and abort on hard failures (no `gh` auth, Hall App not installed on target org, user not in invoker pool).
-2. **Persona fetch** — pull `automaton_base.md` and `old-major.md` from `hall-of-automata` via `gh`. Cache at `.hall-cache/personas/` with a 24 h TTL. Skip if cached and fresh.
-3. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`. These are the plugin's own files; they don't need a TTL.
-4. **Subagent generation** — render `templates/subagents/*.md.tpl` into `.hall-cache/session/claude-agents/` using the cached advisory personas. These are one-shot files; regenerated each open.
-5. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`, importing personas and methodology in order.
-6. **CLAUDE.md injection** — check workspace root for an existing `CLAUDE.md`:
-   - If none: write `@.hall-cache/session/CLAUDE-stack.md`.
-   - If present and already has the import line: no-op.
-   - If present without the import line: prompt user; on consent, append line; on refusal, warn that the stack won't load on next session restart.
-7. **Gitignore check** — verify `.hall-cache/` is in `.gitignore`; add it if not.
-8. **Context injection** — read the assembled stack and apply it in the current conversation, activating Old Major immediately.
-9. **Banner** — Old Major introduces himself and asks what you want to build.
+1. **Preflight** — same checks as `/hall:doctor`. Hard-stop: no `gh` auth, Hall App not installed. Warn and continue: no `GITHUB_PERSONAL_ACCESS_TOKEN`, user not in invoker pool (plan-only mode).
+2. **Gitignore** — add `.hall-cache/` if missing.
+3. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata` via `gh`. Cache at `.hall-cache/personas/` with 24 h TTL. Skip if fresh; `--refresh` forces re-fetch.
+4. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`.
+5. **Subagent generation** — render `templates/subagents/*.md.tpl` into `.hall-cache/session/claude-agents/`.
+6. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
+7. **CLAUDE.md injection** — if no workspace-root `CLAUDE.md`: write the import line. If one exists without the import: prompt user, append on consent, warn on refusal. Never silently overwrite.
+8. **Context injection** — read and apply the assembled stack in the current session; Old Major activates immediately.
+9. **Plan check** — if plans exist in `.hall-cache/plans/`, offer to resume.
+10. **Banner** — Old Major introduces himself.
 
 ### `/hall:close` sequence
 
-1. Remove workspace-root `CLAUDE.md` (or remove just the import line if the file had pre-existing content).
-2. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
-3. Kill the watcher daemon if running (`.hall-cache/watcher.pid`).
-4. Return the session to normal Claude Code.
+1. Remove workspace-root `CLAUDE.md` or just the import line if the file had pre-existing content.
+2. Kill the watcher daemon if running.
+3. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
 
 ---
 
-## 5. Persona Stack (load order)
+## 6. Persona Stack (load order)
 
 | File | Origin | Purpose |
 |---|---|---|
-| `personas/automaton_base.md` | Fetched from `hall-of-automata/agents/automaton_base.md` | Tone conventions, refusal patterns, signature conventions shared by all Hall automata |
-| `personas/old-major.md` | Fetched from `hall-of-automata/roster/old-major.md` | Old Major's full upstream persona: voice, domains, judgment |
-| `methodology/old-major-local-overlay.md` | Plugin-owned | Local-mode contract — the Do/Don't rules for session-mode operation |
+| `personas/automaton_base.md` | Fetched from `hall-of-automata` | Tone, refusal patterns, signature conventions shared by all Hall automata |
+| `personas/old-major.md` | Fetched from `hall-of-automata` | Old Major's upstream persona: voice, domains, judgment |
+| `methodology/old-major-local-overlay.md` | Plugin-owned | Local-mode contract: do/don't rules and principal engineer standard |
 | `methodology/decomposition.md` | Plugin-owned | Project decomposition methodology |
 | `methodology/consultation-router.md` | Plugin-owned | Consultation tier decision tree |
-| `methodology/routing-rationale.md` | Plugin-owned | Specialist selection and documentation |
-| `methodology/advisory-frameworks/*.md` | Plugin-owned | Inline advisory coverage (shallow questions Old Major handles himself) |
+| `methodology/routing-rationale.md` | Plugin-owned | Specialist selection and issue documentation |
+| `methodology/advisory-frameworks/*.md` | Plugin-owned | Inline advisory coverage for shallow questions |
 
 ---
 
-## 6. Three-Tier Consultation System
+## 7. Three-Tier Consultation System
 
-When Old Major needs specialist depth, he uses one of three tiers — decided by `consultation-router.md`, not by the user (unless the user overrides).
-
-### Tier 1 — Inline
-Old Major answers using the loaded advisory frameworks. For: shallow architectural sanity-checks, naming, directory structure preferences, "does this feel right" judgments. Cost: free. **Most consultations should land here** — over-eager escalation to subagents is a named failure mode.
-
-### Tier 2 — Subagent
-Old Major spawns a Claude Code subagent loaded with the upstream advisory persona + a small local-mode subagent overlay. Prepacked MCPs: `sequential-thinking`, `fetch`, `github`. The subagent produces its analysis and returns. For: substantive design analysis that's private to the current conversation and doesn't need to be referenced by future work. **Iteration cap: 2 meaningful exchanges with the same specialist on the same topic** — after that, Old Major proposes escalating to Tier 3.
-
-### Tier 3 — Hall Issue
-Old Major files a `hall:<specialist>` issue. For: all implementation work (always Tier 3); advisory or research work that must be durable and team-visible, or that needs tools the prepacked MCPs don't provide.
-
-| Specialist | Available as Tier 2? | Available as Tier 3? | Notes |
+| Tier | Mechanism | When | Iteration cap |
 |---|---|---|---|
-| Tomashco (backend/systems) | ✓ | ✓ | |
-| Frontenzo (frontend critique) | ✓ | ✓ | |
-| aeeeiii (research) | ✓ | ✓ | |
-| Hamlet (C++) | ✗ | ✓ | Implementation — Hall-only |
-| Pyrate (Python) | ✗ | ✓ | Implementation — Hall-only |
-| mergio (CI/CD) | ✗ | ✓ | Implementation — Hall-only |
+| **1 — Inline** | Old Major answers using loaded advisory frameworks | Shallow checks, naming, "does this feel right" | None — most consultations should land here |
+| **2 — Subagent** | Spawn one-shot subagent with upstream advisory persona + local overlay + prepacked MCPs | Substantive private analysis not requiring durability | 2 meaningful exchanges; escalate to Tier 3 after |
+| **3 — Hall issue** | File `hall:<specialist>` issue | All implementation work; advisory work that must be durable, team-visible, or needs tools beyond the prepacked MCPs | N/A |
+
+The user can always override tier selection. Implementation work is always Tier 3 — implementation specialists need their full tooling (LSPs, deep repo access) and are Hall-only. Advisory specialists are available at Tier 2 and Tier 3; the router decides based on durability and iteration needs.
+
+For the current specialist roster and their domains, see [hall-codex — Roster](https://mockasort-studio.github.io/hall-codex/roster/).
 
 ---
 
-## 7. Data: `.hall-cache/` Layout and Schemas
+## 8. Data: `.hall-cache/` Layout
 
 ```
 .hall-cache/
 ├── personas/                       # 24 h TTL
 │   ├── automaton_base.md
 │   ├── old-major.md
+│   ├── <specialist>.md             # one per advisory specialist
 │   └── .fetched_at                 # RFC3339 timestamp
 │
 ├── methodology/                    # copied from plugin at /hall:open
-│   ├── old-major-local-overlay.md
-│   ├── decomposition.md
-│   ├── consultation-router.md
-│   ├── routing-rationale.md
-│   └── advisory-frameworks/
 │
 ├── session/                        # recreated each /hall:open
 │   ├── CLAUDE-stack.md
-│   └── claude-agents/
-│       ├── tomashco.md
-│       ├── frontenzo.md
-│       └── aeeeiii.md
+│   └── claude-agents/              # generated subagent definitions
 │
-├── plans/                          # append-only by date + slug
-│   └── 2026-05-12-kafka-ingest/
+├── plans/                          # append-only; never overwritten
+│   └── YYYY-MM-DD-<slug>/
 │       ├── plan.json               # machine-readable task graph
 │       ├── plan.md                 # human-readable rendering
-│       ├── ledger.json             # dispatch history (immutable log)
+│       ├── ledger.json             # immutable dispatch log
 │       └── consultations/          # saved Tier-2 outputs
 │
-└── watcher.pid                     # PID of background polling daemon (if running)
+└── watcher.pid                     # PID of background polling daemon
 ```
 
-### `plan.json` schema (abbreviated)
+### `plan.json` task schema
 
 ```json
 {
-  "id": "2026-05-12-kafka-ingest",
-  "created_at": "2026-05-12T10:00:00Z",
-  "repo": "org/repo",
-  "tasks": [
-    {
-      "id": "t1",
-      "title": "Implement deduplication window logic",
-      "specialist": "pyrate",
-      "mode": "doing",
-      "status": "MERGED",
-      "github_issue": 142,
-      "github_pr": 147,
-      "depends_on": [],
-      "routing_rationale": "Pure Python logic with no frontend surface; Pyrate owns this domain."
-    }
-  ]
+  "id": "t1",
+  "title": "...",
+  "specialist": "<hall-label-suffix>",
+  "mode": "doing | advising | researching",
+  "status": "PLANNED | READY | DISPATCHED | IN_PROGRESS | AWAITING_INPUT | MERGED | FAILED | BLOCKED | ESCALATED",
+  "github_issue": null,
+  "github_pr": null,
+  "depends_on": ["t0"],
+  "routing_rationale": "...",
+  "issue_body": "..."
 }
 ```
 
-**Task statuses:** `PLANNED` → `READY` (deferred) → `DISPATCHED` → `IN_PROGRESS` → `AWAITING_INPUT` → `MERGED` | `FAILED` | `BLOCKED`
+---
+
+## 9. Hooks
+
+| Hook | Script | Purpose |
+|---|---|---|
+| `PreToolUse: Write\|Edit\|MultiEdit` | `guard-writes.sh` | Block writes anywhere except `.hall-cache/` |
+| `SessionStart` | `session-start.sh` | Detect interrupted sessions; verify gitignore |
+| `Stop` | inline in hooks.json | Kill watcher daemon on session end |
 
 ---
 
-## 8. Hooks
+## 10. MCP Servers
 
-### `PreToolUse: Write|Edit|MultiEdit`
-**Script:** `hooks/scripts/guard-writes.sh`
-Blocks any write to the target repository **except** `.hall-cache/plans/<plan>/plan.md` (and only with explicit user confirmation). This enforces the "Old Major doesn't write code" constraint mechanically.
+Declared in `.mcp.json`. Portable — no project-specific configuration required except credentials via environment variables.
 
-### `SessionStart`
-**Script:** `hooks/scripts/session-start.sh`
-On every session start, checks whether a `.hall-cache/session/CLAUDE-stack.md` exists (indicating an interrupted session). If it does, loads the stack into context and presents a resume prompt.
+| Server | Command | Used by | Purpose |
+|---|---|---|---|
+| `sequential-thinking` | `npx @modelcontextprotocol/server-sequential-thinking` | Old Major + Tier-2 subagents | Structured multi-step reasoning |
+| `fetch` | `uvx mcp-server-fetch` | Old Major + advisory subagents | Pull URLs (papers, live sites, RFCs) |
+| `github` | HTTP `https://api.githubcopilot.com/mcp/` | Old Major | Issue, label, and PR operations beyond `gh` CLI |
+| `google-drive` | HTTP `https://drivemcp.googleapis.com/mcp/v1` | Old Major | Read design docs and specs from Drive on user request |
+
+`github` requires `GITHUB_PERSONAL_ACCESS_TOKEN`. `google-drive` requires Google OAuth — users must authenticate via `claude mcp auth` on first use.
 
 ---
 
-## 9. Known Risks and Mitigations
+## 11. Known Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Persona injection doesn't sustain across long sessions | Stack assembly file is editable mid-session; a `SessionStart` hook re-asserts the overlay automatically. Two-level @-import makes adjustment cheap. |
-| Old Major writes code despite the constraint | `PreToolUse` hook intercepts all writes outside the allowed paths and refuses. |
-| Bulk dispatch worsens the invoker-pool race | Mandatory 15 s jitter between issue creations within each ready set. |
-| Quota exhaustion / thundering-herd retry storm | Steward dispatch: surplus tasks wait locally rather than queuing. User can override but is warned of consequences. |
-| Plan diverges from GitHub state | Reconciliation runs implicitly before every dispatch; GitHub wins on conflict. |
-| Persona cache goes stale | 24 h TTL; `/hall:doctor` shows cache age; explicit refresh via `/hall:open --refresh`. |
-| User not an authorized Hall invoker | Preflight check verifies invoker membership; allows plan-only mode (no dispatch) if not authorized. |
-| User's project already has a `CLAUDE.md` | Detected at first `/hall:open`; user prompted to either append the import line or be warned about next-session behavior. Never silently overwritten. |
-| Subagent context overhead dominates for short consultations | Consultation router requires "substantive analysis needed" threshold for Tier 2; most questions route to Tier 1. |
-| `.hall-cache/` accidentally committed | `SessionStart` hook verifies gitignore presence and re-adds if missing. |
-| Target org doesn't have Hall App installed | Preflight check; refuse to start session mode. |
+| Persona injection doesn't sustain across long sessions | Stack assembly file is editable mid-session; `SessionStart` hook re-asserts overlay automatically |
+| Old Major writes code despite the constraint | `PreToolUse` hook intercepts all writes outside allowed paths and refuses |
+| Bulk dispatch worsens the invoker-pool race | Mandatory 15 s jitter between issue creations within each ready set |
+| Quota exhaustion / thundering-herd retry storm | Steward dispatch holds surplus tasks locally rather than queuing; user can override with explicit warning |
+| Plan diverges from GitHub state | Reconciliation runs before every dispatch; GitHub wins on conflict |
+| Persona cache goes stale | 24 h TTL; `/hall:doctor` shows cache age; `--refresh` forces re-fetch |
+| User not an authorized Hall invoker | Preflight check; plan-only mode if not authorized |
+| User's project already has a `CLAUDE.md` | Detected at first `/hall:open`; user prompted to append or warned; never silently overwritten |
+| `.hall-cache/` accidentally committed | `SessionStart` hook verifies gitignore and re-adds if missing |
+| Target org doesn't have Hall App installed | Preflight check; refuse to start session mode |
 
 ---
 
-## 10. Command Reference
+## 12. Command Reference
 
 | Command | Purpose |
 |---|---|
-| `/hall:open [--refresh]` | Enter session mode. Preflight → fetch personas → assemble stack → inject context → show banner. `--refresh` forces persona re-fetch. |
-| `/hall:close` | Exit session mode. Remove session files; kill watcher; restore session to normal Claude Code. |
-| `/hall:doctor` | Full preflight diagnostic: gh auth, Hall App, invoker membership, gitignore, cache freshness, MCPs, quota state. |
-| `/hall:plan` | Force-dump the current plan as JSON + Markdown + Mermaid dependency diagram. |
-| `/hall:status` | Render the plan board (task list with statuses, in-flight issues, blocked tasks). |
-| `/hall:dispatch [--single <task_id>] [--dry-run]` | Explicit dispatch step. Old Major normally proposes this in conversation. `--dry-run` previews without filing. |
-| `/hall:reply <task_id> <message>` | Post a reply on an issue carrying `hall:awaiting-input`, triggering re-dispatch. |
-| `/hall:reconcile` | Resync local plan state from GitHub. Runs implicitly before any dispatch. |
-| `/hall:consultations [list|view <id>|prune]` | Manage saved Tier-2 subagent consultations. |
-| `/hall:prune [--plans <age>] [--cache]` | Clean older plans or stale persona cache. |
+| `/hall:open [--refresh]` | Enter session mode. Preflight → fetch personas → assemble stack → activate Old Major. |
+| `/hall:close` | Exit session mode. Clean session files; kill watcher. |
+| `/hall:doctor` | Full preflight diagnostic: auth, Hall App, invoker membership, gitignore, cache, MCPs, quota. |
+| `/hall:plan` | Dump current plan as JSON + Markdown + Mermaid dependency diagram. |
+| `/hall:status` | Render plan board: in-flight, awaiting input, blocked, ready, done, failed. |
+| `/hall:dispatch [--single <id>] [--dry-run]` | Dispatch ready tasks. Old Major normally proposes this in conversation. |
+| `/hall:reply <task_id> <message>` | Post reply on an issue carrying `hall:awaiting-input`, triggering re-dispatch. |
+| `/hall:reconcile` | Resync local plan from GitHub. Runs implicitly before any dispatch. |
+| `/hall:consultations [list\|view <id>\|prune]` | Manage saved Tier-2 consultation outputs. |
+| `/hall:prune [--plans <days>] [--cache]` | Clean old plan directories or stale persona cache. |
 
 ---
 
-## 11. MCP Servers
+## 13. Future Work
 
-Declared in `.mcp.json`. Portable — no project-specific configuration required.
-
-| Server | Used by | Purpose |
-|---|---|---|
-| `sequential-thinking` | Old Major + all Tier-2 subagents | Structured multi-step reasoning |
-| `fetch` | Old Major, Tomashco, Frontenzo, aeeeiii | Pull URLs (papers, live sites, RFCs) |
-| `github` | Old Major | Operations on issues, labels, and PRs beyond `gh` CLI defaults |
-
----
-
-## 12. Comment Thread Resolutions
-
-These questions were raised in the original design document and resolved in comments. They are recorded here to prevent reopening.
-
-**Q: What are the limits of the specialist roster? Does this affect the plugin?**
-A: The roster is open-ended — new specialists can be created targeting any technology. If no exact specialist covers a task, Old Major picks the closest. This doesn't affect plugin architecture; the plugin dispatches to whatever `hall:<specialist>` labels exist in the target repo.
-
-**Q: Where does the user interact — terminal or Claude.ai app?**
-A: Claude Code CLI (`cc` / `claude` command). The terminal is the interface. This is a Claude Code plugin, not a web app feature.
-
-**Q: How does Old Major know what questions to ask?**
-A: The `decomposition.md` methodology tells him to look for ambiguities in the stated requirements and ask about them. He's not running a fixed PRD template; he's resolving underdetermination in what you've described.
-
-**Q: Is Old Major's plan mode better than Claude Code's native plan mode?**
-A: They're different things. Claude Code's plan mode is a general-purpose pre-implementation structure tool. Old Major's planning is specifically about decomposing work for the Hall's specialist roster, managing dependencies across Hall-dispatched agents, and quota stewardship. The intelligence comes from persona engineering + injected methodology, not from a different planning engine.
-
-**Q: How is Old Major's multi-task decomposition intelligence achieved?**
-A: Persona engineering. The Hall's vanilla agents run in isolation — no coordination. The Claude Code session provides persistent context. `decomposition.md` and `routing-rationale.md` inject the methodology Old Major uses to structure and assign work.
-
-**Q: Who reviews and merges PRs? The plugin requires the user to do this in v1.**
-A: Yes, intentionally. Keeping the human in the merge loop is a v1 safety constraint while the plugin is being validated in use. A PR review agent that can handle merge for non-technical users is planned for a future version (see §13).
-
-**Q: Do dependencies track main-branch merges or branch merges?**
-A: Main-branch merges. The plugin doesn't model complex branching workflows. A user can override this by telling Old Major the repo uses a `dev` branch; he'd adapt the merge detection logic.
-
-**Q: Could two users' Old Major sessions share a kanban view?**
-A: Not in v1. Each user has an independent local session. They coordinate through GitHub Issues, which are already shared. A cross-user kanban board (keyed by invoker name) is planned for a future version (see §13).
-
----
-
-## 13. Future Work (out of scope for v1)
-
-| Feature | Trigger | Notes |
-|---|---|---|
-| PR review agent | Users who can't judge implementation quality | Optional; keeps human out of merge loop when enabled. Adds overhead during v1 development; deferred intentionally. |
-| Cross-user Old Major kanban | Teams with multiple invokers on the same repo | Each user's Old Major reads a shared per-invoker state file; surfaces coordination needs. Complex concurrency to manage. |
-| Complex git workflow support | Repos using `develop`/`staging` branch patterns | Currently assumes merge = main. Opt-in with explicit context setting. |
-| Watcher daemon (proactive notifications) | Long-running projects where the user closes Claude Code between events | Background polling writes to a notification queue; picked up on next session start. |
+| Feature | Notes |
+|---|---|
+| PR review agent | Keeps non-technical users out of the merge loop. Deferred: adds overhead during v1 development; intentionally human-in-the-loop for now. |
+| Cross-user Old Major kanban | Each user's Old Major reads a shared per-invoker state file for coordination. Complex concurrency; future version. |
+| Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
+| Proactive watcher notifications | Watcher currently emits to stdout. Needs wiring to Claude Code's notification mechanism for true background alerts. |
 
 ---
 
@@ -355,51 +299,33 @@ A: Not in v1. Each user has an independent local session. They coordinate throug
 ┌─────────────────────────────────────────┐
 │            Developer's laptop           │
 │                                         │
-│  ┌──────────────────────────────────┐   │
-│  │  Claude Code session             │   │
-│  │  (in /hall:open mode)            │   │
-│  │  = Old Major                     │   │
-│  └──────┬───────────────────────────┘   │
-│         │ reads/writes                  │
-│  ┌──────▼───────────────────────────┐   │
-│  │  .hall-cache/                    │   │
-│  │  personas · methodology ·        │   │
-│  │  plans · session                 │   │
-│  └──────────────────────────────────┘   │
-│         │ spawns when needed            │
-│  ┌──────▼───────────────────────────┐   │
-│  │  Tier-2 subagents                │   │
-│  │  Tomashco · Frontenzo · aeeeiii  │   │
-│  └──────────────────────────────────┘   │
-│                                         │
-│  Prepacked MCPs: sequential-thinking    │
-│                  fetch · github         │
-└─────────┬───────────────────────────────┘
-          │ gh CLI: file issues,
-          │ read state, post replies
-          ▼
-┌─────────────────────┐
-│       GitHub        │
-│                     │
-│  Issues tagged      │
-│  hall:<specialist>  │
-│                     │
-│  Pull requests      │
-│  Status comments    │
-└──────────┬──────────┘
-           │ webhook triggers workflow
-           ▼
-┌─────────────────────┐
-│  Hall infrastructure│
-│                     │
-│  Workflow dispatch  │
-│  Specialist runner  │
-│  (sandboxed, full   │
-│   tooling)          │
-└─────────────────────┘
+│  Claude Code session = Old Major        │
+│    reads/writes .hall-cache/            │
+│    spawns Tier-2 advisory subagents     │
+│    uses: sequential-thinking            │
+│           fetch · github · google-drive │
+└─────────────────┬───────────────────────┘
+                  │ gh CLI: file issues,
+                  │ read state, post replies
+                  ▼
+        ┌─────────────────────┐
+        │       GitHub        │
+        │  Issues tagged      │
+        │  hall:<specialist>  │
+        │  Pull requests      │
+        │  Status comments    │
+        └──────────┬──────────┘
+                   │ webhook triggers workflow
+                   ▼
+        ┌─────────────────────┐
+        │  Hall infrastructure│
+        │  Specialist runner  │
+        │  (sandboxed, full   │
+        │   tooling)          │
+        └─────────────────────┘
 ```
 
 **Three invariants:**
 1. The plugin's only connection to the Hall is via GitHub.
 2. Personas flow one way: upstream repo → `.hall-cache/` → session context. Never back.
-3. The Hall's infrastructure is unchanged; the plugin uses an existing documented dispatch path.
+3. The Hall's infrastructure is unchanged; the plugin uses the [documented direct dispatch path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users).
