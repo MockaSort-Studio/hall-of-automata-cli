@@ -6,7 +6,11 @@
 set -euo pipefail
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool',''))")
+read -r TOOL FILE_PATH <<< "$(echo "$INPUT" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+ti = d.get('tool_input', {})
+print(d.get('tool', ''), ti.get('file_path', ti.get('file_name', '')))")"
 
 # Only intercept write-type tools
 case "$TOOL" in
@@ -14,14 +18,9 @@ case "$TOOL" in
   *) exit 0 ;;
 esac
 
-FILE_PATH=$(echo "$INPUT" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-ti = d.get('tool_input', {})
-print(ti.get('file_path', ti.get('file_name', '')))")
-
-# Normalize: strip leading ./
+# Normalize: strip leading ./ and resolve .. traversals
 FILE_PATH="${FILE_PATH#./}"
+FILE_PATH=$(realpath -m --relative-to=. "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 
 # Allowed path patterns
 allowed() {

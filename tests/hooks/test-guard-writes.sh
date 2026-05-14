@@ -40,5 +40,9 @@ run_hook "allows write to persona cache" \
 run_hook "allows write to .gitignore" \
   '{"tool":"Write","tool_input":{"file_path":".gitignore","content":".hall-cache/"}}' 0
 
+# Should BLOCK path traversal attempts
+run_hook "blocks path traversal via .hall-cache/../src" \
+  '{"tool":"Write","tool_input":{"file_path":".hall-cache/../src/evil.py","content":"pwned"}}' 1
+
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
