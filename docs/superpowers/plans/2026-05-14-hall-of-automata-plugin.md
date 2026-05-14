@@ -559,6 +559,12 @@ under additional local-scope constraints.
   router determines they're needed. Most advisory work is inline or subagent.
 
 - Don't poll GitHub aggressively. Respect rate limits.
+
+## Code quality constraint
+
+Include the following block in every doing-mode implementation issue body. Old Major is responsible for carrying this into every dispatch — it is not optional and is not left to the specialist's judgment.
+
+> **Code quality:** All files produced by this task must be small enough for a human to review in one read (~200 lines hard ceiling). Prefer many small, focused files over fewer large ones. No duplicated logic. If a natural implementation would exceed this, decompose further and raise with Old Major before proceeding.
 ```
 
 - [ ] **Step 2: Create `methodology/decomposition.md`**
@@ -1572,6 +1578,10 @@ Assigned to <Specialist>. Rationale: <routing_rationale text>
 ## Dependencies
 
 <list of parent tasks that have completed, with their PR links>
+
+## Code quality
+
+All files produced by this task must be small enough for a human to review in one read (~200 lines hard ceiling). Prefer many small, focused files over fewer large ones. No duplicated logic. If a natural implementation would exceed this, decompose further and raise with Old Major before proceeding.
 ```
 
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
