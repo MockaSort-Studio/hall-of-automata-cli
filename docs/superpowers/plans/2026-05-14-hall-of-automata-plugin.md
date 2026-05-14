@@ -35,15 +35,10 @@ Files created in this plan, grouped by responsibility:
 - Create: `methodology/decomposition.md`
 - Create: `methodology/consultation-router.md`
 - Create: `methodology/routing-rationale.md`
-- Create: `methodology/advisory-frameworks/tomashco.md`
-- Create: `methodology/advisory-frameworks/frontenzo.md`
-- Create: `methodology/advisory-frameworks/aeeeiii.md`
 
 **Templates**
 - Create: `templates/CLAUDE-stack.md.tpl`
-- Create: `templates/subagents/tomashco.md.tpl`
-- Create: `templates/subagents/frontenzo.md.tpl`
-- Create: `templates/subagents/aeeeiii.md.tpl`
+- Create: `templates/subagent-overlay.md.tpl`
 - Create: `templates/plan.json.schema`
 
 **Hooks**
@@ -461,9 +456,6 @@ These are the core prompt-engineering artifacts. Quality here determines how wel
 - Create: `methodology/decomposition.md`
 - Create: `methodology/consultation-router.md`
 - Create: `methodology/routing-rationale.md`
-- Create: `methodology/advisory-frameworks/tomashco.md`
-- Create: `methodology/advisory-frameworks/frontenzo.md`
-- Create: `methodology/advisory-frameworks/aeeeiii.md`
 
 - [ ] **Step 1: Create `methodology/old-major-local-overlay.md`**
 
@@ -765,118 +757,24 @@ Assigned to <Specialist>. Rationale: this task implements <description> with no 
 Don't explain the Hall's mechanics to the specialist (they already know them). Don't include meta-commentary about the routing decision itself. Keep it to why this specialist is right for this work.
 ```
 
-- [ ] **Step 5: Create the three advisory framework files**
-
-Create `methodology/advisory-frameworks/tomashco.md`:
-
-```markdown
-# Tomashco — Analytical Framework (Inline Reference)
-
-Use this when handling Tier 1 (inline) advisory questions in Tomashco's domain: backend architecture, systems design, API design, distributed systems, data modeling.
-
-## Analytical lenses Tomashco applies
-
-**Data consistency first.** Before any architecture question, Tomashco asks: what are the consistency requirements? Eventual consistency is fine for many things; it's a disaster for others. Identify which before proposing a design.
-
-**Failure mode analysis.** For any system component: what happens when it fails? What happens when it's slow? What happens when it fails silently? If you can't answer these, the design isn't ready.
-
-**API surface minimalism.** The right API is the smallest one that solves the problem. Every method you add is a compatibility commitment. Every parameter you add is a parsing and validation obligation.
-
-**Scalability honesty.** Distinguish between "works at current scale" and "scales." Both are valid answers; conflating them is not. State the ceiling explicitly.
-
-## Questions Tomashco asks
-
-- What are the read/write patterns? (Ratio, frequency, latency tolerance)
-- What's the consistency model? (Strong, eventual, causal)
-- What's the failure recovery model? (Retry, idempotency, dead letter)
-- Where is the single source of truth for X?
-- What breaks first under load?
-
-## When to escalate to Tier 2 or Tier 3
-
-Escalate when the question requires: detailed analysis of a specific codebase (Tier 3), sustained back-and-forth about a complex tradeoff (Tier 2 or Tier 3), or the output needs to be committed as an ADR (Tier 3).
-```
-
-Create `methodology/advisory-frameworks/frontenzo.md`:
-
-```markdown
-# Frontenzo — Analytical Framework (Inline Reference)
-
-Use this when handling Tier 1 (inline) advisory questions in Frontenzo's domain: frontend architecture, UI/UX critique, accessibility, component design.
-
-## Analytical lenses Frontenzo applies
-
-**User first.** Every frontend decision traces back to what the user perceives and does. Performance matters because users perceive latency. Accessibility matters because users have diverse needs. Component architecture matters because it shapes what's possible to build.
-
-**Component boundaries.** The right component is one that owns exactly what it displays and nothing more. State that leaks across component boundaries causes coupling; coupling causes bugs that are hard to locate.
-
-**Performance budget.** Every asset, every render, every data fetch has a cost. Frontenzo tracks the budget. "It works" without "at what cost" is an incomplete answer.
-
-**Accessibility as design constraint.** Accessibility is not a checklist item added at the end. It shapes component structure, keyboard interactions, ARIA semantics. If it's an afterthought, it's usually wrong.
-
-## Questions Frontenzo asks
-
-- What's the render model? (SSR, CSR, hybrid)
-- Who owns this state and why?
-- What's the keyboard/screen reader interaction model?
-- What's the loading/error/empty state for this component?
-- What happens on a slow connection?
-
-## When to escalate to Tier 2 or Tier 3
-
-Escalate when the question requires reviewing actual code or design files (Tier 2 or Tier 3), or when the output is a formal UX review the team should reference (Tier 3).
-```
-
-Create `methodology/advisory-frameworks/aeeeiii.md`:
-
-```markdown
-# aeeeiii — Analytical Framework (Inline Reference)
-
-Use this when handling Tier 1 (inline) advisory questions in aeeeiii's domain: technology selection, research synthesis, literature review, trade-off analysis.
-
-## Analytical lenses aeeeiii applies
-
-**Evidence over intuition.** aeeeiii distinguishes between "conventional wisdom," "empirically supported," and "theoretical." Recommendations without evidence sources are opinions. Opinions can be right; label them correctly.
-
-**Comparison framing.** Technology selection questions need a comparison frame. What are the alternatives? What are the selection criteria? What does each alternative score on each criterion? "X is better than Y" without this frame is noise.
-
-**Scope of claims.** Research findings have scope conditions. A benchmark result for one workload doesn't generalize to all workloads. State the scope of any claim.
-
-**Cost of investigation.** Some questions deserve a deep dive (file a Hall research issue). Some deserve a paragraph. Calibrate the response to the decision it's informing.
-
-## Questions aeeeiii asks
-
-- What decision is this research informing?
-- What's the time horizon? (Research useful today vs. research for a 5-year bet)
-- What are the alternative options already on the table?
-- How sensitive is the decision to the answer? (High sensitivity → more thorough research)
-- What's the cost of being wrong?
-
-## When to escalate to Tier 2 or Tier 3
-
-Escalate when the question requires: fetching and synthesizing multiple sources (Tier 2 with fetch MCP), or producing a durable research artifact for the team (Tier 3 Hall research issue).
-```
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add methodology/
-git commit -m "feat: Old Major methodology files — overlay, decomposition, consultation router, routing rationale, advisory frameworks"
+git commit -m "feat: Old Major methodology files — overlay, decomposition, consultation router, routing rationale"
 ```
 
 ---
 
-## Task 5: Session Stack Template
+## Task 5: Session Stack and Subagent Overlay Templates
 
 **Files:**
 - Create: `templates/CLAUDE-stack.md.tpl`
-- Create: `templates/subagents/tomashco.md.tpl`
-- Create: `templates/subagents/frontenzo.md.tpl`
-- Create: `templates/subagents/aeeeiii.md.tpl`
+- Create: `templates/subagent-overlay.md.tpl`
 
 - [ ] **Step 1: Create `templates/CLAUDE-stack.md.tpl`**
 
-This template is rendered by `/hall:open` into `.hall-cache/session/CLAUDE-stack.md`. Variables: `{{PLUGIN_ROOT}}`, `{{CACHE_ROOT}}`.
+This template is rendered by `/hall:open` into `.hall-cache/session/CLAUDE-stack.md`. Variables: `{{PLUGIN_ROOT}}`, `{{CACHE_ROOT}}`, `{{ASSEMBLED_AT}}`, `{{ADVISORY_PERSONA_IMPORTS}}` (filled dynamically from the fetched roster at session open).
 
 ```markdown
 # Old Major — Session Stack
@@ -897,27 +795,25 @@ This template is rendered by `/hall:open` into `.hall-cache/session/CLAUDE-stack
 
 @{{CACHE_ROOT}}/methodology/routing-rationale.md
 
-@{{CACHE_ROOT}}/methodology/advisory-frameworks/tomashco.md
-
-@{{CACHE_ROOT}}/methodology/advisory-frameworks/frontenzo.md
-
-@{{CACHE_ROOT}}/methodology/advisory-frameworks/aeeeiii.md
+{{ADVISORY_PERSONA_IMPORTS}}
 ```
 
-- [ ] **Step 2: Create the three subagent overlay templates**
+- [ ] **Step 2: Create `templates/subagent-overlay.md.tpl`**
 
-`templates/subagents/tomashco.md.tpl`:
+Generic template rendered once per fetched advisory specialist at session open. Variables: `{{SPECIALIST_NAME}}`, `{{SPECIALIST_DESCRIPTION}}`, `{{PERSONA_PATH}}`, `{{CACHE_ROOT}}`.
+
+`{{SPECIALIST_DESCRIPTION}}` is the one-line domain description extracted from the specialist's persona frontmatter or first heading.
 
 ```markdown
 ---
-description: Tomashco — backend and systems design specialist. Use for substantive architecture analysis, API design review, data modeling, distributed systems tradeoffs. One-shot consultation: produce analysis and return to Old Major.
+description: {{SPECIALIST_NAME}} — {{SPECIALIST_DESCRIPTION}}. One-shot consultation: produce analysis and return to Old Major.
 model: claude-opus-4-7
 tools: [Read, Glob, Grep, WebFetch]
 ---
 
 @{{CACHE_ROOT}}/personas/automaton_base.md
 
-@{{CACHE_ROOT}}/personas/tomashco.md
+@{{PERSONA_PATH}}
 
 # Local consultation overlay
 
@@ -930,15 +826,11 @@ Do not ask follow-up questions. Do not take action. Do not write code. Analyze a
 If this is your second or third exchange on the same topic, end with: `— This analysis has reached the Tier-2 iteration cap. Old Major should consider escalating this to a Hall research or advising issue if the question needs more depth.`
 ```
 
-`templates/subagents/frontenzo.md.tpl`: same structure, substituting `frontenzo` for `tomashco` and adjusting the description to "frontend critique specialist. Use for UI/UX review, component architecture analysis, accessibility review, frontend performance."
-
-`templates/subagents/aeeeiii.md.tpl`: same structure, substituting `aeeeiii` and adjusting description to "research and synthesis specialist. Use for technology comparison, literature synthesis, trade-off analysis."
-
 - [ ] **Step 3: Commit**
 
 ```bash
 git add templates/
-git commit -m "feat: session stack and subagent overlay templates"
+git commit -m "feat: session stack and generic subagent overlay templates"
 ```
 
 ---
@@ -1206,10 +1098,18 @@ gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md
 gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
   --jq '.content' | base64 -d > .hall-cache/personas/old-major.md
 
-# Fetch advisory specialist personas
-for SPECIALIST in tomashco frontenzo aeeeiii; do
+# Discover advisory specialists dynamically from the roster directory.
+# Saves the list to .advisory-roster.json for use in later steps.
+gh api repos/MockaSort-Studio/hall-of-automata/contents/roster \
+  --jq '[.[] | select(.type=="file" and (.name | endswith(".md")) and .name != "old-major.md") | .name[:-3]]' \
+  > .hall-cache/personas/.advisory-roster.json
+
+# Fetch each discovered advisory specialist persona
+python3 -c "import json; [print(s) for s in json.load(open('.hall-cache/personas/.advisory-roster.json'))]" \
+| while read -r SPECIALIST; do
   gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${SPECIALIST}.md" \
     --jq '.content' | base64 -d > ".hall-cache/personas/${SPECIALIST}.md"
+  echo "  Fetched: ${SPECIALIST}"
 done
 
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .hall-cache/personas/.fetched_at
@@ -1219,34 +1119,76 @@ echo "Personas fetched and cached."
 ### Step 4: Methodology copy
 
 ```bash
-mkdir -p .hall-cache/methodology/advisory-frameworks
+mkdir -p .hall-cache/methodology
 cp "${CLAUDE_PLUGIN_ROOT}/methodology/"*.md .hall-cache/methodology/
-cp "${CLAUDE_PLUGIN_ROOT}/methodology/advisory-frameworks/"*.md .hall-cache/methodology/advisory-frameworks/
 ```
 
 ### Step 5: Subagent generation
 
-For each advisory specialist (tomashco, frontenzo, aeeeiii), render the template:
+For each advisory specialist discovered in Step 3, render the generic overlay template.
+`{{SPECIALIST_DESCRIPTION}}` is extracted from the first non-empty line after the persona's top-level heading (use the heading itself as fallback).
 
 ```bash
 mkdir -p .hall-cache/session/claude-agents
-for SPECIALIST in tomashco frontenzo aeeeiii; do
-  sed "s|{{CACHE_ROOT}}|.hall-cache|g" \
-    "${CLAUDE_PLUGIN_ROOT}/templates/subagents/${SPECIALIST}.md.tpl" \
-    > ".hall-cache/session/claude-agents/${SPECIALIST}.md"
-done
+
+python3 << 'PYEOF'
+import json, re, subprocess
+
+specialists = json.load(open('.hall-cache/personas/.advisory-roster.json'))
+import os; plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '.')
+
+with open(f'{plugin_root}/templates/subagent-overlay.md.tpl') as f:
+    template = f.read()
+
+for name in specialists:
+    persona_path = f'.hall-cache/personas/{name}.md'
+    with open(persona_path) as f:
+        lines = [l.rstrip() for l in f if l.strip()]
+    description = next((l.lstrip('# ') for l in lines if l.startswith('#')), name)
+
+    content = template \
+        .replace('{{SPECIALIST_NAME}}', name) \
+        .replace('{{SPECIALIST_DESCRIPTION}}', description) \
+        .replace('{{PERSONA_PATH}}', persona_path) \
+        .replace('{{CACHE_ROOT}}', '.hall-cache')
+
+    with open(f'.hall-cache/session/claude-agents/{name}.md', 'w') as f:
+        f.write(content)
+    print(f'  Generated: {name}')
+PYEOF
 ```
 
 ### Step 6: Stack assembly
 
+Fills all template variables including `{{ADVISORY_PERSONA_IMPORTS}}`, which expands to one `@`-import line per fetched advisory specialist.
+
 ```bash
 ASSEMBLED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-sed \
-  -e "s|{{PLUGIN_ROOT}}|${CLAUDE_PLUGIN_ROOT}|g" \
-  -e "s|{{CACHE_ROOT}}|.hall-cache|g" \
-  -e "s|{{ASSEMBLED_AT}}|${ASSEMBLED_AT}|g" \
-  "${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE-stack.md.tpl" \
-  > .hall-cache/session/CLAUDE-stack.md
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+
+python3 << PYEOF
+import json, os
+
+assembled_at = '${ASSEMBLED_AT}'
+plugin_root  = '${PLUGIN_ROOT}'
+
+with open(f'{plugin_root}/templates/CLAUDE-stack.md.tpl') as f:
+    content = f.read()
+
+specialists = json.load(open('.hall-cache/personas/.advisory-roster.json'))
+advisory_imports = '\n\n'.join(f'@.hall-cache/personas/{s}.md' for s in specialists)
+
+content = content \
+    .replace('{{PLUGIN_ROOT}}', plugin_root) \
+    .replace('{{CACHE_ROOT}}', '.hall-cache') \
+    .replace('{{ASSEMBLED_AT}}', assembled_at) \
+    .replace('{{ADVISORY_PERSONA_IMPORTS}}', advisory_imports)
+
+os.makedirs('.hall-cache/session', exist_ok=True)
+with open('.hall-cache/session/CLAUDE-stack.md', 'w') as f:
+    f.write(content)
+print('Session stack assembled.')
+PYEOF
 ```
 
 ### Step 7: CLAUDE.md injection
@@ -1272,16 +1214,7 @@ fi
 
 Read and apply the assembled stack directly so Old Major activates now, without a restart:
 
-Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session.
-
-Then read and apply:
-- `.hall-cache/methodology/old-major-local-overlay.md`
-- `.hall-cache/methodology/decomposition.md`
-- `.hall-cache/methodology/consultation-router.md`
-- `.hall-cache/methodology/routing-rationale.md`
-- `.hall-cache/methodology/advisory-frameworks/tomashco.md`
-- `.hall-cache/methodology/advisory-frameworks/frontenzo.md`
-- `.hall-cache/methodology/advisory-frameworks/aeeeiii.md`
+Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session. The @-imports include all fetched advisory specialist personas — the exact set is determined by what was discovered from the Hall roster in Step 3.
 
 ### Step 9: Check for existing plans
 
@@ -1943,16 +1876,14 @@ done
 for F in old-major-local-overlay decomposition consultation-router routing-rationale; do
   check "methodology/$F.md exists" "test -f methodology/$F.md"
 done
-for S in tomashco frontenzo aeeeiii; do
-  check "methodology/advisory-frameworks/$S.md exists" "test -f methodology/advisory-frameworks/$S.md"
-done
 
 # Templates
-check "templates/CLAUDE-stack.md.tpl exists"   "test -f templates/CLAUDE-stack.md.tpl"
-check "templates/plan.json.schema exists"       "test -f templates/plan.json.schema"
-for S in tomashco frontenzo aeeeiii; do
-  check "templates/subagents/$S.md.tpl exists" "test -f templates/subagents/$S.md.tpl"
-done
+check "templates/CLAUDE-stack.md.tpl exists"        "test -f templates/CLAUDE-stack.md.tpl"
+check "templates/subagent-overlay.md.tpl exists"    "test -f templates/subagent-overlay.md.tpl"
+check "templates/plan.json.schema exists"            "test -f templates/plan.json.schema"
+check "CLAUDE-stack template has ADVISORY_PERSONA_IMPORTS" "grep -q 'ADVISORY_PERSONA_IMPORTS' templates/CLAUDE-stack.md.tpl"
+check "subagent template has SPECIALIST_NAME"        "grep -q 'SPECIALIST_NAME' templates/subagent-overlay.md.tpl"
+check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
 
 # Hooks
 check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks.json"
@@ -2019,10 +1950,10 @@ git commit -m "feat: full plugin validation suite and updated dev commands"
 |---|---|
 | `/hall:open` session lifecycle | Task 8 |
 | `/hall:close` session lifecycle | Task 9 |
-| Persona fetch + 24h cache | Task 8 (Step 3) |
+| Persona fetch + 24h cache (dynamic roster discovery) | Task 8 (Step 3) |
 | Methodology injection | Task 4 + Task 8 (Step 4) |
 | CLAUDE.md injection (with existing-file detection) | Task 8 (Step 7) |
-| Subagent generation (advisory specialists) | Task 5 + Task 8 (Step 5) |
+| Generic subagent overlay template (per-fetched-specialist) | Task 5 + Task 8 (Step 5) |
 | Guard-writes hook | Task 2 |
 | Session-start hook | Task 3 |
 | Three-tier consultation router (methodology file) | Task 4 (Step 3) |
@@ -2045,5 +1976,5 @@ All spec requirements are covered. No gaps found.
 ### Known gaps in this plan (intentional)
 
 - **Watcher → notification integration:** The watcher currently prints to stdout, which may not surface in Claude Code's UI as a real notification. This needs to be wired to Claude Code's notification mechanism (potentially a `Notification` hook or a file Claude polls). Left as a TODO in the watcher — surfacing events in the terminal is sufficient for v1.
-- **Advisory specialist persona fetching:** The `/hall:open` Step 3 fetches `tomashco.md`, `frontenzo.md`, and `aeeeiii.md` from the Hall roster. The actual paths in `hall-of-automata` need to be verified — they may be in a different directory than `roster/`. Verify before implementing.
+- **Advisory specialist roster path:** The `/hall:open` Step 3 discovers advisory specialists by listing `repos/MockaSort-Studio/hall-of-automata/contents/roster`. The actual directory structure in `hall-of-automata` needs to be verified before implementing — if advisory and implementation specialist personas live in separate subdirectories, the discovery query will need adjusting.
 - **`--refresh` flag parsing:** The `/hall:open` SKILL.md describes `--refresh` but skills don't have argument parsing infrastructure. Old Major will need to detect the flag in the user's natural language input.
