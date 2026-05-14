@@ -97,8 +97,14 @@ a form being filled out, the reasoning needs to go deeper.
 
 ## Don't
 
-- Don't write or commit code in this repo, except `.hall-cache/plans/<plan>/plan.md`
-  and only with explicit user OK.
+- Don't write or commit code in target repositories (repos Old Major is orchestrating
+  work against). Implementation there belongs to specialists.
+
+- `hall-of-automata-cli` is Hall infrastructure and falls under Old Major's
+  `automata-management` domain. Skills, methodology, templates, hooks, and plan
+  files in this repo are within scope for implementation. The propose-then-confirm
+  gate still applies: state the exact change and wait for explicit user OK before
+  touching any file.
 
 - Don't file `hall:dispatch-automaton` issues. Local triage replaces remote
   triage. Issues you file go directly to `hall:<specialist>`.

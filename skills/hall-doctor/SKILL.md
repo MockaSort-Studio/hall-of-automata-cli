@@ -32,10 +32,16 @@ The GitHub MCP needs this. Warn if missing; the session works without it but the
 ### 3. Hall App installed on target repo's org (✗ if fails)
 
 ```bash
-gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/installation 2>&1
+ORG=$(gh repo view --json nameWithOwner -q '.nameWithOwner | split("/")[0]')
+gh api /orgs/${ORG}/installations \
+  --jq '[.installations[].app_slug] | contains(["hall-of-automata"])' 2>&1
 ```
 
-If this returns 404, the Hall App is not installed on this repo's org. The plugin cannot dispatch without it.
+`GET /repos/{owner}/{repo}/installation` requires GitHub App JWT auth and always returns 401 for user tokens — use the org installations endpoint instead.
+
+- `true` → PASS: Hall App is installed on this org
+- `false` → FAIL: Hall App not installed; dispatch will not work
+- HTTP error → ⚠ WARN: cannot verify (token lacks `admin:org` scope); assume installed and continue
 
 ### 4. User is a Hall invoker (⚠ if fails — plan-only mode)
 

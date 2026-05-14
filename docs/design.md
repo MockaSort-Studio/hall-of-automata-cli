@@ -282,18 +282,86 @@ Declared in `.mcp.json`. Portable — no project-specific configuration required
 
 ---
 
-## 13. Future Work
+## 13. PR Review Agent
+
+Keeps non-technical invokers out of the merge loop. When active, Old Major dispatches a review pass after every specialist PR using the specialist's own persona in reviewer mode.
+
+### 13.1 Automation configuration
+
+Asked once at `hall:open` when the config entry is absent from `.hall-cache/session/config.json`. Two binary questions:
+
+1. **Auto-review?** — Should Old Major automatically dispatch a review after each specialist PR?
+2. **Auto-merge?** — If the review verdict is LGTM, should Old Major merge without invoker action?
+
+Resulting levels:
+
+| Level | Auto-review | Auto-merge | Behavior |
+|---|---|---|---|
+| 0 — Hands-on | No | No | Dispatch only; invoker reviews and merges |
+| 1 — Assisted | Yes | No | Review agent posts verdict; invoker merges |
+| 2 — Auto-merge | Yes | Yes | Review agent posts verdict; LGTM auto-merges |
+
+Config is stored in `.hall-cache/session/config.json` and re-used across commands within the session.
+
+### 13.2 Review loop — Act → Assess → Settle
+
+```
+1. ACT       Specialist opens PR against issue acceptance criteria
+2. ASSESS    Reviewer posts structured verdict:
+               LGTM    → SETTLE
+               MINOR   → REFINE (one cycle permitted)
+               MAJOR   → SETTLE (escalate, no loop)
+               BLOCKED → SETTLE (escalate, no loop)
+3. REFINE    Specialist addresses MINOR findings (one shot)
+4. ASSESS-2  Reviewer posts final verdict — always terminal:
+               LGTM    → SETTLE
+               any     → SETTLE (escalate)
+5. SETTLE    Auto-merge if level 2 and LGTM; otherwise flag invoker
+```
+
+**Loop prevention:** only MINOR findings enter the REFINE cycle. MAJOR and BLOCKED go directly to SETTLE. ASSESS-2 is unconditionally terminal — the second verdict cannot trigger another REFINE regardless of severity.
+
+**Verdict format** (required in all reviewer comments):
+
+```
+VERDICT: <LGTM | MINOR | MAJOR | BLOCKED>
+FINDINGS:
+- <finding> [severity: minor | major]
+NEXT: <merge | address-and-resubmit | escalate-to-invoker>
+```
+
+### 13.3 Reviewer overlay
+
+Each review issue uses the specialist's existing persona wrapped in a `reviewer-overlay.md.tpl` baseline. The overlay injects:
+
+- Review mode context (cycle: 1 or 2, automation level)
+- Original issue acceptance criteria (passed as template variable)
+- Required verdict format
+- Code quality constraint checklist
+
+The reviewer is the same specialist who implemented the task — they know the domain best and carry the relevant constraints without re-establishing context.
+
+### 13.4 Trigger mechanism
+
+Old Major triggers a review dispatch when:
+- `hall:reconcile` detects a task transitioning to `pr_created` state, AND
+- Automation level ≥ 1
+
+Old Major files a `hall:<specialist>` issue with the reviewer overlay as context. The task state advances to `REVIEWING`. On ASSESS-2 or a terminal SETTLE, the task advances to `DONE` or `ESCALATED`.
+
+---
+
+## 14. Future Work
 
 | Feature | Notes |
 |---|---|
-| PR review agent | Keeps non-technical users out of the merge loop. Deferred: adds overhead during v1 development; intentionally human-in-the-loop for now. |
 | Cross-user Old Major kanban | Each user's Old Major reads a shared per-invoker state file for coordination. Complex concurrency; future version. |
 | Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
 | Proactive watcher notifications | Watcher currently emits to stdout. Needs wiring to Claude Code's notification mechanism for true background alerts. |
 
 ---
 
-## 14. Reference Architecture
+## 15. Reference Architecture
 
 ```
 ┌─────────────────────────────────────────┐
