@@ -167,13 +167,23 @@ else
 fi
 ```
 
-### Step 8: Context injection (in-session activation)
+### Step 8: Start watcher daemon
+
+Start the background watcher in the project directory:
+
+```bash
+nohup bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/watcher.sh" \
+  &> .hall-cache/watcher.log &
+echo "Watcher started (background polling for GitHub state changes)."
+```
+
+### Step 9: Context injection (in-session activation)
 
 Read and apply the assembled stack directly so Old Major activates now, without a restart:
 
 Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session. The @-imports include all fetched advisory specialist personas — the exact set is determined by what was discovered from the Hall roster in Step 3.
 
-### Step 9: Check for existing plans
+### Step 10: Check for existing plans
 
 ```bash
 ls .hall-cache/plans/ 2>/dev/null || true
@@ -181,6 +191,6 @@ ls .hall-cache/plans/ 2>/dev/null || true
 
 If plans exist, list them and ask whether to resume an existing plan or start fresh.
 
-### Step 10: Show banner
+### Step 11: Show banner
 
 Old Major introduces himself and asks what the user wants to build.

@@ -28,6 +28,7 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 
 ```bash
 # Count open Hall issues on this repo (rough pool usage proxy)
+Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open(PLAN_DIR+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
 gh issue list --repo <ORG/REPO> \
   --label "hall:in-progress" --json number | jq length
 ```

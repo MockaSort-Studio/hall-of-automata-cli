@@ -12,6 +12,7 @@ Post a reply on a Hall issue that is carrying `hall:awaiting-input`, providing t
 ## Execution
 
 Find the task by ID in the active plan. Retrieve the `github_issue` number.
+Also read `repo` from `plan.json`: `REPO=$(python3 -c "import json; print(json.load(open(PLAN_FILE))['repo'])")`. Substitute for `<ORG/REPO>` in the gh command below.
 
 ```bash
 gh issue comment <ISSUE_NUMBER> \

@@ -14,6 +14,9 @@ Find the active plan. For each task with a `github_issue` number:
 
 ```bash
 PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
+```
+Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")`.
+```bash
 # For each issue:
 gh issue view <N> --repo <ORG/REPO> --json state,labels,comments,url
 ```
