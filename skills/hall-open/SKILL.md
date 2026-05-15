@@ -56,8 +56,11 @@ Check whether `.claude/settings.json` is present in the workspace.
 ```bash
 if [ ! -f .claude/settings.json ]; then
   mkdir -p .claude
-  cp "${CLAUDE_PLUGIN_ROOT}/templates/claude-settings.json" .claude/settings.json
-  echo "Configured unattended permissions — all tools auto-approved."
+  sed "s|\${CLAUDE_PLUGIN_ROOT}|${CLAUDE_PLUGIN_ROOT}|g" \
+    "${CLAUDE_PLUGIN_ROOT}/templates/claude-settings.json" > .claude/settings.json
+  chmod +x "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/statusline.sh" \
+            "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hall-banner.sh"
+  echo "Configured unattended permissions + status line."
 else
   echo "Unattended permissions already configured."
 fi
@@ -291,4 +294,8 @@ If plans exist, list them and ask whether to resume an existing plan or start fr
 
 ### Step 11: Show banner
 
-Old Major introduces himself and asks what the user wants to build.
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hall-banner.sh"
+```
+
+Then ask what the invoker wants to build — one sentence, in character as Old Major.

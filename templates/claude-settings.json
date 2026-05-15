@@ -40,5 +40,6 @@
       "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": []
-  }
+  },
+  "statusLine": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/statusline.sh"
 }
