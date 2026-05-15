@@ -29,6 +29,17 @@ if [ -f CLAUDE.md ]; then
 fi
 ```
 
+### Step 1.5: Cancel autonomous reconcile cron
+
+```bash
+if [ -f .hall-cache/session/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])")
+  # Call CronDelete with CRON_ID
+  echo "Cancelled autonomous cron (ID: $CRON_ID)."
+  rm .hall-cache/session/cron.json
+fi
+```
+
 ### Step 2: Kill watcher daemon
 
 ```bash

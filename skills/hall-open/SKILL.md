@@ -210,6 +210,21 @@ nohup bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/watcher.sh" \
 echo "Watcher started (background polling for GitHub state changes)."
 ```
 
+### Step 8.5: Schedule autonomous reconcile cron
+
+If an active plan exists in `.hall-cache/plans/` (any directory with a `plan.md` not marked `Status: DONE`):
+
+Call `CronCreate` with:
+- **Schedule:** `*/5 * * * *`
+- **Prompt:** `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile to update plan state. If any tasks are newly unlocked, dispatch them without waiting for confirmation — this is an unattended autonomous run. If REVIEWING tasks have needs_review set, trigger review dispatch. Append a one-line summary of what changed to .hall-cache/cron-log.md."`
+
+Store the returned cron ID to `.hall-cache/session/cron.json`:
+```json
+{"cron_id": "<returned-id>", "created_at": "<ISO timestamp>"}
+```
+
+If no active plan exists, skip and note: `No active plan — autonomous cron not scheduled.`
+
 ### Step 9: Context injection (in-session activation)
 
 Read and apply the assembled stack directly so Old Major activates now, without a restart:

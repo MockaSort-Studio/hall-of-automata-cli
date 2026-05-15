@@ -10,12 +10,22 @@ Resync the local plan with GitHub's current state. Runs automatically before any
 
 ## Execution
 
+### Step 0: Drain watcher events
+
+If `.hall-cache/watcher-events.jsonl` exists and is non-empty:
+- Read all lines; parse each JSON object.
+- Group by issue number and surface as a summary: `"Watcher detected N events since last reconcile: [list]"`
+- Truncate the file to zero bytes: `> .hall-cache/watcher-events.jsonl`
+- Use these events as early-warning signals — the reconcile pass below queries GitHub authoritatively.
+
+If absent or empty, skip silently.
+
 Find the active plan. For each task with a `github_issue` number:
 
 ```bash
 PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
 ```
-Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")`. 
+Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")`.
 ```bash
 # For each issue:
 gh issue view <N> --repo <ORG/REPO> --json state,labels,comments,url
