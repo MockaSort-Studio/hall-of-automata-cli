@@ -1,23 +1,26 @@
 # Hall of Automata — Claude Code Plugin
 
-Local orchestrator for multi-task projects on the [Hall of Automata](https://github.com/MockaSort-Studio/hall-of-automata). Plan decomposition, agent dispatch, and task coordination — all via a design conversation with Old Major.
+Local orchestrator for multi-task projects on a [Hall of Automata](https://github.com/MockaSort-Studio/hall-of-automata) instance. Plan decomposition, agent dispatch, and task coordination — all via a design conversation with Old Major.
 
 ## Prerequisites
 
-- [Claude Code](https://claude.ai/code) CLI (`cc`)
-- [GitHub CLI](https://cli.github.com/) (`gh`) authenticated to `MockaSort-Studio`
-- `GITHUB_PERSONAL_ACCESS_TOKEN` set in your environment or `~/.claude/settings.json`
+- [Claude Code](https://claude.ai/code) CLI (`claude` / `cc`)
+- [GitHub CLI](https://cli.github.com/) (`gh`) authenticated to the org that hosts your Hall instance
+- A deployed [Hall of Automata](https://github.com/MockaSort-Studio/hall-of-automata) (fork it to your own org)
+- `GITHUB_PERSONAL_ACCESS_TOKEN` set in your environment (required for MCP connectivity)
 
 ## Installation
 
-### Local (development)
+Clone the plugin and point Claude Code at it:
+
+### Linux / macOS
 
 ```bash
 git clone https://github.com/MockaSort-Studio/hall-of-automata-cli
-cc --plugin-dir /path/to/hall-of-automata-cli
+claude --plugin-dir /path/to/hall-of-automata-cli
 ```
 
-Or set it permanently in `~/.claude/settings.json`:
+To load it permanently without the flag, add it to `~/.claude/settings.json`:
 
 ```json
 {
@@ -27,11 +30,30 @@ Or set it permanently in `~/.claude/settings.json`:
 }
 ```
 
+### Windows (PowerShell / CMD / Git Bash)
+
+```powershell
+git clone https://github.com/MockaSort-Studio/hall-of-automata-cli
+claude --plugin-dir C:\path\to\hall-of-automata-cli
+```
+
+Permanent config — add to `%APPDATA%\Claude\settings.json`:
+
+```json
+{
+  "plugins": [
+    { "path": "C:\\path\\to\\hall-of-automata-cli" }
+  ]
+}
+```
+
 ### Marketplace (when published)
 
 ```
 /plugin install hall-of-automata@claude-plugins-official
 ```
+
+> **Desktop app:** local plugin loading (`--plugin-dir`) is not supported in the Claude Code desktop app. Use the marketplace install once available, or run via the CLI.
 
 ## Quick Start
 
