@@ -27,6 +27,16 @@ Signs a task is too large: the specialist would need to make significant archite
 
 Signs a task is too small: it's a single function or config change a specialist would do in passing while completing a related task. Merge it.
 
+### Decompose by file boundary, not by theme
+
+The correct splitting axis is structural, not thematic. Two deliverables that belong to the same feature but touch different files should still be separate tasks — they can be dispatched in parallel and merged independently.
+
+**Decompose when:** the deliverables don't share the same file in a conflicting way and can be independently merged. The concrete benefits are (1) narrower issue context per specialist, which directly reduces hallucination surface, and (2) a botched sub-task doesn't block a working one.
+
+**Keep together when:** the deliverables genuinely cannot merge without each other (one file must land before the other is coherent), or they are so small that two issues add more overhead than they save.
+
+Theme is a tiebreaker at most — never the primary criterion for bundling.
+
 ## Phase 3: Dependency analysis
 
 For each task, identify:
