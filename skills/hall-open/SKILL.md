@@ -34,6 +34,21 @@ if ! grep -q "\.hall-cache" .gitignore 2>/dev/null; then
 fi
 ```
 
+### Step 2.5: Synthesise project context
+
+```bash
+mkdir -p .hall-cache/session
+```
+
+Read these files from the current working directory if they exist:
+- `README.md`
+- `CLAUDE.md` — omit any line starting with `@.hall-cache/session/`
+- `docs/design.md` — first 80 lines only
+
+Synthesise a 2–4 sentence context brief: what this project is, its primary tech stack, and any orchestration-relevant constraints. Write it to `.hall-cache/session/context.md`.
+
+If none of the three files exist, write: `Project context: not available — no README, CLAUDE.md, or docs/design.md found.`
+
 ### Step 3: Persona fetch
 
 Check cache freshness:
@@ -72,6 +87,24 @@ done
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .hall-cache/personas/.fetched_at
 echo "Personas fetched and cached."
 ```
+
+After fetching (or confirming cache is fresh), reconcile the `agents.yml` SHA:
+
+```bash
+CURRENT_SHA=$(gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml \
+  --jq '.sha' 2>/dev/null || echo "")
+CACHED_SHA=$(cat .hall-cache/personas/.agents-yml-sha 2>/dev/null || echo "")
+```
+
+If `$CURRENT_SHA != $CACHED_SHA` (or either is empty):
+- Force a full persona re-fetch (run the fetch block above regardless of TTL).
+- Write `$CURRENT_SHA` to `.hall-cache/personas/.agents-yml-sha`.
+- Print: `agents.yml changed — refreshed persona cache.`
+
+If they match:
+- Skip re-fetch.
+- Write `$CURRENT_SHA` to `.hall-cache/personas/.agents-yml-sha`.
+- Print: `agents.yml unchanged (SHA: ${CURRENT_SHA:0:8}).`
 
 ### Step 4: Methodology copy
 
