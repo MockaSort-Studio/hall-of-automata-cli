@@ -18,4 +18,4 @@
 
 @{{CACHE_ROOT}}/methodology/routing-rationale.md
 
-{{ADVISORY_PERSONA_IMPORTS}}
+@{{CACHE_ROOT}}/session/roster-index.md

@@ -56,11 +56,13 @@ Check whether `.claude/settings.json` is present in the workspace.
 ```bash
 if [ ! -f .claude/settings.json ]; then
   mkdir -p .claude
-  sed "s|\${CLAUDE_PLUGIN_ROOT}|${CLAUDE_PLUGIN_ROOT}|g" \
-    "${CLAUDE_PLUGIN_ROOT}/templates/claude-settings.json" > .claude/settings.json
-  chmod +x "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/statusline.sh" \
-            "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hall-banner.sh"
+  PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+  sed "s|HALL_CLI_PLUGIN_ROOT|${PLUGIN_ROOT}|g" \
+    "${PLUGIN_ROOT}/templates/claude-settings.json" > .claude/settings.json
+  chmod +x "${PLUGIN_ROOT}/hooks/scripts/statusline.sh" \
+            "${PLUGIN_ROOT}/hooks/scripts/hall-banner.sh"
   echo "Configured unattended permissions + status line."
+  echo "NOTE: permissions take effect on next session start — this session is not fully unattended."
 else
   echo "Unattended permissions already configured."
 fi
@@ -80,27 +82,37 @@ If `--refresh` was passed OR `$FETCHED_AT` is empty OR it's >86400 seconds old, 
 ```bash
 mkdir -p .hall-cache/personas
 
-# Fetch automaton_base.md
-gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/automaton_base.md
-
-# Fetch old-major.md
-gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/old-major.md
-
-# Discover advisory specialists dynamically from the roster directory.
-# Saves the list to .advisory-roster.json for use in later steps.
+# Discover advisory specialists first (needed to know what to fetch in parallel).
+# Excludes old-major.md and README.md — those are not advisory specialist personas.
 gh api repos/MockaSort-Studio/hall-of-automata/contents/roster \
-  --jq '[.[] | select(.type=="file" and (.name | endswith(".md")) and .name != "old-major.md") | .name[:-3]]' \
+  --jq '[.[] | select(.type=="file" and (.name | endswith(".md")) and .name != "old-major.md" and .name != "README.md") | .name[:-3]]' \
   > .hall-cache/personas/.advisory-roster.json
 
-# Fetch each discovered advisory specialist persona
-python3 -c "import json; [print(s) for s in json.load(open('.hall-cache/personas/.advisory-roster.json'))]" \
-| while read -r SPECIALIST; do
-  gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${SPECIALIST}.md" \
-    --jq '.content' | base64 -d > ".hall-cache/personas/${SPECIALIST}.md"
-  echo "  Fetched: ${SPECIALIST}"
-done
+# Fetch core files and all specialist personas in parallel.
+gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
+  --jq '.content' | base64 -d > .hall-cache/personas/automaton_base.md &
+gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
+  --jq '.content' | base64 -d > .hall-cache/personas/old-major.md &
+while IFS= read -r SPECIALIST; do
+  (gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${SPECIALIST}.md" \
+    --jq '.content' | base64 -d > ".hall-cache/personas/${SPECIALIST}.md") &
+done < <(python3 -c "import json; [print(s) for s in json.load(open('.hall-cache/personas/.advisory-roster.json'))]")
+wait
+
+# Build compact roster index (replaces loading all personas at session start).
+python3 << 'PYEOF'
+import json
+specialists = json.load(open('.hall-cache/personas/.advisory-roster.json'))
+lines = ['# Advisory Specialist Roster', '']
+for name in specialists:
+    with open(f'.hall-cache/personas/{name}.md') as f:
+        content = f.read()
+    heading = next((l.lstrip('# ').strip() for l in content.splitlines() if l.startswith('#')), name)
+    lines.append(f'- **{name}** (`hall:{name}`): {heading}')
+lines.append('\nFull personas at `.hall-cache/personas/<name>.md`. Load via Tier 2 subagent when needed.')
+open('.hall-cache/session/roster-index.md', 'w').write('\n'.join(lines))
+PYEOF
+echo "  Generated roster index."
 
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .hall-cache/personas/.fetched_at
 echo "Personas fetched and cached."
@@ -143,7 +155,7 @@ python3 << 'PYEOF'
 import json, os
 
 specialists = json.load(open('.hall-cache/personas/.advisory-roster.json'))
-plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '.')
+plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '/home/mike/Workspace/hall-of-automata-cli')
 
 with open(f'{plugin_root}/templates/subagent-overlay.md.tpl') as f:
     template = f.read()
@@ -168,14 +180,12 @@ PYEOF
 
 ### Step 6: Stack assembly
 
-Fills all template variables including `{{ADVISORY_PERSONA_IMPORTS}}`, which expands to one `@`-import line per fetched advisory specialist.
-
 ```bash
 ASSEMBLED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 
 python3 << PYEOF
-import json, os
+import os
 
 assembled_at = '${ASSEMBLED_AT}'
 plugin_root  = '${PLUGIN_ROOT}'
@@ -183,14 +193,10 @@ plugin_root  = '${PLUGIN_ROOT}'
 with open(f'{plugin_root}/templates/CLAUDE-stack.md.tpl') as f:
     content = f.read()
 
-specialists = json.load(open('.hall-cache/personas/.advisory-roster.json'))
-advisory_imports = '\n\n'.join(f'@.hall-cache/personas/{s}.md' for s in specialists)
-
 content = content \
     .replace('{{PLUGIN_ROOT}}', plugin_root) \
     .replace('{{CACHE_ROOT}}', '.hall-cache') \
-    .replace('{{ASSEMBLED_AT}}', assembled_at) \
-    .replace('{{ADVISORY_PERSONA_IMPORTS}}', advisory_imports)
+    .replace('{{ASSEMBLED_AT}}', assembled_at)
 
 os.makedirs('.hall-cache/session', exist_ok=True)
 with open('.hall-cache/session/CLAUDE-stack.md', 'w') as f:
@@ -230,7 +236,17 @@ echo "Watcher started (background polling for GitHub state changes)."
 
 ### Step 8.5: Schedule autonomous reconcile cron
 
-If an active plan exists in `.hall-cache/plans/` (any directory with a `plan.md` not marked `Status: DONE`):
+```bash
+ACTIVE_PLAN=false
+for plan_dir in .hall-cache/plans/*/; do
+  plan_file="$plan_dir/plan.md"
+  [ -f "$plan_file" ] || continue
+  plan_status=$(grep -m1 "Status:" "$plan_file" 2>/dev/null || echo "")
+  echo "$plan_status" | grep -q "DONE" || { ACTIVE_PLAN=true; break; }
+done
+```
+
+If `$ACTIVE_PLAN` is `true` (any `plan.md` not marked `Status: DONE`):
 
 Call `CronCreate` with:
 - **Schedule:** `*/5 * * * *`
@@ -247,7 +263,7 @@ If no active plan exists, skip and note: `No active plan — autonomous cron not
 
 Read and apply the assembled stack directly so Old Major activates now, without a restart:
 
-Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session. The @-imports include all fetched advisory specialist personas — the exact set is determined by what was discovered from the Hall roster in Step 3.
+Read `.hall-cache/session/CLAUDE-stack.md` and all files it @-imports, in order. Apply them as your operating instructions for this session. The `roster-index.md` @-import lists available specialists by name and domain. Full specialist personas live in `.hall-cache/personas/<name>.md` — load them at Tier 2 spawn time via `.hall-cache/session/claude-agents/<name>.md`, not at session open.
 
 ### Step 9.5: Automation config
 

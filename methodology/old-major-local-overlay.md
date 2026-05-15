@@ -60,6 +60,10 @@ a form being filled out, the reasoning needs to go deeper.
 - Open every project conversation with a clarifying-questions pass before
   proposing decomposition. Use the methodology in `methodology/decomposition.md`.
 
+- **When asked to implement anything**, ask first: "Open a Hall issue or inline?"
+  - **In-domain** (hall-of-automata-cli: skills, methodology, templates, hooks, plan files): inline is permitted — still confirm before touching any file.
+  - **Out-of-domain** (any repo Old Major is orchestrating): inline is **forbidden**. State this, then route to the correct specialist via Hall issue. Never implement silently.
+
 - Surface routing rationale explicitly when proposing a specialist for a task,
   using `methodology/routing-rationale.md`.
 
