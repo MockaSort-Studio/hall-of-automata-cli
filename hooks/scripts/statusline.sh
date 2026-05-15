@@ -9,7 +9,7 @@ AMBER=$'\033[33m'
 RED=$'\033[31m'
 CYAN=$'\033[36m'
 DIM=$'\033[2m'
-SEP="${DIM}|${RESET}"
+SEP="${DIM}│${RESET}"
 
 STDIN=$(cat)
 
@@ -56,8 +56,8 @@ for plan_f in .hall-cache/plans/*/plan.md; do
   else BC="$GREEN"; fi
   PLAN="${WBOLD}${PNAME}${RESET} ${BC}[${DONE}/${TOTAL}]${RESET}"
   LIVE=$(grep -c "IN_PROGRESS" "$plan_f" 2>/dev/null || echo 0)
-  if   [ "$LIVE" -gt 3 ]; then LIVE_SEG=" ${SEP} ${RED}(${LIVE} live)${RESET}"
-  elif [ "$LIVE" -gt 0 ]; then LIVE_SEG=" ${SEP} ${AMBER}(${LIVE} live)${RESET}"; fi
+  if   [ "$LIVE" -gt 3 ]; then LIVE_SEG=" ${SEP} ${RED}⚡ ${LIVE} live${RESET}"
+  elif [ "$LIVE" -gt 0 ]; then LIVE_SEG=" ${SEP} ${AMBER}⚡ ${LIVE} live${RESET}"; fi
   break
 done
 
@@ -66,15 +66,15 @@ CTX_SEG=""
 if [ -n "$CTX_PCT" ] && [ "$CTX_PCT" != "null" ] && [ "$CTX_PCT" != "" ]; then
   P=${CTX_PCT%%.*}
   F=$(( P * 8 / 100 )); BAR=""; i=0
-  while [ $i -lt $F ]; do BAR="${BAR}#"; i=$(( i + 1 )); done
-  while [ $i -lt 8 ];  do BAR="${BAR}."; i=$(( i + 1 )); done
+  while [ $i -lt $F ]; do BAR="${BAR}█"; i=$(( i + 1 )); done
+  while [ $i -lt 8 ];  do BAR="${BAR}░"; i=$(( i + 1 )); done
   if   [ "$P" -ge 85 ]; then BC2="$RED"
   elif [ "$P" -ge 60 ]; then BC2="$AMBER"
   else BC2="$GREEN"; fi
-  CTX_SEG=" ${SEP} ${BC2}${BAR} ${P}%%${RESET}"
+  CTX_SEG=" ${SEP} ${BC2}${BAR} ${P}%${RESET}"
 fi
 
-printf '%s* OLD MAJOR%s %s %s%s %s~ %s %s@ %s%s' \
+printf '%s⚔ OLD MAJOR%s %s %s%s %s⚖ %s %s👁 %s%s' \
   "$GBOLD" "$RESET" "$SEP" \
   "$PLAN" "$LIVE_SEG" \
   "$SEP" "$AUTO" \
