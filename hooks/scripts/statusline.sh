@@ -41,21 +41,21 @@ if [ -f .hall-cache/session/config.json ] && command -v python3 &>/dev/null; the
   esac
 fi
 
-# Plan status
+# Plan status — plan.md uses table rows: | ID | ... | DONE/IN_PROGRESS | ... |
 PLAN="${DIM}no active plan${RESET}"
 LIVE_SEG=""
 for plan_f in .hall-cache/plans/*/plan.md; do
   [ -f "$plan_f" ] || break
-  grep -q "^Status: DONE" "$plan_f" 2>/dev/null && continue
+  grep -q "Status: DONE" "$plan_f" 2>/dev/null && continue
   PNAME=$(basename "$(dirname "$plan_f")")
-  DONE=$(grep -c "^- \[x\]" "$plan_f" 2>/dev/null || echo 0)
-  TOTAL=$(grep -c "^- \[" "$plan_f" 2>/dev/null || echo 0)
+  DONE=$(grep -cE "\| DONE( \(inline\))? +\|" "$plan_f" 2>/dev/null || echo 0)
+  TOTAL=$(grep -cE "\| (DONE|IN_PROGRESS|BACKLOG|REVIEWING|ESCALATED)" "$plan_f" 2>/dev/null || echo 0)
   PCT=0; [ "$TOTAL" -gt 0 ] && PCT=$(( DONE * 100 / TOTAL ))
   if   [ "$PCT" -ge 85 ]; then BC="$RED"
   elif [ "$PCT" -ge 50 ]; then BC="$AMBER"
   else BC="$GREEN"; fi
   PLAN="${WBOLD}${PNAME}${RESET} ${BC}[${DONE}/${TOTAL}]${RESET}"
-  LIVE=$(grep -c "IN_PROGRESS" "$plan_f" 2>/dev/null || echo 0)
+  LIVE=$(grep -cE "\| IN_PROGRESS +\|" "$plan_f" 2>/dev/null || echo 0)
   if   [ "$LIVE" -gt 3 ]; then LIVE_SEG=" ${SEP} ${RED}⚡ ${LIVE} live${RESET}"
   elif [ "$LIVE" -gt 0 ]; then LIVE_SEG=" ${SEP} ${AMBER}⚡ ${LIVE} live${RESET}"; fi
   break
