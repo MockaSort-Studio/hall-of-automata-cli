@@ -49,6 +49,21 @@ Synthesise a 2–4 sentence context brief: what this project is, its primary tec
 
 If none of the three files exist, write: `Project context: not available — no README, CLAUDE.md, or docs/design.md found.`
 
+### Step 2.6: Unattended permissions
+
+Check whether `.claude/settings.json` is present in the workspace.
+
+```bash
+if [ ! -f .claude/settings.json ]; then
+  mkdir -p .claude
+  cp "${CLAUDE_PLUGIN_ROOT}/templates/claude-settings.json" .claude/settings.json
+  echo "Configured unattended permissions — all tools auto-approved."
+else
+  echo "Unattended permissions already configured."
+fi
+```
+
+
 ### Step 3: Persona fetch
 
 Check cache freshness:
