@@ -2,7 +2,7 @@
 # Background GitHub polling daemon for in-flight Hall tasks.
 # Writes .hall-cache/watcher.pid on start.
 # Polls every POLL_INTERVAL seconds (default 120).
-# Pass --once to run a single check and exit (useful for testing).
+# Pass --once to run a single check and exit.
 
 set -euo pipefail
 
@@ -12,56 +12,140 @@ ONCE=false
 
 CACHE=".hall-cache"
 PID_FILE="$CACHE/watcher.pid"
-PLAN_DIR=$(ls -d "$CACHE/plans/"*/ 2>/dev/null | sort | tail -1 || echo "")
 
-# Write PID file
 echo $$ > "$PID_FILE"
-# In daemon mode, clean up PID file on exit; in --once mode leave it for callers to inspect
 $ONCE || trap 'rm -f "$PID_FILE"' EXIT
 
 check_once() {
-  [ -z "$PLAN_DIR" ] && return
-  PLAN_JSON="$PLAN_DIR/plan.json"
-  [ -f "$PLAN_JSON" ] || return
+  python3 << 'PYEOF'
+import json, subprocess, glob, os, re
+from datetime import datetime, timezone
 
-  REPO=$(python3 -c "import json; d=json.load(open('$PLAN_JSON')); print(d['repo'])" 2>/dev/null || echo "")
-  [ -z "$REPO" ] && return
+CACHE = '.hall-cache'
+EVENTS_FILE = f'{CACHE}/watcher-events.jsonl'
+STATE_FILE  = f'{CACHE}/watcher-state.json'
 
-  # Check each dispatched or in-progress task
-  python3 << PYEOF
-import json, subprocess, sys
+def ts():
+    return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-with open('$PLAN_JSON') as f:
-    plan = json.load(f)
+def gh(*args):
+    r = subprocess.run(['gh'] + list(args), capture_output=True, text=True, timeout=15)
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    return json.loads(r.stdout)
 
-events = []
-for task in plan.get('tasks', []):
-    if task.get('status') not in ('DISPATCHED', 'IN_PROGRESS', 'AWAITING_INPUT'):
+def emit(obj):
+    line = f"[{obj['ts']}] {obj['event']} issue=#{obj['issue']}"
+    if obj.get('pr'):
+        line += f" pr=#{obj['pr']}"
+    if obj.get('title'):
+        line += f' title="{obj["title"]}"'
+    print(line, flush=True)
+    with open(EVENTS_FILE, 'a') as f:
+        f.write(json.dumps(obj) + '\n')
+
+# Plan discovery — fallback chain: plan.json -> plan.md -> give up
+plan_dirs = sorted(glob.glob(f'{CACHE}/plans/*/'))
+if not plan_dirs:
+    exit(0)
+plan_dir = plan_dirs[-1]
+
+repo = ''
+issues = []
+plan_json_path = f'{plan_dir}/plan.json'
+plan_md_path   = f'{plan_dir}/plan.md'
+active_plan    = {'tasks': []}
+
+if os.path.exists(plan_json_path):
+    active_plan = json.load(open(plan_json_path))
+    repo   = active_plan.get('repo', '')
+    issues = [t['github_issue'] for t in active_plan.get('tasks', []) if t.get('github_issue')]
+
+if (not repo or not issues) and os.path.exists(plan_md_path):
+    content = open(plan_md_path).read()
+    if not repo:
+        m = re.search(r'\*\*Repo:\*\*\s+(\S+)|^repo:\s+(\S+)', content, re.M)
+        if m:
+            repo = m.group(1) or m.group(2)
+    if not issues:
+        issues = sorted(set(int(n) for n in re.findall(r'\[#(\d+)\]', content)))
+
+if not repo or not issues:
+    print('watcher: no trackable issues found', flush=True)
+    exit(0)
+
+# Load prior state
+state     = json.load(open(STATE_FILE)) if os.path.exists(STATE_FILE) else {}
+new_state = dict(state)
+
+for n in issues:
+    key  = str(n)
+    prev = state.get(key, {})
+    cur  = {}
+
+    issue_data = gh('issue', 'view', str(n), '--repo', repo, '--json', 'state,labels,title')
+    if not issue_data:
+        new_state[key] = prev
         continue
-    issue = task.get('github_issue')
-    if not issue:
-        continue
-    try:
-        result = subprocess.run(
-            ['gh', 'issue', 'view', str(issue), '--repo', '$REPO',
-             '--json', 'state,labels,title,url'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode != 0:
-            continue
-        data = json.loads(result.stdout)
-        labels = [l['name'] for l in data.get('labels', [])]
-        if 'hall:awaiting-input' in labels and task['status'] != 'AWAITING_INPUT':
-            events.append(f"AWAITING_INPUT: Issue #{issue} ({task['title']}) needs your input.")
-        if data['state'] == 'closed' and task['status'] not in ('MERGED', 'FAILED'):
-            events.append(f"CLOSED: Issue #{issue} ({task['title']}) was closed.")
-        if 'hall:post-mortem' in labels:
-            events.append(f"FAILED: Issue #{issue} ({task['title']}) triggered post-mortem.")
-    except Exception:
-        pass
 
-for e in events:
-    print(e)
+    labels = [l['name'] for l in issue_data.get('labels', [])]
+    title  = issue_data.get('title', '')
+    cur['labels'] = labels
+
+    prev_labels = set(prev.get('labels', []))
+    cur_labels  = set(labels)
+
+    for event_key, label in [
+        ('LABEL_IN_PROGRESS',    'hall:in-progress'),
+        ('LABEL_AWAITING_INPUT', 'hall:awaiting-input'),
+        ('LABEL_POST_MORTEM',    'hall:post-mortem'),
+    ]:
+        if label in cur_labels and label not in prev_labels:
+            emit({'ts': ts(), 'event': event_key, 'issue': n, 'title': title})
+
+    pr_list = gh('pr', 'list', '--repo', repo, '--search', f'closes #{n}',
+                 '--json', 'number,state,mergedAt,headRefName,commits')
+    prs = pr_list if isinstance(pr_list, list) else []
+
+    if prs:
+        pr       = prs[0]
+        pr_num   = pr.get('number')
+        pr_state = pr.get('state', '')
+        merged_at = pr.get('mergedAt')
+        commits  = pr.get('commits', [])
+        head_sha = commits[-1]['oid'] if commits else ''
+
+        cur.update({'pr_num': pr_num, 'pr_state': pr_state,
+                    'merged_at': merged_at, 'head_sha': head_sha})
+
+        prev_pr_num   = prev.get('pr_num')
+        prev_merged_at = prev.get('merged_at')
+        prev_head_sha  = prev.get('head_sha', '')
+        prev_pr_state  = prev.get('pr_state', '')
+
+        if pr_num and not prev_pr_num and pr_state == 'open':
+            emit({'ts': ts(), 'event': 'PR_OPENED', 'issue': n, 'pr': pr_num, 'title': title})
+        if merged_at and not prev_merged_at:
+            emit({'ts': ts(), 'event': 'PR_MERGED', 'issue': n, 'pr': pr_num, 'title': title})
+        if pr_state == 'closed' and not merged_at and prev_pr_state != 'closed':
+            emit({'ts': ts(), 'event': 'PR_CLOSED_NO_MERGE', 'issue': n, 'pr': pr_num, 'title': title})
+
+        # REFINE_READY: new commit on PR branch while task is REVIEWING, review_cycle=1
+        for task in active_plan.get('tasks', []):
+            if (task.get('github_issue') == n
+                    and task.get('status') == 'REVIEWING'
+                    and task.get('review_cycle', 1) == 1
+                    and head_sha and prev_head_sha
+                    and head_sha != prev_head_sha):
+                emit({'ts': ts(), 'event': 'REFINE_READY', 'issue': n, 'pr': pr_num, 'title': title})
+    else:
+        cur['pr_num'] = None
+
+    new_state[key] = cur
+
+os.makedirs(CACHE, exist_ok=True)
+with open(STATE_FILE, 'w') as f:
+    json.dump(new_state, f, indent=2)
 PYEOF
 }
 

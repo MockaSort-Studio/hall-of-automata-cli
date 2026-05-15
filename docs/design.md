@@ -145,8 +145,9 @@ hall-of-automata-cli/
 ### `/hall:close` sequence
 
 1. Remove workspace-root `CLAUDE.md` or just the import line if the file had pre-existing content.
-2. Kill the watcher daemon if running.
-3. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
+2. Cancel autonomous reconcile cron (if `cron.json` exists).
+3. Kill the watcher daemon if running.
+4. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
 
 ---
 
@@ -192,6 +193,7 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 │
 ├── session/                        # recreated each /hall:open
 │   ├── CLAUDE-stack.md
+│   ├── cron.json                   # autonomous reconcile cron ID (present if active plan)
 │   └── claude-agents/              # generated subagent definitions
 │
 ├── plans/                          # append-only; never overwritten
@@ -201,7 +203,9 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 │       ├── ledger.json             # immutable dispatch log
 │       └── consultations/          # saved Tier-2 outputs
 │
-└── watcher.pid                     # PID of background polling daemon
+├── watcher.pid                     # PID of background polling daemon
+├── watcher-state.json              # last-seen state per issue (transition deduplication)
+└── watcher-events.jsonl            # JSONL event log; drained by /hall:reconcile Step 0
 ```
 
 ### `plan.json` task schema
@@ -235,6 +239,38 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 | `PreToolUse: Write\|Edit\|MultiEdit` | `guard-writes.sh` | Block writes anywhere except `.hall-cache/` |
 | `SessionStart` | `session-start.sh` | Detect interrupted sessions; verify gitignore |
 | `Stop` | inline in hooks.json | Kill watcher daemon on session end |
+
+### Background Watcher
+
+`watcher.sh` runs as a background daemon during the session (started at Step 8 of `/hall:open`, killed at Step 2 of `/hall:close`). It polls GitHub every `$POLL_INTERVAL` seconds (default 120) and emits events on state transitions.
+
+**Detected events:**
+
+| Event key | Trigger condition |
+|---|---|
+| `LABEL_IN_PROGRESS` | `hall:in-progress` appears in issue labels |
+| `LABEL_AWAITING_INPUT` | `hall:awaiting-input` appears in issue labels |
+| `LABEL_POST_MORTEM` | `hall:post-mortem` appears in issue labels |
+| `PR_OPENED` | A PR linking this issue transitions from absent to `state=open` |
+| `PR_MERGED` | PR `mergedAt` becomes non-null |
+| `PR_CLOSED_NO_MERGE` | PR `state=closed` and `mergedAt` is null |
+| `REFINE_READY` | New commit on PR branch while task is REVIEWING with `review_cycle=1` |
+
+Events are emitted only on transition (compared to `.hall-cache/watcher-state.json`). Two output channels:
+- **Stdout** → captured to `.hall-cache/watcher.log` via `nohup`
+- **JSONL append** → `.hall-cache/watcher-events.jsonl` (drained by `/hall:reconcile` Step 0)
+
+**Autonomous loop:**
+
+```
+watcher.sh (every 120s)
+  └─ polls GitHub → writes watcher-events.jsonl + watcher.log
+
+CronCreate job (every 5 min, set by /hall:open Step 8.5)
+  └─ wakes Old Major
+       └─ /hall:reconcile (Step 0: drains watcher-events.jsonl)
+            └─ /hall:dispatch → advances plan without user input
+```
 
 ---
 
@@ -362,7 +398,6 @@ Old Major files a `hall:<specialist>` issue with the reviewer overlay as context
 |---|---|
 | Cross-user Old Major kanban | Each user's Old Major reads a shared per-invoker state file for coordination. Complex concurrency; future version. |
 | Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
-| Proactive watcher notifications | Watcher currently emits to stdout. Needs wiring to Claude Code's notification mechanism for true background alerts. |
 
 ---
 
