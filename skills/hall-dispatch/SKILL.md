@@ -14,6 +14,92 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 
 ## Execution
 
+### Step 0: Review dispatch
+
+Using the active plan's `plan.json` (located as in Step 3), collect all tasks where `needs_review: true`. If none, skip to Step 1.
+
+For each such task, in order:
+
+#### 0a. Locate the PR
+
+```bash
+gh pr list --repo <REPO> --search "closes #<ISSUE_NUMBER> is:open" \
+  --json number,headSha --jq '.[0]'
+```
+
+Empty result: print `Task <id> has needs_review but no open PR — skipping.` and move to next task.
+
+#### 0b. Render the reviewer overlay
+
+```bash
+python3 << 'PYEOF'
+import json, os
+plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '.')
+cache_root = '.hall-cache'
+specialist = '<SPECIALIST>'  # substitute task['specialist']
+persona_path = f'{cache_root}/personas/{specialist}.md'
+with open(f'{plugin_root}/templates/reviewer-overlay.md.tpl') as f:
+    template = f.read()
+with open(persona_path) as f:
+    lines = [l.rstrip() for l in f if l.strip()]
+description = next((l.lstrip('# ') for l in lines if l.startswith('#')), specialist)
+content = (template
+    .replace('{{SPECIALIST_NAME}}', specialist)
+    .replace('{{SPECIALIST_DESCRIPTION}}', description)
+    .replace('{{PERSONA_PATH}}', persona_path)
+    .replace('{{CACHE_ROOT}}', cache_root))
+os.makedirs(f'{cache_root}/session/claude-agents', exist_ok=True)
+with open(f'{cache_root}/session/claude-agents/{specialist}-reviewer.md', 'w') as f:
+    f.write(content)
+PYEOF
+```
+
+#### 0c. Spawn reviewer subagent
+
+Spawn `.hall-cache/session/claude-agents/<specialist>-reviewer.md`. Treat `review_cycle` as 1 if the task entry does not carry it.
+
+Prompt:
+> "Review PR #<PR_NUMBER> in <REPO> which addresses issue #<ISSUE_NUMBER>. This is review cycle <review_cycle> of 2."
+
+Wait for the subagent to return. Its output is the verdict comment block.
+
+#### 0d. Post verdict comment
+
+```bash
+gh pr comment <PR_NUMBER> --repo <REPO> --body "<verdict_text>"
+```
+
+#### 0e. Route by verdict
+
+Read the `VERDICT:` line from the returned block:
+
+- **LGTM** → go to 0f.
+- **MINOR** and `review_cycle == 1` → REFINE: post a PR comment directing the specialist to address findings and push a fix commit. In `plan.json`: set `review_cycle: 2`, `needs_review: false`, status `REVIEWING`. Write `plan.json`. Move to next task.
+- **MINOR** and `review_cycle == 2` (ASSESS-2) → go to 0f.
+- **MAJOR** or **BLOCKED** → go to 0f with escalation.
+
+#### 0f. SETTLE
+
+Read `automation_level` from `.hall-cache/session/config.json`.
+
+| Verdict | Level | Action |
+|---------|-------|--------|
+| LGTM | 2 | `gh pr merge --merge --repo <REPO> <PR_NUMBER>` — set status `DONE`, clear `needs_review` |
+| LGTM | 0 or 1 | Print: `PR #<N> is LGTM — please review and merge. Task remains REVIEWING.` |
+| MINOR (ASSESS-2), MAJOR, BLOCKED | any | Print verdict summary and findings. Set status `ESCALATED`. Clear `needs_review`. |
+
+Write `plan.json`.
+
+#### 0g. Summary
+
+After processing all `needs_review` tasks, print:
+
+```
+Review dispatch complete: N reviewed, M settled (DONE/ESCALATED), K pending REFINE.
+```
+
+Continue to Step 1.
+
 ### Step 1: Reconcile
 
 Run the reconcile procedure from `/hall:reconcile` before proceeding.
