@@ -212,14 +212,19 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
   "title": "...",
   "specialist": "<hall-label-suffix>",
   "mode": "doing | advising | researching",
-  "status": "PLANNED | READY | DISPATCHED | IN_PROGRESS | AWAITING_INPUT | MERGED | FAILED | BLOCKED | ESCALATED",
+  "status": "PLANNED | READY | DISPATCHED | IN_PROGRESS | AWAITING_INPUT | REVIEWING | MERGED | FAILED | ESCALATED",
   "github_issue": null,
   "github_pr": null,
+  "needs_review": false,
+  "review_cycle": 1,
   "depends_on": ["t0"],
   "routing_rationale": "...",
   "issue_body": "..."
 }
 ```
+
+// `needs_review`: set by reconcile when task transitions to REVIEWING and `automation_level ≥ 1`; cleared by dispatch after review is settled.
+// `review_cycle`: 1 on first review dispatch; 2 on REFINE (ASSESS-2); dispatch uses this to enforce the terminal cap.
 
 ---
 
@@ -344,7 +349,7 @@ The reviewer is the same specialist who implemented the task — they know the d
 ### 13.4 Trigger mechanism
 
 Old Major triggers a review dispatch when:
-- `hall:reconcile` detects a task transitioning to `pr_created` state, AND
+- `hall:reconcile` detects a task transitioning to `REVIEWING` state, AND
 - Automation level ≥ 1
 
 Old Major files a `hall:<specialist>` issue with the reviewer overlay as context. The task state advances to `REVIEWING`. On ASSESS-2 or a terminal SETTLE, the task advances to `DONE` or `ESCALATED`.
