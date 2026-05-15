@@ -131,16 +131,21 @@ hall-of-automata-cli/
 
 ### `/hall:open` sequence
 
-1. **Preflight** — same checks as `/hall:doctor`. Hard-stop: no `gh` auth, Hall App not installed. Warn and continue: no `GITHUB_PERSONAL_ACCESS_TOKEN`, user not in invoker pool (plan-only mode).
+1. **Preflight** — `gh` auth check; Hall App install check; warn on missing PAT or non-invoker user.
 2. **Gitignore** — add `.hall-cache/` if missing.
-3. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata` via `gh`. Cache at `.hall-cache/personas/` with 24 h TTL. Skip if fresh; `--refresh` forces re-fetch.
-4. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`.
-5. **Subagent generation** — render `templates/subagents/*.md.tpl` into `.hall-cache/session/claude-agents/`.
-6. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
-7. **CLAUDE.md injection** — if no workspace-root `CLAUDE.md`: write the import line. If one exists without the import: prompt user, append on consent, warn on refusal. Never silently overwrite.
-8. **Context injection** — read and apply the assembled stack in the current session; Old Major activates immediately.
-9. **Plan check** — if plans exist in `.hall-cache/plans/`, offer to resume.
-10. **Banner** — Old Major introduces himself.
+3. **Synthesise project context** — read `README.md`, `CLAUDE.md`, `docs/design.md` (first 80 lines) from working directory; write 2–4 sentence brief to `.hall-cache/session/context.md`.
+4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
+5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `.hall-cache/personas/` with 24 h TTL, **or** force re-fetch if `agents.yml` SHA differs from `.hall-cache/personas/.agents-yml-sha` (whichever condition triggers first).
+6. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`.
+7. **Subagent generation** — render per-specialist overlays into `.hall-cache/session/claude-agents/`.
+8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
+9. **CLAUDE.md injection** — write or append Hall stack import to workspace `CLAUDE.md`.
+10. **Watcher start** — launch `watcher.sh` as background daemon; log to `.hall-cache/watcher.log`.
+11. **Autonomous cron** — if an active plan exists, call `CronCreate` (every 5 min) to wake Old Major for unattended reconcile and dispatch; store cron ID in `.hall-cache/session/cron.json`.
+12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
+13. **Automation config** — if `.hall-cache/session/config.json` is absent, ask two binary questions (auto-review? auto-merge?) and write `automation_level` (0/1/2).
+14. **Plan check** — offer to resume if plans exist in `.hall-cache/plans/`.
+15. **Banner** — Old Major introduces himself.
 
 ### `/hall:close` sequence
 
