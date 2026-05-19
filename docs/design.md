@@ -131,7 +131,7 @@ hall-of-automata-cli/
 
 ### `/hall:open` sequence
 
-1. **Preflight** — `gh` auth check; Hall App install check; warn on missing PAT or non-invoker user.
+1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `.hall-cache/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
 2. **Gitignore** — add `.hall-cache/` if missing.
 3. **Synthesise project context** — read `README.md`, `CLAUDE.md`, `docs/design.md` (first 80 lines) from working directory; write 2–4 sentence brief to `.hall-cache/session/context.md`.
 4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
@@ -143,7 +143,7 @@ hall-of-automata-cli/
 10. **Watcher start** — launch `watcher.sh` as background daemon; log to `.hall-cache/watcher.log`.
 11. **Autonomous cron** — if an active plan exists, call `CronCreate` (every 7 min) to wake Old Major for unattended reconcile and dispatch; store cron ID in `.hall-cache/session/cron.json`. If no active plan at open time, Old Major schedules the cron when the first `plan.json` is written.
 12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
-13. **Automation config** — if `.hall-cache/session/config.json` is absent, ask two binary questions (auto-review? auto-merge?) and write `automation_level` (0/1/2).
+13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `.hall-cache/invoker.json`; set `local_mode` in `config.json`. Invoker path also prompts automation Q&A and writes `automation_level`. See [Invoker Detection](#invoker-detection).
 14. **Plan check** — offer to resume if plans exist in `.hall-cache/plans/`.
 15. **Banner** — Old Major introduces himself.
 
@@ -153,6 +153,64 @@ hall-of-automata-cli/
 2. Cancel autonomous reconcile cron (if `cron.json` exists).
 3. Kill the watcher daemon if running.
 4. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
+
+### Invoker Detection
+
+Runs at Step 13 of `/hall:open` when `.hall-cache/invoker.json` is absent (or removed by `--verify` / `hall:prune --invoker`).
+
+**Verification:** two checks against the authenticated user's org:
+
+1. **`hall_repo`** — does `repos/${ORG}/hall-of-automata` respond?
+2. **`team_member`** — is the user a member of `orgs/${ORG}/teams/automata-invokers`?
+
+Decision logic:
+
+| `hall_repo` | `team_member` | Outcome |
+|---|---|---|
+| `false` | any | `local` — Hall not found in org |
+| `true` | `false` | `local` — user not in `automata-invokers` |
+| `true` | `unknown` | `invoker` + warn (token lacks `read:org` scope) |
+| `true` | `true` | `invoker` |
+
+**`invoker.json` schema:**
+
+```json
+{
+  "mode": "invoker | local",
+  "verified_at": "<ISO timestamp>",
+  "checks": {"hall_repo": true, "team_member": true}
+}
+```
+
+Cached at `.hall-cache/invoker.json`. Reset with `hall:prune --invoker` (removes the file) or pass `--verify` to `/hall:open` (same effect inline).
+
+**Session effect:**
+- `invoker` → automation Q&A proceeds; writes `local_mode: false` to `config.json`
+- `local` → skips automation Q&A; writes `local_mode: true`, `automation_level: 0` to `config.json`
+
+### Local Mode
+
+Active when `config.json` contains `local_mode: true`. Old Major implements tasks inline in the current Claude Code session, without filing GitHub Issues. Assigned automatically to users whose verification returned `local`.
+
+**Persona load path:** `.hall-cache/personas/<specialist>.md` — fetched from Hall on demand if absent.
+
+**Branch naming:** `local/<task-slug>` — e.g., `local/invoker-dispatch-gate`.
+
+**Result artifact:** `.hall-cache/plans/<plan>/local-runs/<task-id>/result.md`
+
+```
+# Local Run: <task-id>
+Persona consulted: <specialist-name>
+Branch: local/<slug>
+Status: DONE | BLOCKED | PARTIAL
+Summary: <one paragraph>
+Files changed:
+- path/to/file — what changed
+```
+
+**Wave advancement:** manual. After each task, Old Major proposes the next ready set and waits for explicit confirmation. No watcher, no cron in local mode.
+
+**Scope limitation:** current working directory only. Tasks requiring PRs on external repos cannot be completed in local mode; Old Major states the limitation explicitly and suggests setting up as an invoker.
 
 ---
 
@@ -374,7 +432,7 @@ Each hit produces a `CROSS-INVOKER RISK` entry with a recommended action (`coord
 
 | Command | Purpose |
 |---|---|
-| `/hall:open [--refresh]` | Enter session mode. Preflight → fetch personas → assemble stack → activate Old Major. |
+| `/hall:open [--refresh\|--verify]` | Enter session mode. `--verify` forces invoker re-check. `--refresh` forces persona re-fetch. |
 | `/hall:close` | Exit session mode. Clean session files; kill watcher. |
 | `/hall:doctor` | Full preflight diagnostic: auth, Hall App, invoker membership, gitignore, cache, MCPs, quota. |
 | `/hall:plan` | Dump current plan as JSON + Markdown + Mermaid dependency diagram. |
@@ -383,7 +441,7 @@ Each hit produces a `CROSS-INVOKER RISK` entry with a recommended action (`coord
 | `/hall:reply <task_id> <message>` | Post reply on an issue carrying `hall:awaiting-input`, triggering re-dispatch. |
 | `/hall:reconcile` | Resync local plan from GitHub. Runs implicitly before any dispatch. |
 | `/hall:consultations [list\|view <id>\|prune]` | Manage saved Tier-2 consultation outputs. |
-| `/hall:prune [--plans <days>] [--cache]` | Clean old plan directories or stale persona cache. |
+| `/hall:prune [--invoker] [--plans <days>] [--cache]` | Clean old plans, stale cache, or invoker status. `--invoker` clears `.hall-cache/invoker.json` and prompts re-verification on next `/hall:open`. |
 
 ---
 

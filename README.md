@@ -53,6 +53,8 @@ Open a Claude Code session inside your project repo, then:
 /hall:close           — wrap up, clean .hall-cache/
 ```
 
+**First run:** on the first `/hall:open`, you'll be asked whether you are a Hall invoker (a member of the `automata-invokers` team on GitHub). Non-invokers get local orchestration mode — Old Major plans and implements inline without filing GitHub Issues. To re-verify after joining the team: `hall:prune --invoker` or pass `--verify` to `/hall:open`.
+
 ## Commands
 
 | Command | What it does |
@@ -65,7 +67,7 @@ Open a Claude Code session inside your project repo, then:
 | `/hall:reconcile` | Pulls GitHub label changes → updates `plan.json` statuses |
 | `/hall:consultations` | Routes a design question to the right specialist (Tier 1/2/3) |
 | `/hall:reply` | Attaches a message to an in-flight task's GitHub issue |
-| `/hall:prune` | Removes DONE/CANCELLED tasks from plan.json |
+| `/hall:prune` | Removes DONE/CANCELLED tasks from plan.json; `--invoker` resets invoker-status cache |
 | `/hall:close` | Saves session notes, kills watcher, removes `.hall-cache/` |
 
 ## Environment

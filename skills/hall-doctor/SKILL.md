@@ -37,19 +37,28 @@ gh api /orgs/${ORG}/installations \
   --jq '[.installations[].app_slug] | contains(["hall-of-automata"])' 2>&1
 ```
 
-`GET /repos/{owner}/{repo}/installation` requires GitHub App JWT auth and always returns 401 for user tokens — use the org installations endpoint instead.
+Checks the org installations list. Requires a token with `admin:org` scope to confirm.
 
 - `true` → PASS: Hall App is installed on this org
 - `false` → FAIL: Hall App not installed; dispatch will not work
-- HTTP error → ⚠ WARN: cannot verify (token lacks `admin:org` scope); assume installed and continue
+- HTTP error → ⚠ WARN: cannot verify (token scope insufficient); assume installed and continue
 
-### 4. User is a Hall invoker (⚠ if fails — plan-only mode)
+### 4. Invoker / local mode status (⚠ if local or uncached)
 
 ```bash
-gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/collaborators/$(gh api /user -q .login) 2>&1
+python3 - << 'PYEOF'
+import json
+try:
+    d = json.load(open('.hall-cache/invoker.json'))
+    print(f"mode={d['mode']} verified_at={d.get('verified_at','?')[:10]}")
+except FileNotFoundError:
+    print('not_cached')
+PYEOF
 ```
 
-Check for write access (push permission). Without it, dispatch is blocked but plan creation works.
+- `mode=invoker` → ✓ PASS: full dispatch access
+- `mode=local` → ⚠ WARN: local mode active; Hall dispatch blocked. Reset: `hall:prune --invoker` then `/hall:open`
+- `not_cached` → ⚠ WARN: invoker status unknown; run `/hall:open` to determine mode
 
 ### 5. .hall-cache/ in .gitignore (⚠ if missing, fix with --fix)
 
