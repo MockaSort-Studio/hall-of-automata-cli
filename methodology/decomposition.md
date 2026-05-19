@@ -37,7 +37,35 @@ The correct splitting axis is structural, not thematic. Two deliverables that be
 
 Theme is a tiebreaker at most — never the primary criterion for bundling.
 
-## Phase 3: Dependency analysis
+## Phase 3: Cross-invoker check
+
+Before mapping dependencies, check whether any proposed tasks overlap with active work from other invokers.
+
+**When to run:** Only if `.hall-cache/session/board-context.md` is present and contains active items from invokers other than the current session's. If absent, or if all active items belong to the current invoker, skip this phase silently — it is a no-op on solo sessions.
+
+**How to run:** For each proposed task, apply these overlap heuristics against active board items:
+
+- **Same file or directory target** — the task description or issue body names a specific file or directory that another active item also targets
+- **Same domain keyword** — shared terms such as `hall:open`, `reconcile`, `MCP`, `board`, or any domain-specific keyword that places both tasks in the same area
+- **Explicit dependency** — the proposed task would modify something another invoker is actively building (e.g., a shared schema, a skill file mid-rewrite, a config another agent is currently updating)
+
+**For each detected overlap, record a `CROSS-INVOKER RISK` entry in the plan proposal:**
+
+```
+CROSS-INVOKER RISK
+- Board item: #<N> — <title>
+- Invoker: <name>
+- Recommended action: coordinate via post_comment | block until resolved | proceed with explicit note
+```
+
+Action guidance:
+- `coordinate via post_comment` — timing coordination is sufficient; no structural conflict
+- `block until resolved` — a merge conflict or semantic conflict is likely
+- `proceed with explicit note` — overlap is cosmetic or in unrelated sections of the same file
+
+If no overlaps are found, continue to Phase 4 without any note.
+
+## Phase 4: Dependency analysis
 
 For each task, identify:
 - **Hard dependencies:** Tasks whose output (a merged PR, a posted analysis) this task requires to start
@@ -51,7 +79,7 @@ Common dependency patterns:
 - CI/CD setup tasks block tasks that assume CI exists
 - Research tasks block implementation tasks that depend on the research conclusion
 
-## Phase 4: Specialist assignment
+## Phase 5: Specialist assignment
 
 Assign each task to one specialist using `routing-rationale.md`. If a task spans multiple specialist domains, split it further or assign to the specialist whose domain dominates.
 
@@ -59,7 +87,7 @@ Each task has one of three modes: **doing** (implementation work, produces a PR)
 
 Never assign a single issue to multiple specialists (one `hall:<specialist>` label per issue).
 
-## Phase 5: Plan presentation
+## Phase 6: Plan presentation
 
 Present the plan as:
 1. A prose summary of the overall approach (2-3 sentences)
