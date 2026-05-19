@@ -25,16 +25,20 @@ Find the active plan. For each task with a `github_issue` number:
 ```bash
 PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
 ```
-Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")`.
+Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
+
+For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
+On `rate_limit` error, fall back to:
 ```bash
-# For each issue:
-gh issue view <N> --repo <ORG/REPO> --json state,labels,comments,url
+gh api repos/{ORG}/{REPO}/issues/{N} --jq '{state:.state,labels:[.labels[].name]}'
 ```
 
 For any issue with `state = closed`, additionally check for a linked PR:
 
+Call `search_pull_requests` (query: `repo:{ORG}/{REPO} closes #{N}`).
+On `rate_limit` error, fall back to:
 ```bash
-gh pr list --repo <REPO> --search "closes #<N>" --json state,mergedAt
+gh pr list --repo {ORG}/{REPO} --search "closes #{N}" --json state,mergedAt
 ```
 
 Update task status using this table:
@@ -84,7 +88,8 @@ If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED local
 
 Skip this section if `.hall-cache/session/board.json` or `.hall-cache/session/board-meta.json` is absent.
 
-Resolve current invoker once: `INVOKER=$(gh api user --jq '.login')`.
+Resolve current invoker once: call `get_me` and extract `.login`. Cache — do not call per task.
+REST fallback: `INVOKER=$(gh api user --jq '.login')`.
 
 For each task that newly transitioned to REVIEWING, MERGED, or DONE during this pass:
 
@@ -102,6 +107,12 @@ For each task that newly transitioned to REVIEWING, MERGED, or DONE during this 
    - `field_id` = `board-meta.json["fields"]["Status"]["id"]`
    - `value` = `{"singleSelectOptionId": <resolved option ID>}`
    - `invoker_login` = invoker_login
+
+   On GraphQL quota exhaustion: post a REST comment instead:
+   ```bash
+   gh api repos/{ORG}/{REPO}/issues/{N}/comments -X POST -f body="Status updated to <new_state>."
+   ```
+   Log `Board field skipped — quota exhausted; comment posted.`
 
 Log any error; never abort reconcile.
 
@@ -137,4 +148,4 @@ All states a task in `plan.json` may carry, in lifecycle order:
 | FAILED | Issue closed with no PR, or `hall:post-mortem` label |
 | ESCALATED | Review concluded non-LGTM; invoker action needed |
 
-// Snowball 🐷 — the lifecycle is only as trustworthy as the state that tracks it
+// Snowball 🐷 — fewer shell escapes, same guarantees
