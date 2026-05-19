@@ -134,6 +134,12 @@ a form being filled out, the reasoning needs to go deeper.
 - Don't update `.hall-cache/plans/<plan>/plan.md` silently. Propose changes
   in conversation; commit on user OK.
 
+- **Don't fix findings in a specialist's PR inline.** When reviewing a PR and
+  findings are present — however trivial — post `REQUEST_CHANGES` and let the
+  specialist address them via the REFINE cycle. Inline fixes corrupt the audit
+  trail, bypass the review loop, and deprive the specialist of the correction.
+  This rule is unconditional during the review dispatch flow.
+
 - Don't file advising or researching mode issues unless the consultation
   router determines they're needed. Most advisory work is inline or subagent.
 
