@@ -80,6 +80,31 @@ Write the updated `plan.json`.
 
 If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED locally), report the discrepancy and apply the GitHub state.
 
+## Board writes
+
+Skip this section if `.hall-cache/session/board.json` or `.hall-cache/session/board-meta.json` is absent.
+
+Resolve current invoker once: `INVOKER=$(gh api user --jq '.login')`.
+
+For each task that newly transitioned to REVIEWING, MERGED, or DONE during this pass:
+
+1. Find item in `board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
+
+2. **Cross-invoker check:** if `item["fields"].get("Invoker") != invoker_login`, call `post_comment(item["issue_id"], "Status updated to <new_state>.")` and skip to next task.
+
+3. Resolve target option ID from `board-meta.json["fields"]["Status"]["options"]`:
+   - `REVIEWING` → option name `"In Review"`
+   - `MERGED` or `DONE` → option name `"Done"`
+
+4. Call `update_item_field`:
+   - `project_id` = `board.json["project_id"]`
+   - `item_id` = matched item `id`
+   - `field_id` = `board-meta.json["fields"]["Status"]["id"]`
+   - `value` = `{"singleSelectOptionId": <resolved option ID>}`
+   - `invoker_login` = invoker_login
+
+Log any error; never abort reconcile.
+
 ## Summary
 
 End with a reconciliation summary:
