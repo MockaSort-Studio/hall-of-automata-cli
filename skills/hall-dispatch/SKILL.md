@@ -2,7 +2,7 @@
 name: hall-dispatch
 description: Dispatch ready tasks to the Hall as GitHub Issues with quota stewardship
 argument-hint: [--single <task_id>] [--dry-run]
-allowed-tools: [Bash, Read, Write]
+allowed-tools: [Bash, Read, Write, mcp__github__*]
 ---
 
 # /hall:dispatch
@@ -39,10 +39,8 @@ For each such task, in order:
 
 #### 0a. Locate the PR
 
-```bash
-gh pr list --repo <REPO> --search "closes #<ISSUE_NUMBER> is:open" \
-  --json number,headSha --jq '.[0]'
-```
+Call `mcp__github__search_pull_requests` with `query: "repo:<ORG/REPO> closes #<ISSUE_NUMBER> is:open"`. Take `number` and `head.sha` from the first result.  
+`# On rate_limit/secondary-rate-limit error: gh pr list --repo <REPO> --search "closes #<ISSUE_NUMBER> is:open" --json number,headSha --jq '.[0]'`
 
 Empty result: print `Task <id> has needs_review but no open PR — skipping.` and move to next task.
 
@@ -82,19 +80,16 @@ Wait for the subagent to return. Its output is the verdict comment block.
 
 #### 0d. Post verdict comment and submit GitHub review
 
-```bash
-gh pr comment <PR_NUMBER> --repo <REPO> --body "<verdict_text>"
-```
+Call `mcp__github__add_issue_comment` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issue_number: <PR_NUMBER>`, `body: <verdict_text>`.  
+`# On rate_limit/secondary-rate-limit error: gh pr comment <PR_NUMBER> --repo <REPO> --body "<verdict_text>"`
 
-Then submit a GitHub PR review with the state matching the verdict:
+Then submit a GitHub PR review matching the verdict:
 
-```bash
-# LGTM:
-gh pr review <PR_NUMBER> --repo <REPO> --approve
+LGTM: Call `mcp__github__create_and_submit_pull_request_review` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`.  
+`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --approve`
 
-# MINOR / MAJOR / BLOCKED:
-gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "<one-line finding summary>"
-```
+MINOR / MAJOR / BLOCKED: Call `mcp__github__create_and_submit_pull_request_review` with same params, `event: "REQUEST_CHANGES"`, `body: "<one-line finding summary>"`.  
+`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "<one-line finding summary>"`
 
 The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
 
@@ -113,7 +108,7 @@ Read `automation_level` from `.hall-cache/session/config.json`.
 
 | Verdict | Level | Action |
 |---------|-------|--------|
-| LGTM | 2 | `gh pr merge --merge --repo <REPO> <PR_NUMBER>` — set status `DONE`, clear `needs_review` |
+| LGTM | 2 | Call `mcp__github__merge_pull_request` (`owner`, `repo`, `pullNumber: <PR>`, `merge_method: "merge"`); `# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <REPO> <PR_NUMBER>` — set status `DONE`, clear `needs_review` |
 | LGTM | 0 or 1 | Print: `PR #<N> is LGTM — please review and merge. Task remains REVIEWING.` |
 | MINOR (ASSESS-2), MAJOR, BLOCKED | any | Print verdict summary and findings. Set status `ESCALATED`. Clear `needs_review`. |
 
@@ -143,9 +138,9 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 
 ```bash
 Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open(PLAN_DIR+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
-gh issue list --repo <ORG/REPO> \
-  --label "hall:in-progress" --json number | jq length
 ```
+Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.  
+`# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:in-progress" --json number | jq length`
 
 If the ready set exceeds estimated available capacity, display:
 > "N tasks ready, estimated pool capacity is M. Recommend filing M now and holding N-M as deferred. Proceed with recommendation, or file all N?"
@@ -176,13 +171,8 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-```bash
-gh issue create \
-  --repo <ORG/REPO> \
-  --title "<task title>" \
-  --label "hall:<specialist>" \
-  --body "<issue body>"
-```
+Call `mcp__github__create_issue` with `owner: <ORG>`, `repo: <REPO_NAME>`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
+`# On rate_limit/secondary-rate-limit error: gh issue create --repo <ORG/REPO> --title "<task title>" --label "hall:<specialist>" --body "<issue body>"`
 
 Issue body format:
 ```
@@ -219,7 +209,7 @@ All files produced by this task must be small enough for a human to review in on
 
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
 
-**Board write:** Skip if `board_project_number` is absent from `.hall-cache/session/config.json`, or if `.hall-cache/session/board.json` is absent. Find the item in `board.json` where `issue_number` equals the filed issue number; if absent, log and skip. Resolve `field_id` and option ID for "In Progress" from `board-meta.json["fields"]["Status"]`. Call `update_item_field`: `project_id` from `board.json`, `item_id` = matched item `id`, resolved `field_id`, `value = {"singleSelectOptionId": <In Progress option ID>}`, `invoker_login` from `gh api user --jq '.login'`. Log any error; do not abort dispatch.
+**Board write:** Skip if `board_project_number` is absent from `.hall-cache/session/config.json`, or if `.hall-cache/session/board.json` is absent. Find the item in `board.json` where `issue_number` equals the filed issue number; if absent, log and skip. Resolve `field_id` and option ID for "In Progress" from `board-meta.json["fields"]["Status"]`. Call `update_item_field`: `project_id` from `board.json`, `item_id` = matched item `id`, resolved `field_id`, `value = {"singleSelectOptionId": <In Progress option ID>}`, `invoker_login` from `mcp__github__get_me` (`# On rate_limit/secondary-rate-limit error: gh api user --jq '.login'`). Log any error; do not abort dispatch.
 
 ### Step 6: Report
 
@@ -230,3 +220,5 @@ Dispatched N tasks:
 
 M tasks remain blocked on: [dependency list]
 ```
+
+// Snowball 🐷 — the gh CLI still works; it just waits its turn now
