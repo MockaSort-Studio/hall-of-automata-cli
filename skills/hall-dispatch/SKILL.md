@@ -39,7 +39,7 @@ For each such task, in order:
 
 #### 0a. Locate the PR
 
-Call `mcp__github__search_pull_requests` with `query: "repo:<ORG/REPO> closes #<ISSUE_NUMBER> is:open"`. Take `number` and `head.sha` from the first result.  
+Call `mcp__github__list_pull_requests` with `query: "repo:<ORG/REPO> closes #<ISSUE_NUMBER> is:open"`. Take `number` and `head.sha` from the first result.  
 `# On rate_limit/secondary-rate-limit error: gh pr list --repo <REPO> --search "closes #<ISSUE_NUMBER> is:open" --json number,headSha --jq '.[0]'`
 
 Empty result: print `Task <id> has needs_review but no open PR — skipping.` and move to next task.
@@ -85,10 +85,10 @@ Call `mcp__github__add_issue_comment` with `owner: <ORG>`, `repo: <REPO_NAME>`, 
 
 Then submit a GitHub PR review matching the verdict:
 
-LGTM: Call `mcp__github__create_and_submit_pull_request_review` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`.  
+LGTM: Call `mcp__github__pull_request_review_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`.  
 `# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --approve`
 
-MINOR / MAJOR / BLOCKED: Call `mcp__github__create_and_submit_pull_request_review` with same params, `event: "REQUEST_CHANGES"`, `body: "<one-line finding summary>"`.  
+MINOR / MAJOR / BLOCKED: Call `mcp__github__pull_request_review_write` with same params, `event: "REQUEST_CHANGES"`, `body: "<one-line finding summary>"`.  
 `# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "<one-line finding summary>"`
 
 The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
@@ -171,7 +171,7 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-Call `mcp__github__create_issue` with `owner: <ORG>`, `repo: <REPO_NAME>`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
+Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
 `# On rate_limit/secondary-rate-limit error: gh issue create --repo <ORG/REPO> --title "<task title>" --label "hall:<specialist>" --body "<issue body>"`
 
 Issue body format:
