@@ -190,3 +190,9 @@ Files changed:
 Include the following block in every doing-mode implementation issue body. Old Major is responsible for carrying this into every dispatch — it is not optional and is not left to the specialist's judgment.
 
 > **Code quality:** All files produced by this task must be small enough for a human to review in one read (~200 lines hard ceiling). Prefer many small, focused files over fewer large ones. No duplicated logic. If a natural implementation would exceed this, decompose further and raise with Old Major before proceeding.
+
+## Target repository constraint
+
+Include the following block in every issue body, immediately after the task description. Non-negotiable — a specialist that receives no explicit repo anchor will infer one, and the inference will be wrong.
+
+> **Target repository:** `<org>/<repo>` — all file edits and PRs must be opened here. Do not interact with any other repository.
