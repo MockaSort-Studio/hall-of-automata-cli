@@ -2,7 +2,7 @@
 name: hall-open
 description: Enter Old Major session mode — fetch personas, assemble session stack, activate
 argument-hint: [--refresh|--verify]
-allowed-tools: [Bash, Write, CronCreate, AskUserQuestion]
+allowed-tools: [Bash, Write, CronCreate, AskUserQuestion, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
 ---
 
 # /hall:open
@@ -36,9 +36,12 @@ grep -q "\.hall-cache" .gitignore 2>/dev/null \
 
 # Cache state
 mkdir -p .hall-cache/personas .hall-cache/session .hall-cache/plans
+```
 
-CURRENT_SHA=$(gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml \
-  --jq '.sha' 2>/dev/null || echo "")
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
+
+```bash
 CACHED_SHA=$(cat .hall-cache/personas/.agents-yml-sha 2>/dev/null || echo "")
 FETCHED_AT=$(cat .hall-cache/personas/.fetched_at 2>/dev/null || echo "")
 NOW=$(date +%s)
@@ -70,26 +73,21 @@ echo "SHA=${CURRENT_SHA:0:8}"
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 
-```bash
-CURRENT_SHA=$(cat .hall-cache/session/.current-sha 2>/dev/null || \
-  gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha' 2>/dev/null || echo "")
+Read `CURRENT_SHA` from `.hall-cache/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
-gh api repos/MockaSort-Studio/hall-of-automata/contents/roster \
-  --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' \
-  > .hall-cache/personas/.advisory-roster.json
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) as a JSON array to `.hall-cache/personas/.advisory-roster.json`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > .hall-cache/personas/.advisory-roster.json`
+
+```bash
 python3 -c "import json,sys; d=json.load(open('.hall-cache/personas/.advisory-roster.json')); assert isinstance(d,list), f'API error: {d}'" \
   || exit 1
+```
 
-gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/automaton_base.md &
-gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/old-major.md &
-while IFS= read -r S; do
-  (gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${S}.md" \
-    --jq '.content' | base64 -d > ".hall-cache/personas/${S}.md") &
-done < <(python3 -c "import json; [print(s) for s in json.load(open('.hall-cache/personas/.advisory-roster.json'))]")
-wait
+For each path — `agents/automaton_base.md`, `roster/old-major.md`, and `roster/<name>.md` for each name in the roster JSON — call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`). Decode the returned `content` (base64) and write to `.hall-cache/personas/<target>.md`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/<path> --jq '.content' | base64 -d > <target>`
 
+```bash
 python3 << 'PYEOF'
 import json, sys, os
 specs = json.load(open('.hall-cache/personas/.advisory-roster.json'))
@@ -168,11 +166,39 @@ if key not in mcp_cfg:
     print('Added hall-projects MCP server to .mcp.json.')
 print(f'Setup complete (mode={mode}).')
 PYEOF
+```
 
-# Board context
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/fetch-board-context.sh" \
-  && echo "Board context fetched." || echo "Board context unavailable (board not provisioned)."
+**Board context:** Read `board_project_number` from `.hall-cache/session/config.json`. If absent, skip silently.
 
+```bash
+BOARD_NUM=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('board_project_number',''))" 2>/dev/null || echo "")
+OWNER=$(echo "$REPO" | cut -d/ -f1)
+```
+
+If `BOARD_NUM` is non-empty: call `read_board` MCP with `owner=$OWNER` and `project_number=$BOARD_NUM` (integer). On success, format `board-context.md`:
+
+```bash
+python3 << 'PYEOF'
+import json
+from datetime import datetime, timezone
+b = json.load(open('.hall-cache/session/board.json'))
+ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+active = [i for i in b.get('items', []) if i.get('fields', {}).get('Status', '') not in ('Done', 'Closed')]
+done = len(b.get('items', [])) - len(active)
+hdr = [f'# Board Context (as of {ts})', '',
+       '| # | Title | Status | Invoker | Priority | Epic |',
+       '|---|-------|--------|---------|----------|------|']
+rows = [f"| {r['issue_number']} | {r['title'][:50]} | {r.get('fields',{}).get('Status','')} "
+        f"| {r.get('fields',{}).get('Invoker','')} | {r.get('fields',{}).get('Priority','')} "
+        f"| {r.get('fields',{}).get('Epic','')} |" for r in active] or ['No active items.']
+open('.hall-cache/session/board-context.md', 'w').write('\n'.join(hdr + rows + ['', f'Done/Closed items: {done}']) + '\n')
+print('Board context written.')
+PYEOF
+```
+
+On error from `read_board`: print `"Board context unavailable (board not provisioned)."` and continue.
+
+```bash
 # Watcher
 WPID=$(cat .hall-cache/watcher.pid 2>/dev/null || echo "")
 if [ -n "$WPID" ] && kill -0 "$WPID" 2>/dev/null; then
@@ -208,22 +234,20 @@ Use `AskUserQuestion` with one question:
 
 ```bash
 ORG=$(echo "$REPO" | cut -d/ -f1)
-# Check 1: Hall repo exists in org
-if gh api "repos/${ORG}/hall-of-automata" --silent &>/dev/null; then
-  HALL_REPO=true
-else
-  HALL_REPO=false
-fi
-# Check 2: team membership
-ME=$(gh api /user --jq '.login' 2>/dev/null || echo "")
-TEAM_RAW=$(gh api "orgs/${ORG}/teams/automata-invokers/memberships/${ME}" \
-  --jq '.state' 2>/dev/null)
-case "$TEAM_RAW" in
-  active|pending) TEAM_MEMBER=true ;;
-  "")             TEAM_MEMBER=unknown ;;  # 403 or network error
-  *)              TEAM_MEMBER=false ;;    # 404 = not a member
-esac
 ```
+
+Call `get_me` MCP → `ME` = returned `login` field.
+`# On rate_limit/secondary-rate-limit error: ME=$(gh api /user --jq '.login')`
+
+Call `search_repositories` MCP with query `repo:${ORG}/hall-of-automata`. `HALL_REPO=true` if results are non-empty; `false` otherwise.
+`# On rate_limit/secondary-rate-limit error: gh api "repos/${ORG}/hall-of-automata" --silent && HALL_REPO=true || HALL_REPO=false`
+
+Call `get_team_members` MCP with org=`$ORG`, team_slug=`automata-invokers`. Determine `TEAM_MEMBER`:
+- Error response (403, not found, rate limit): `TEAM_MEMBER=unknown`
+- `$ME` in returned members list: `TEAM_MEMBER=true`
+- Otherwise: `TEAM_MEMBER=false`
+
+`# On rate_limit/secondary-rate-limit error: TEAM_RAW=$(gh api "orgs/${ORG}/teams/automata-invokers/memberships/${ME}" --jq '.state'); case "$TEAM_RAW" in active|pending) TEAM_MEMBER=true ;; "") TEAM_MEMBER=unknown ;; *) TEAM_MEMBER=false ;; esac`
 
 Decision:
 - `HALL_REPO=false` → print "Hall not found in org ${ORG} — verify the Hall is set up at github.com/apps/hall-of-automata"; write `mode: local`; set `local_mode: true`, `automation_level: 0`
