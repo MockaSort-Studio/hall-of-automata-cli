@@ -172,6 +172,10 @@ Issue body format:
 ```
 <!-- Hall dispatch by Old Major (Session Mode) -->
 
+## Working repository
+
+All work for this task — branch, commits, and the final PR — must be created in **`<ORG/REPO>`**. Do not create branches or PRs on any other repository.
+
 ## Summary
 
 <one paragraph description of the task>

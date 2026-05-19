@@ -36,7 +36,7 @@ gh release create v0.2.0 --title "v0.2.0" --notes "$(cat CHANGELOG.md | head -50
 
 ### 4. Update marketplace registry
 
-The marketplace at `MockaSort-Studio/marketplace` points to the GitHub repo directly — no pinned version. Users who run `/plugin marketplace update mocksort` get the latest commit automatically. No manual registry update needed for rolling releases.
+The marketplace at `MockaSort-Studio/marketplace` points to the GitHub repo directly — no pinned version. Users who run `/plugin marketplace update mockasort` get the latest commit automatically. No manual registry update needed for rolling releases.
 
 To pin to a specific release tag, edit `.claude-plugin/marketplace.json` in `MockaSort-Studio/marketplace` — add a `ref` to the source:
 
@@ -49,6 +49,6 @@ To pin to a specific release tag, edit `.claude-plugin/marketplace.json` in `Moc
 From within Claude Code:
 
 ```
-/plugin marketplace update mocksort
-/plugin install hall-of-automata-cli@mocksort
+/plugin marketplace update mockasort
+/plugin install hall-of-automata-cli@mockasort
 ```

@@ -17,7 +17,7 @@ Inside any Claude Code session:
 
 ```
 /plugin marketplace add MockaSort-Studio/marketplace
-/plugin install hall-of-automata-cli@mocksort
+/plugin install hall-of-automata-cli@mockasort
 ```
 
 Works in the CLI, desktop app, and IDE extensions — no git or terminal required.
