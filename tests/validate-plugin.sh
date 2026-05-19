@@ -40,7 +40,7 @@ done
 check "templates/CLAUDE-stack.md.tpl exists"        "test -f templates/CLAUDE-stack.md.tpl"
 check "templates/subagent-overlay.md.tpl exists"    "test -f templates/subagent-overlay.md.tpl"
 check "templates/plan.json.schema exists"            "test -f templates/plan.json.schema"
-check "CLAUDE-stack template has ADVISORY_PERSONA_IMPORTS" "grep -q 'ADVISORY_PERSONA_IMPORTS' templates/CLAUDE-stack.md.tpl"
+check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-index.md' templates/CLAUDE-stack.md.tpl"
 check "subagent template has SPECIALIST_NAME"        "grep -q 'SPECIALIST_NAME' templates/subagent-overlay.md.tpl"
 check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
 
