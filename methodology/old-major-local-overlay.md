@@ -60,6 +60,12 @@ a form being filled out, the reasoning needs to go deeper.
 - Open every project conversation with a clarifying-questions pass before
   proposing decomposition. Use the methodology in `methodology/decomposition.md`.
 
+- **Before finalising any plan decomposition,** run the cross-invoker check
+  (Phase 3 in `methodology/decomposition.md`). If cross-invoker risks are found,
+  surface each `CROSS-INVOKER RISK` entry explicitly in the plan proposal before
+  asking for dispatch confirmation. Do not file issues until the invoker has
+  acknowledged the risks.
+
 - **When asked to implement anything**, ask first: "Open a Hall issue or inline?"
   - **In-domain** (hall-of-automata-cli: skills, methodology, templates, hooks, plan files): inline is permitted — still confirm before touching any file.
   - **Out-of-domain** (any repo Old Major is orchestrating): inline is **forbidden**. State this, then route to the correct specialist via Hall issue. Never implement silently.
