@@ -178,9 +178,14 @@ Decision logic:
 {
   "mode": "invoker | local",
   "verified_at": "<ISO timestamp>",
-  "checks": {"hall_repo": true, "team_member": true}
+  "checks": {
+    "hall_repo": true | false,
+    "team_member": true | false | "unknown"
+  }
 }
 ```
+
+`team_member` is `"unknown"` when the token lacks `read:org` scope; in that case the outcome is `invoker` with a warning (see decision table above).
 
 Cached at `.hall-cache/invoker.json`. Reset with `hall:prune --invoker` (removes the file) or pass `--verify` to `/hall:open` (same effect inline).
 

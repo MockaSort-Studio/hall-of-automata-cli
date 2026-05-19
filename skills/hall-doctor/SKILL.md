@@ -53,6 +53,8 @@ try:
     print(f"mode={d['mode']} verified_at={d.get('verified_at','?')[:10]}")
 except FileNotFoundError:
     print('not_cached')
+except (json.JSONDecodeError, KeyError):
+    print('corrupt_cache')
 PYEOF
 ```
 
