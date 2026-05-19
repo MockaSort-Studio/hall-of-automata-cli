@@ -3,8 +3,9 @@
 
 import json
 import os
-import subprocess
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,18 +24,27 @@ _BOARD = f"{_CACHE}/board.json"
 
 
 def _graphql(query: str, variables: dict) -> dict:
+    payload = json.dumps({"query": query, "variables": variables}).encode()
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        method="POST",
+    )
     try:
-        r = subprocess.run(
-            ["gh", "api", "graphql", "--input", "-"],
-            input=json.dumps({"query": query, "variables": variables}),
-            capture_output=True, text=True, timeout=30,
-        )
-    except subprocess.TimeoutExpired:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": "http_error", "status": e.code, "detail": e.reason}
+    except urllib.error.URLError as e:
+        return {"error": "url_error", "detail": str(e.reason)}
+    except TimeoutError:
         return {"error": "timeout"}
-    if r.returncode != 0:
-        return {"error": "subprocess_error", "stderr": r.stderr.strip()}
-    try:
-        data = json.loads(r.stdout)
     except json.JSONDecodeError as e:
         return {"error": "json_parse_error", "detail": str(e)}
     if "errors" in data:
@@ -198,3 +208,5 @@ def read_board(owner: str, project_number: int) -> dict:
 
 if __name__ == "__main__":
     mcp.run()
+
+# Snowball 🐷 — subprocess gone; GraphQL now travels direct
