@@ -167,6 +167,10 @@ if key not in mcp_cfg:
 print(f'Setup complete (mode={mode}).')
 PYEOF
 
+# Board context
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/fetch-board-context.sh" \
+  && echo "Board context fetched." || echo "Board context unavailable (board not provisioned)."
+
 # Watcher
 WPID=$(cat .hall-cache/watcher.pid 2>/dev/null || echo "")
 if [ -n "$WPID" ] && kill -0 "$WPID" 2>/dev/null; then

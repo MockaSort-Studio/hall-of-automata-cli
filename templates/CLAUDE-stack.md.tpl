@@ -19,3 +19,5 @@
 @{{CACHE_ROOT}}/methodology/routing-rationale.md
 
 @{{CACHE_ROOT}}/session/roster-index.md
+
+@{{CACHE_ROOT}}/session/board-context.md
