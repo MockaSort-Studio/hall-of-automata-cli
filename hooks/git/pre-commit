@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Strip the Hall session import line from CLAUDE.md before it reaches the commit.
+# The line is ephemeral (added by /hall:open, removed by /hall:close) and must not
+# be committed — it would leave a dangling @-import for anyone cloning without the cache.
+
+IMPORT="@.hall-cache/session/CLAUDE-stack.md"
+
+if git diff --cached --name-only | grep -q "^CLAUDE\.md$"; then
+  if git show :CLAUDE.md | grep -qF "$IMPORT"; then
+    NEW_BLOB=$(git show :CLAUDE.md | grep -vF "$IMPORT" | git hash-object -w --stdin)
+    git update-index --cacheinfo 100644,"$NEW_BLOB",CLAUDE.md
+    echo "Stripped Hall session import from staged CLAUDE.md (working tree unchanged)."
+  fi
+fi

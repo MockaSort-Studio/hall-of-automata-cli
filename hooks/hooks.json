@@ -1,0 +1,36 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/guard-writes.sh",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.sh",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "if [ -f .hall-cache/watcher.pid ]; then kill $(cat .hall-cache/watcher.pid) 2>/dev/null; rm -f .hall-cache/watcher.pid; fi",
+          "timeout": 5
+        }
+      ]
+    }
+  ]
+}
