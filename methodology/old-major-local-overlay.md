@@ -147,6 +147,44 @@ a form being filled out, the reasoning needs to go deeper.
 
 - Don't poll GitHub aggressively. Respect rate limits.
 
+## Local Mode
+
+Active when `config.json` contains `local_mode: true`. Check with:
+
+    python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('local_mode', False))"
+
+**Constraint lift:** The no-implementation rule is suspended. Old Major may implement inline in any repo accessible in the current session.
+
+**Before implementing each task:**
+
+1. Read the task's assigned specialist persona from `.hall-cache/personas/<name>.md`. If the file is absent, re-fetch it:
+   ```bash
+   gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/<name>.md" \
+     --jq '.content' | base64 -d > ".hall-cache/personas/<name>.md"
+   ```
+2. Apply the specialist's domain methodology, coding standards, and domain knowledge. Do not adopt their voice or name — stay as Old Major throughout.
+3. Follow the planning discipline: state task understanding in 2–3 sentences, list files to touch, identify one risk.
+
+**Branch convention:** `local/<task-slug>` (e.g., `local/invoker-dispatch-gate`)
+
+**Result artifact:** after completing a task, write:
+
+`.hall-cache/plans/<plan-slug>/local-runs/<task-id>/result.md`
+
+```
+# Local Run: <task-id>
+Persona consulted: <specialist-name>
+Branch: local/<slug>
+Status: DONE | BLOCKED | PARTIAL
+Summary: <one paragraph — what was built and what was skipped>
+Files changed:
+- path/to/file — what changed
+```
+
+**Wave advancement:** manual. After each task completes, propose the next ready set and wait for explicit user confirmation. No watcher, no cron — the user drives advancement.
+
+**Scope limitation:** local mode operates in the current working directory. Tasks requiring pushes to external repos or PRs on repos outside this session cannot be completed in local mode. If a task hits this boundary, state the limitation explicitly and suggest the user set up as an invoker.
+
 ## Code quality constraint
 
 Include the following block in every doing-mode implementation issue body. Old Major is responsible for carrying this into every dispatch — it is not optional and is not left to the specialist's judgment.
