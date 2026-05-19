@@ -187,6 +187,8 @@ All files produced by this task must be small enough for a human to review in on
 
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
 
+**Board write:** Skip if `board_project_number` is absent from `.hall-cache/session/config.json`, or if `.hall-cache/session/board.json` is absent. Find the item in `board.json` where `issue_number` equals the filed issue number; if absent, log and skip. Resolve `field_id` and option ID for "In Progress" from `board-meta.json["fields"]["Status"]`. Call `update_item_field`: `project_id` from `board.json`, `item_id` = matched item `id`, resolved `field_id`, `value = {"singleSelectOptionId": <In Progress option ID>}`, `invoker_login` from `gh api user --jq '.login'`. Log any error; do not abort dispatch.
+
 ### Step 6: Report
 
 ```
