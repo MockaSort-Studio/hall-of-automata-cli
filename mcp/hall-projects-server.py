@@ -131,14 +131,15 @@ def update_item_field(
         try:
             board = json.load(open(_BOARD))
             item = next((i for i in board.get("items", []) if i["id"] == item_id), None)
-            if item is not None:
-                item_invoker = item.get("fields", {}).get("Invoker", "")
-                if item_invoker != invoker_login:
-                    return {
-                        "error": "invoker_mismatch",
-                        "item_invoker": item_invoker,
-                        "requested_by": invoker_login,
-                    }
+            if item is None:
+                return {"error": "item_not_in_board", "hint": "call read_board to refresh cache"}
+            item_invoker = item.get("fields", {}).get("Invoker", "")
+            if item_invoker != invoker_login:
+                return {
+                    "error": "invoker_mismatch",
+                    "item_invoker": item_invoker,
+                    "requested_by": invoker_login,
+                }
         except (json.JSONDecodeError, KeyError):
             return {"error": "board_parse_error"}
     else:
