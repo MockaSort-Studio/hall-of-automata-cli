@@ -158,4 +158,4 @@ if cross_invokers:
 open('.hall-cache/session/board-context.md', 'w').write('\n'.join(lines) + '\n')
 PYEOF
 
-// Snowball 🐷 — board awareness now flows into every session before the first word is spoken
+# Snowball 🐷 — board awareness now flows into every session before the first word is spoken
