@@ -6,21 +6,30 @@ Local orchestrator for multi-task projects on a [Hall of Automata](https://githu
 
 - [Claude Code](https://claude.ai/code) CLI (`claude` / `cc`)
 - [GitHub CLI](https://cli.github.com/) (`gh`) authenticated to the org that hosts your Hall instance
-- A deployed [Hall of Automata](https://github.com/MockaSort-Studio/hall-of-automata) (fork it to your own org)
+- An org installed [Hall of Automata](https://github.com/marketplace/hall-of-automata) 
 - `GITHUB_PERSONAL_ACCESS_TOKEN` set in your environment (required for MCP connectivity)
 
 ## Installation
 
-Clone the plugin and point Claude Code at it:
+### Via MockaSort Marketplace (recommended)
 
-### Linux / macOS
+Inside any Claude Code session:
+
+```
+/plugin marketplace add MockaSort-Studio/marketplace
+/plugin install hall-of-automata-cli@mocksort
+```
+
+Works in the CLI, desktop app, and IDE extensions — no git or terminal required.
+
+### Manual (CLI only)
 
 ```bash
 git clone https://github.com/MockaSort-Studio/hall-of-automata-cli
 claude --plugin-dir /path/to/hall-of-automata-cli
 ```
 
-To load it permanently without the flag, add it to `~/.claude/settings.json`:
+To load permanently without the flag, add to `~/.claude/settings.json` (Linux/macOS) or `%APPDATA%\Claude\settings.json` (Windows):
 
 ```json
 {
@@ -29,31 +38,6 @@ To load it permanently without the flag, add it to `~/.claude/settings.json`:
   ]
 }
 ```
-
-### Windows (PowerShell / CMD / Git Bash)
-
-```powershell
-git clone https://github.com/MockaSort-Studio/hall-of-automata-cli
-claude --plugin-dir C:\path\to\hall-of-automata-cli
-```
-
-Permanent config — add to `%APPDATA%\Claude\settings.json`:
-
-```json
-{
-  "plugins": [
-    { "path": "C:\\path\\to\\hall-of-automata-cli" }
-  ]
-}
-```
-
-### Marketplace (when published)
-
-```
-/plugin install hall-of-automata@claude-plugins-official
-```
-
-> **Desktop app:** local plugin loading (`--plugin-dir`) is not supported in the Claude Code desktop app. Use the marketplace install once available, or run via the CLI.
 
 ## Quick Start
 
