@@ -41,5 +41,5 @@
     ],
     "deny": []
   },
-  "statusLine": "HALL_CLI_PLUGIN_ROOT/hooks/scripts/statusline.sh"
+  "statusLine": {"type": "command", "command": "true"}
 }

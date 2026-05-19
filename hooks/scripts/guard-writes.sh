@@ -6,7 +6,7 @@
 set -euo pipefail
 
 INPUT=$(cat)
-read -r TOOL FILE_PATH <<< "$(echo "$INPUT" | python3 -c "
+read -r TOOL FILE_PATH <<< "$(printf '%s' "$INPUT" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 ti = d.get('tool_input', {})
