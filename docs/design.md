@@ -535,6 +535,45 @@ At SETTLE: LGTM at automation level 2 triggers `gh pr merge --merge`; otherwise 
 
 ---
 
+## 16. Reference Architecture
+
+```
+┌─────────────────────────────────────────┐
+│            Developer's laptop           │
+│                                         │
+│  Claude Code session = Old Major        │
+│    reads/writes .hall-cache/            │
+│    spawns Tier-2 advisory subagents     │
+│    uses: sequential-thinking            │
+│           fetch · github · google-drive │
+└─────────────────┬───────────────────────┘
+                  │ gh CLI: file issues,
+                  │ read state, post replies
+                  ▼
+        ┌─────────────────────┐
+        │       GitHub        │
+        │  Issues tagged      │
+        │  hall:<specialist>  │
+        │  Pull requests      │
+        │  Status comments    │
+        └──────────┬──────────┘
+                   │ webhook triggers workflow
+                   ▼
+        ┌─────────────────────┐
+        │  Hall infrastructure│
+        │  Specialist runner  │
+        │  (sandboxed, full   │
+        │   tooling)          │
+        └─────────────────────┘
+```
+
+**Three invariants:**
+1. The plugin's only connection to the Hall is via GitHub.
+2. Personas flow one way: upstream repo → `.hall-cache/` → session context. Never back.
+3. The Hall's infrastructure is unchanged; the plugin uses the [documented direct dispatch path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users).
+
+---
+
 ## 17. MCP-Primary + REST-Fallback Architecture
 
 ### Why MCP-primary
@@ -602,42 +641,3 @@ Reconcile logs the skip (`Board field skipped — quota exhausted; comment poste
 `mcp/hall-projects-server.py` sends GraphQL to `https://api.github.com/graphql` using Python's stdlib `urllib.request` — no `gh` CLI, no subprocess, no third-party HTTP library. Auth is `Bearer <GITHUB_TOKEN>` from the environment. GraphQL query strings are split into `mcp/_queries.py` to keep both files under the 200-line ceiling.
 
 The server enforces invoker scope on writes: `update_item_field` reads `board.json` and rejects calls where the item's `Invoker` field does not match `invoker_login`. Read tools (`list_items`, `get_project_meta`, `read_board`) carry no scope restriction.
-
----
-
-## 16. Reference Architecture
-
-```
-┌─────────────────────────────────────────┐
-│            Developer's laptop           │
-│                                         │
-│  Claude Code session = Old Major        │
-│    reads/writes .hall-cache/            │
-│    spawns Tier-2 advisory subagents     │
-│    uses: sequential-thinking            │
-│           fetch · github · google-drive │
-└─────────────────┬───────────────────────┘
-                  │ gh CLI: file issues,
-                  │ read state, post replies
-                  ▼
-        ┌─────────────────────┐
-        │       GitHub        │
-        │  Issues tagged      │
-        │  hall:<specialist>  │
-        │  Pull requests      │
-        │  Status comments    │
-        └──────────┬──────────┘
-                   │ webhook triggers workflow
-                   ▼
-        ┌─────────────────────┐
-        │  Hall infrastructure│
-        │  Specialist runner  │
-        │  (sandboxed, full   │
-        │   tooling)          │
-        └─────────────────────┘
-```
-
-**Three invariants:**
-1. The plugin's only connection to the Hall is via GitHub.
-2. Personas flow one way: upstream repo → `.hall-cache/` → session context. Never back.
-3. The Hall's infrastructure is unchanged; the plugin uses the [documented direct dispatch path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users).
