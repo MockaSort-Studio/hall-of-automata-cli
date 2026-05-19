@@ -63,11 +63,23 @@ Prompt:
 
 Wait for the subagent to return. Its output is the verdict comment block.
 
-#### 0d. Post verdict comment
+#### 0d. Post verdict comment and submit GitHub review
 
 ```bash
 gh pr comment <PR_NUMBER> --repo <REPO> --body "<verdict_text>"
 ```
+
+Then submit a GitHub PR review with the state matching the verdict:
+
+```bash
+# LGTM:
+gh pr review <PR_NUMBER> --repo <REPO> --approve
+
+# MINOR / MAJOR / BLOCKED:
+gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "<one-line finding summary>"
+```
+
+The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
 
 #### 0e. Route by verdict
 

@@ -141,7 +141,7 @@ hall-of-automata-cli/
 8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
 9. **CLAUDE.md injection** — write or append Hall stack import to workspace `CLAUDE.md`.
 10. **Watcher start** — launch `watcher.sh` as background daemon; log to `.hall-cache/watcher.log`.
-11. **Autonomous cron** — if an active plan exists, call `CronCreate` (every 5 min) to wake Old Major for unattended reconcile and dispatch; store cron ID in `.hall-cache/session/cron.json`.
+11. **Autonomous cron** — if an active plan exists, call `CronCreate` (every 7 min) to wake Old Major for unattended reconcile and dispatch; store cron ID in `.hall-cache/session/cron.json`. If no active plan at open time, Old Major schedules the cron when the first `plan.json` is written.
 12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
 13. **Automation config** — if `.hall-cache/session/config.json` is absent, ask two binary questions (auto-review? auto-merge?) and write `automation_level` (0/1/2).
 14. **Plan check** — offer to resume if plans exist in `.hall-cache/plans/`.
@@ -378,14 +378,13 @@ NEXT: <merge | address-and-resubmit | escalate-to-invoker>
 
 ### 13.3 Reviewer overlay
 
-Each review issue uses the specialist's existing persona wrapped in a `reviewer-overlay.md.tpl` baseline. The overlay injects:
+Each review uses the specialist's existing persona wrapped in `reviewer-overlay.md.tpl`. The overlay constrains the reviewer to:
 
-- Review mode context (cycle: 1 or 2, automation level)
-- Original issue acceptance criteria (passed as template variable)
-- Required verdict format
-- Code quality constraint checklist
+- Fetch the diff via `gh pr diff --repo <REPO>` (always with explicit `--repo` — the working tree reflects the base branch, not the PR branch)
+- Return a structured verdict block only — no file writes, no GitHub review submission
+- Treat the diff as the authoritative source; never read working-tree files to assess PR content
 
-The reviewer is the same specialist who implemented the task — they know the domain best and carry the relevant constraints without re-establishing context.
+Old Major reads the returned verdict, posts it as a PR comment, then submits a GitHub PR review with the correct state: `--approve` for LGTM, `--request-changes` for MINOR/MAJOR/BLOCKED. The `REQUEST_CHANGES` event drives the relay to re-invoke the specialist for the REFINE cycle.
 
 ### 13.4 Trigger mechanism
 
@@ -403,6 +402,8 @@ Old Major files a `hall:<specialist>` issue with the reviewer overlay as context
 |---|---|
 | Cross-user Old Major kanban | Each user's Old Major reads a shared per-invoker state file for coordination. Complex concurrency; future version. |
 | Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
+| Plugin release process | Document how to tag, package, and publish a new CLI plugin version. |
+| Repoless / HQ mode | Run Old Major without a target repo — pure planning and coordination, no dispatch. Useful as a command-and-conquer HQ for orchestrating across many repos simultaneously. |
 
 ---
 

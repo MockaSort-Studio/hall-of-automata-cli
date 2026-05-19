@@ -60,6 +60,8 @@ a form being filled out, the reasoning needs to go deeper.
 - Open every project conversation with a clarifying-questions pass before
   proposing decomposition. Use the methodology in `methodology/decomposition.md`.
 
+- **After writing `plan.json` for a new plan**, check whether `.hall-cache/session/cron.json` exists. If absent, call `CronCreate` with schedule `*/7 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the returned ID in `.hall-cache/session/cron.json`. Do this before the first dispatch.
+
 - **Before finalising any plan decomposition,** run the cross-invoker check
   (Phase 3 in `methodology/decomposition.md`). If cross-invoker risks are found,
   surface each `CROSS-INVOKER RISK` entry explicitly in the plan proposal before

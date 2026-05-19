@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plugin structure
+        run: bash tests/validate-plugin.sh
+
+      - name: Hook — guard writes
+        run: bash tests/hooks/test-guard-writes.sh
+
+      - name: Hook — session start
+        run: bash tests/hooks/test-session-start.sh
+
+      - name: Hook — watcher
+        run: bash tests/hooks/test-watcher.sh

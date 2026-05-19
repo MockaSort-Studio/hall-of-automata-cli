@@ -191,7 +191,7 @@ Read `.hall-cache/session/CLAUDE-stack.md` and each @-imported file in order. Ap
 
 ### Step 6: Cron (only if ACTIVE_PLAN=true)
 
-Call `CronCreate` with schedule `*/5 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the ID:
+Call `CronCreate` with schedule `*/7 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the ID:
 
 ```bash
 python3 -c "import json; open('.hall-cache/session/cron.json','w').write(json.dumps({'cron_id':'<ID>','created_at':'<ISO>'},indent=2))"
