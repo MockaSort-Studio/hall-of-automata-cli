@@ -54,7 +54,7 @@ gh api repos/MockaSort-Studio/marketplace/contents/plugins.json \
 ### 5. Verify install
 
 ```bash
-curl -sL https://raw.githubusercontent.com/MockaSort-Studio/marketplace/main/install.sh | bash -s hall-of-automata
+curl -sL https://raw.githubusercontent.com/MockaSort-Studio/marketplace/main/install.sh | bash -s hall-of-automata-cli
 ```
 
 Confirm the installed version matches the tag.
