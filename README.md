@@ -55,6 +55,10 @@ Open a Claude Code session inside your project repo, then:
 
 **First run:** on the first `/hall:open`, you'll be asked whether you are a Hall invoker (a member of the `automata-invokers` team on GitHub). Non-invokers get local orchestration mode — Old Major plans and implements inline without filing GitHub Issues. To re-verify after joining the team: `hall:prune --invoker` or pass `--verify` to `/hall:open`.
 
+## Architecture
+
+All GitHub API calls use the GitHub Copilot MCP server (`api.githubcopilot.com/mcp/`) as the primary path, with `gh api` REST calls as inline fallbacks for rate-limit errors. A companion hall-projects MCP server (`mcp/hall-projects-server.py`) handles Projects v2 board operations exclusively — the Copilot MCP has no Projects v2 tools, so this split is structural. The fallback convention is a comment immediately after each MCP call: `# On rate_limit/secondary-rate-limit error: gh api <endpoint>`. Session state lives entirely in `.hall-cache/` (gitignored); GitHub Issues are the coordination layer between Old Major and Hall specialists. See [docs/design.md §17](docs/design.md) for the full architectural rationale and the scope boundary between the two MCP servers.
+
 ## Commands
 
 | Command | What it does |

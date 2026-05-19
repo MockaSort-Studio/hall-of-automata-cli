@@ -571,3 +571,73 @@ At SETTLE: LGTM at automation level 2 triggers `gh pr merge --merge`; otherwise 
 1. The plugin's only connection to the Hall is via GitHub.
 2. Personas flow one way: upstream repo → `.hall-cache/` → session context. Never back.
 3. The Hall's infrastructure is unchanged; the plugin uses the [documented direct dispatch path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users).
+
+---
+
+## 17. MCP-Primary + REST-Fallback Architecture
+
+### Why MCP-primary
+
+Wave 1 (`github-mcp-consolidation`, PRs #54–58) replaced `gh` CLI subprocesses with GitHub MCP as the primary call path for all GitHub API operations. Three reasons:
+
+- **Token efficiency.** MCP responses return structured JSON directly; `gh` CLI output requires shell parsing and subprocess overhead. Downstream logic operates on typed fields without string wrangling.
+- **Single auth path.** `GITHUB_PERSONAL_ACCESS_TOKEN` authenticates both the GitHub Copilot MCP (`api.githubcopilot.com/mcp/`) and the hall-projects MCP server — no separate credential management.
+- **Structured return values.** MCP tools return objects. `plan.json` updates, board writes, and PR routing consume fields directly.
+
+`gh` is not removed — it remains the fallback layer for every MCP call.
+
+### Two-layer pattern
+
+Every GitHub MCP call in the skills carries an inline fallback comment immediately after it:
+
+```
+mcp__github__<tool>(...)
+# On rate_limit/secondary-rate-limit error: gh api <endpoint>
+```
+
+The comment is executable: copy it, substitute parameters, run it. Only `rate_limit` and `secondary-rate-limit` trigger fallback — both are quota signals, not logic failures. Other errors surface as-is.
+
+### Scope boundary
+
+Two MCP servers cover GitHub operations with a hard split:
+
+| Server | Endpoint / command | Scope |
+|---|---|---|
+| GitHub Copilot MCP | `https://api.githubcopilot.com/mcp/` | Issues, PRs, reviews, merges, user/team lookups |
+| hall-projects MCP | `python3 mcp/hall-projects-server.py` | Projects v2 exclusively |
+
+The GitHub Copilot MCP exposes no Projects v2 tools. `update_item_field`, `list_items`, `get_project_meta`, `read_board`, and `post_comment` live only in the hall-projects server. This boundary is structural and permanent — any board operation must route through hall-projects.
+
+### REST fallback convention
+
+The pattern used consistently across all five skills:
+
+```
+# On rate_limit/secondary-rate-limit error: gh api <endpoint> [flags]
+```
+
+It appears immediately after the MCP call it covers. Representative examples from the skills:
+
+```bash
+# On rate_limit/secondary-rate-limit error: gh issue list --repo <REPO> --label "hall:in-progress" --json number | jq length
+# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'
+# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <REPO> <PR_NUMBER>
+```
+
+When adding a new MCP call, always include the fallback comment. Omitting it means the call has no fallback path — a correctness gap, not a style choice.
+
+### Board operations fallback
+
+Board writes use `update_item_field` (hall-projects MCP over GraphQL). When GraphQL quota is exhausted during a reconcile board write, the fallback is **not** a REST field update — Projects v2 mutation has no equivalent REST endpoint. Instead, a plain issue comment is posted:
+
+```bash
+gh api repos/{ORG}/{REPO}/issues/{N}/comments -X POST -f body="Status updated to <new_state>."
+```
+
+Reconcile logs the skip (`Board field skipped — quota exhausted; comment posted.`) and continues. Board errors never abort a reconcile pass.
+
+### hall-projects server internals
+
+`mcp/hall-projects-server.py` sends GraphQL to `https://api.github.com/graphql` using Python's stdlib `urllib.request` — no `gh` CLI, no subprocess, no third-party HTTP library. Auth is `Bearer <GITHUB_TOKEN>` from the environment. GraphQL query strings are split into `mcp/_queries.py` to keep both files under the 200-line ceiling.
+
+The server enforces invoker scope on writes: `update_item_field` reads `board.json` and rejects calls where the item's `Invoker` field does not match `invoker_login`. Read tools (`list_items`, `get_project_meta`, `read_board`) carry no scope restriction.
