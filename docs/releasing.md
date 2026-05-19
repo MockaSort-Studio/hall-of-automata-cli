@@ -36,25 +36,19 @@ gh release create v0.2.0 --title "v0.2.0" --notes "$(cat CHANGELOG.md | head -50
 
 ### 4. Update marketplace registry
 
-In `MockaSort-Studio/marketplace`, edit `plugins.json` — bump the `latest` field for `hall-of-automata`:
+The marketplace at `MockaSort-Studio/marketplace` points to the GitHub repo directly — no pinned version. Users who run `/plugin marketplace update mocksort` get the latest commit automatically. No manual registry update needed for rolling releases.
+
+To pin to a specific release tag, edit `.claude-plugin/marketplace.json` in `MockaSort-Studio/marketplace` — add a `ref` to the source:
 
 ```json
-{ "latest": "0.2.0", ... }
-```
-
-Also update the `README.md` version table. Open a PR or push directly to `main`.
-
-```bash
-gh api repos/MockaSort-Studio/marketplace/contents/plugins.json \
-  --method PUT \
-  --field message="chore: bump hall-of-automata to v0.2.0" \
-  --field content="$(cat plugins.json | base64)"
+{ "name": "hall-of-automata-cli", "source": { "source": "github", "repo": "MockaSort-Studio/hall-of-automata-cli", "ref": "v0.2.0" }, ... }
 ```
 
 ### 5. Verify install
 
-```bash
-curl -sL https://raw.githubusercontent.com/MockaSort-Studio/marketplace/main/install.sh | bash -s hall-of-automata-cli
-```
+From within Claude Code:
 
-Confirm the installed version matches the tag.
+```
+/plugin marketplace update mocksort
+/plugin install hall-of-automata-cli@mocksort
+```
