@@ -87,8 +87,7 @@ Read `project_id` from state or `config.json`, then source the lib script.
 
 ```bash
 set -euo pipefail
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(python3 -c \
-  "import json; print(json.load(open('.hall-cache/session/config.json')).get('plugin_root',''))" 2>/dev/null)}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
 
 export PROJECT_ID=$(python3 -c "
 import json, os
@@ -107,8 +106,7 @@ create_fields
 
 ```bash
 export REPO=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['repo'])")
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(python3 -c \
-  "import json; print(json.load(open('.hall-cache/session/config.json')).get('plugin_root',''))" 2>/dev/null)}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
 
 # shellcheck source=skills/hall-init-board/lib/create-labels.sh
 source "${PLUGIN_ROOT}/skills/hall-init-board/lib/create-labels.sh"
