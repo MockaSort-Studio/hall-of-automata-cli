@@ -1,7 +1,7 @@
 ---
 name: hall-open
 description: Enter Old Major session mode — fetch personas, assemble session stack, activate
-argument-hint: [--refresh]
+argument-hint: [--refresh|--verify]
 allowed-tools: [Bash, Write, CronCreate, AskUserQuestion]
 ---
 
@@ -9,7 +9,7 @@ allowed-tools: [Bash, Write, CronCreate, AskUserQuestion]
 
 Enter Hall session mode. Fetches personas, assembles session stack, activates Old Major.
 
-Use `--refresh` to force persona re-fetch even if cache is fresh.
+Use `--refresh` to force persona re-fetch even if cache is fresh. Use `--verify` to force invoker re-check.
 
 ## Execution sequence
 
@@ -17,14 +17,16 @@ Execute each step in order. Hard-stop on any error; warn-and-continue on non-cri
 
 ### Step 1: Preflight + diagnostics
 
+**Flag pre-processing:**
+- If `--verify` was passed: `rm -f .hall-cache/invoker.json`
+- If `--refresh` was passed: treat `NEED_FETCH=true` regardless of the block output below.
+
 ```bash
 set -euo pipefail
 
 # Hard stops
 gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; }
 REPO=$(git remote get-url origin 2>/dev/null | sed 's|.*github.com[:/]||;s|\.git$||')
-gh api "repos/${REPO}/installation" --silent --jq '.id' &>/dev/null \
-  || { echo "ERROR: Hall App not installed — see github.com/apps/hall-of-automata" >&2; exit 1; }
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
@@ -57,14 +59,14 @@ done
 
 AUTO_LEVEL=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
+LOCAL_MODE=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('local_mode','missing'))" \
+  2>/dev/null || echo "missing")
 
 echo "$CURRENT_SHA" > .hall-cache/session/.current-sha
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL"
+echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f .hall-cache/session/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
-
-If `--refresh` was passed, treat `NEED_FETCH=true` regardless of the output above.
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 
@@ -197,9 +199,54 @@ Call `CronCreate` with schedule `*/7 * * * *` and prompt: `"Autonomous plan adva
 python3 -c "import json; open('.hall-cache/session/cron.json','w').write(json.dumps({'cron_id':'<ID>','created_at':'<ISO>'},indent=2))"
 ```
 
-### Step 7: Automation config (only if AUTO_LEVEL=missing)
+### Step 7: Invoker detection gate (only if LOCAL_MODE=missing)
 
-Use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write to `.hall-cache/session/config.json`.
+Use `AskUserQuestion` with one question:
+- **Header:** `"Hall invoker?"`
+- **Question:** `"Are you a Hall invoker? An invoker is a member of the automata-invokers team on GitHub — you have dispatch access and can send tasks to Hall specialists. Non-invokers get local orchestration mode: Old Major plans and implements inline. See: https://mockasort-studio.github.io/hall-codex/how-to-invoke/"`
+- **Options:** `"Yes, I'm an invoker"` / `"No, use local mode"`
+
+**If "No":** write `.hall-cache/invoker.json` as `{"mode":"local","verified_at":"<ISO>","checks":{}}`. Set `local_mode: true` and `automation_level: 0` in `config.json`. Skip automation Q&A.
+
+**If "Yes":** run verification:
+
+```bash
+ORG=$(echo "$REPO" | cut -d/ -f1)
+# Check 1: Hall repo exists in org
+if gh api "repos/${ORG}/hall-of-automata" --silent &>/dev/null; then
+  HALL_REPO=true
+else
+  HALL_REPO=false
+fi
+# Check 2: team membership
+ME=$(gh api /user --jq '.login' 2>/dev/null || echo "")
+TEAM_RAW=$(gh api "orgs/${ORG}/teams/automata-invokers/memberships/${ME}" \
+  --jq '.state' 2>/dev/null)
+case "$TEAM_RAW" in
+  active|pending) TEAM_MEMBER=true ;;
+  "")             TEAM_MEMBER=unknown ;;  # 403 or network error
+  *)              TEAM_MEMBER=false ;;    # 404 = not a member
+esac
+```
+
+Decision:
+- `HALL_REPO=false` → print "Hall not found in org ${ORG} — verify the Hall is set up at github.com/apps/hall-of-automata"; write `mode: local`; set `local_mode: true`, `automation_level: 0`
+- `HALL_REPO=true` + `TEAM_MEMBER=false` → print "Hall found but you are not in automata-invokers — switching to local mode"; write `mode: local`; set `local_mode: true`, `automation_level: 0`
+- `HALL_REPO=true` + `TEAM_MEMBER=unknown` → print "WARN: team membership unverifiable (token lacks read:org) — proceeding as invoker"; write `mode: invoker`; set `local_mode: false`
+- `HALL_REPO=true` + `TEAM_MEMBER=true` → write `mode: invoker`; set `local_mode: false`
+
+`invoker.json` schema:
+```json
+{
+  "mode": "invoker | local",
+  "verified_at": "<ISO timestamp>",
+  "checks": {"hall_repo": true, "team_member": true}
+}
+```
+
+Only write `.hall-cache/invoker.json` after the final decision — do not cache a partial result.
+
+**Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `local_mode` and `automation_level` to `.hall-cache/session/config.json`.
 
 ### Step 8: Plans + invite
 
