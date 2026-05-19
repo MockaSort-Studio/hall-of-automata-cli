@@ -1,8 +1,9 @@
 # Board Spec — GraphQL Query Templates
 
-> **Canonical source:** `MockaSort-Studio/hall-of-automata/docs/board-spec-queries.md`
-> This copy exists so specialists working in this repo have a local reference without a cross-repo fetch.
-> Keep in sync when the canonical changes.
+> **Owned by this repo.** Board management intelligence lives in `hall-of-automata-cli`, not in the Hall
+> Actions. The Hall has no board awareness; this schema is CLI-specific and belongs here.
+> A copy also exists in `MockaSort-Studio/hall-of-automata` (from the original schema PR) — that copy
+> should be removed when the Hall template is next released (see below).
 
 All `gh api graphql` operations for Projects v2 board integration. Companion to [`board-spec.md`](board-spec.md).
 
