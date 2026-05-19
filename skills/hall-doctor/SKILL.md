@@ -2,7 +2,7 @@
 name: hall-doctor
 description: Run preflight diagnostics for the Hall of Automata plugin environment
 argument-hint: [--fix]
-allowed-tools: [Bash, Read]
+allowed-tools: [Bash, Read, mcp__github__*]
 ---
 
 # /hall:doctor
@@ -43,24 +43,23 @@ Checks the org installations list. Requires a token with `admin:org` scope to co
 - `false` → FAIL: Hall App not installed; dispatch will not work
 - HTTP error → ⚠ WARN: cannot verify (token scope insufficient); assume installed and continue
 
-### 4. Invoker / local mode status (⚠ if local or uncached)
+### 4. Invoker / local mode status (⚠ if local or unchecked)
 
 ```bash
 python3 - << 'PYEOF'
 import json
 try:
     d = json.load(open('.hall-cache/invoker.json'))
-    print(f"mode={d['mode']} verified_at={d.get('verified_at','?')[:10]}")
-except FileNotFoundError:
-    print('not_cached')
-except (json.JSONDecodeError, KeyError):
-    print('corrupt_cache')
+    mode = d['mode']
+    print(f"mode={mode} verified_at={d.get('verified_at','?')[:10]}")
+except (FileNotFoundError, json.JSONDecodeError, KeyError):
+    print('unchecked')
 PYEOF
 ```
 
-- `mode=invoker` → ✓ PASS: full dispatch access
-- `mode=local` → ⚠ WARN: local mode active; Hall dispatch blocked. Reset: `hall:prune --invoker` then `/hall:open`
-- `not_cached` → ⚠ WARN: invoker status unknown; run `/hall:open` to determine mode
+- `mode=invoker` → ✓ PASS: verified Hall invoker
+- `mode=local` → ⚠ WARN: local mode active — dispatch blocked, plan creation works
+- `unchecked` (file missing or unreadable) → ⚠ WARN: invoker status not yet verified — run `/hall:open` first
 
 ### 5. .hall-cache/ in .gitignore (⚠ if missing, fix with --fix)
 
@@ -85,11 +84,14 @@ Run `claude mcp list` and check for ✓ Connected status on `sequential-thinking
 ### 8. Hall quota (informational)
 
 ```bash
-gh api /repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/issues \
-  --jq '[.[] | select(.labels[].name | startswith("hall:")) | select(.state=="open")] | length'
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 ```
 
-Count open Hall issues on this repo (rough proxy for in-flight work). Display as info; not a pass/fail.
+Split `REPO` into `ORG` (before `/`) and `REPO_NAME` (after `/`). Call `list_issues` MCP with `owner: ORG`, `repo: REPO_NAME`, `state: OPEN`. Count results where any label starts with `hall:`. Display as info; not a pass/fail.
+
+```bash
+# On rate_limit error: gh api /repos/$REPO/issues --jq '[.[] | select(.labels[].name | startswith("hall:")) | select(.state=="open")] | length'
+```
 
 ## Output format
 
@@ -108,3 +110,5 @@ or
 
 Cannot start session: gh authentication required, Hall App not installed.
 ```
+
+// Snowball 🐷 — the invoker cache is the source of truth; stop asking GitHub twice
