@@ -21,7 +21,7 @@ It also lowers the entry barrier. Using the Hall well today requires knowing its
 - **Write code.** Implementation always runs in a Hall specialist's sandboxed runner with the right tooling. Old Major plans and coordinates; he doesn't implement.
 - **Replace the Hall.** Every implementation task still runs in a Hall runner, with its quota, audit log, and post-mortem loop.
 - **Fix failed dispatches.** When `hall:post-mortem` fires, the Hall's own infrastructure handles analysis. Old Major pauses dependent work and waits.
-- **Coordinate teams.** State is per-user. Two people on the same repo each have their own Old Major. They coordinate through GitHub Issues. (Cross-user views are future work — see §9.)
+- **Coordinate teams.** State is per-user. Two people on the same repo each have their own Old Major. They coordinate through GitHub Issues and the shared Projects v2 board — see §12 for cross-invoker sync.
 
 ---
 
@@ -271,7 +271,7 @@ Events are emitted only on transition (compared to `.hall-cache/watcher-state.js
 watcher.sh (every 120s)
   └─ polls GitHub → writes watcher-events.jsonl + watcher.log
 
-CronCreate job (every 5 min, set by /hall:open Step 8.5)
+CronCreate job (every 7 min, set by /hall:open Step 8.5)
   └─ wakes Old Major
        └─ /hall:reconcile (Step 0: drains watcher-events.jsonl)
             └─ /hall:dispatch → advances plan without user input
@@ -311,7 +311,66 @@ Declared in `.mcp.json`. Portable — no project-specific configuration required
 
 ---
 
-## 12. Command Reference
+## 12. Cross-Invoker Sync
+
+Coordinates work across multiple Hall sessions on the same target repo using GitHub Projects v2 as a shared source of truth.
+
+### Board architecture
+
+GitHub Projects v2 is the team-visible kanban layer across all Hall sessions on a repo. Board items are GitHub Issues linked to Projects v2. The local `plan.json` is the implementation scratchpad; the board surfaces status for product and team visibility.
+
+**Invoker-scope write rule:** each Old Major only mutates board items where the `Invoker` field matches the session login. Items owned by other invokers receive a `post_comment` call instead — cross-session reads are always permitted, writes are scoped.
+
+### Hall Projects MCP server (`mcp/hall-projects-server.py`)
+
+Installed into the workspace `.mcp.json` at `hall:open` Step 3 via `templates/mcp-hall-projects-snippet.json`. Requires `GITHUB_TOKEN` or `GITHUB_PERSONAL_ACCESS_TOKEN` at startup. GraphQL query strings live in `mcp/_queries.py`.
+
+Exposes five tools:
+
+| Tool | Behaviour |
+|---|---|
+| `get_project_meta` | Resolves project ID and all field/option IDs; persists to `board-meta.json` |
+| `list_items` | Fetches one page (up to 100 items); caller paginates via `pageInfo` |
+| `update_item_field` | Updates one field; enforces invoker-scope; returns `item_not_in_board` if item absent from `board.json`, `invoker_mismatch` if the Invoker field doesn't match |
+| `post_comment` | Posts a comment on a linked issue; permitted on items owned by any invoker |
+| `read_board` | Fetches all pages, writes `board.json`, returns item count |
+
+### Board provisioning (`/hall:init-board`)
+
+Idempotent — skips anything that already exists. Sequence: resolves repo/owner type; creates the Projects v2 board; creates custom fields (Status, Invoker, Priority, Epic); creates repo labels; runs `GetProjectMeta` and persists `board_project_number` and `board_project_id` to `.hall-cache/session/config.json`, field metadata to `.hall-cache/session/board-meta.json`.
+
+### Board context injection (`scripts/fetch-board-context.sh`)
+
+Called non-fatally at `hall:open` Step 3. Resolves the project node ID in priority order: `config.json → board-meta.json → GetProjectMeta` GraphQL call. Paginates `ListItems` (max 2 pages / 200 items).
+
+Writes `.hall-cache/session/board-context.md`: active-item table (number, title, status, invoker, priority, epic), done-item count, and a cross-invoker note when items from other invokers are present.
+
+`templates/CLAUDE-stack.md.tpl` `@`-imports `board-context.md` as its last entry. The import is a no-op when the file is absent (board not provisioned, or fetch failed silently).
+
+### Board write hooks
+
+**`hall:dispatch` Step 5** — after filing each issue, locates the matching item in `board.json` by issue number and calls `update_item_field` to set Status → "In Progress". Skips silently if `board_project_number` is absent from `config.json` or if the item is not in `board.json`.
+
+**`hall:reconcile` Board writes** — for each task newly transitioning to REVIEWING, MERGED, or DONE:
+- Own item (Invoker matches session login): calls `update_item_field` — Status → "In Review" for REVIEWING, "Done" for MERGED/DONE.
+- Foreign item: calls `post_comment` to notify instead.
+
+All board errors are logged; reconcile never aborts on a board write failure.
+
+### Cross-invoker conflict detection
+
+Phase 3 of `methodology/decomposition.md`. Runs during project decomposition before dependency mapping — but only when `board-context.md` is present and contains active items from other invokers. Silent no-op on solo sessions.
+
+Three overlap heuristics applied against each proposed task:
+- **Same file or directory target** — task and active board item both reference the same file or directory
+- **Same domain keyword** — shared terms (`hall:open`, `reconcile`, `MCP`, `board`, etc.) place both tasks in the same area
+- **Explicit dependency** — the proposed task would modify something another invoker is actively building
+
+Each hit produces a `CROSS-INVOKER RISK` entry with a recommended action (`coordinate via post_comment` | `block until resolved` | `proceed with explicit note`). Plan confirmation is gated on invoker acknowledgement.
+
+---
+
+## 13. Command Reference
 
 | Command | Purpose |
 |---|---|
@@ -328,11 +387,11 @@ Declared in `.mcp.json`. Portable — no project-specific configuration required
 
 ---
 
-## 13. PR Review Agent
+## 14. PR Review Agent
 
 Keeps non-technical invokers out of the merge loop. When active, Old Major dispatches a review pass after every specialist PR using the specialist's own persona in reviewer mode.
 
-### 13.1 Automation configuration
+### 14.1 Automation configuration
 
 Asked once at `hall:open` when the config entry is absent from `.hall-cache/session/config.json`. Two binary questions:
 
@@ -349,7 +408,7 @@ Resulting levels:
 
 Config is stored in `.hall-cache/session/config.json` and re-used across commands within the session.
 
-### 13.2 Review loop — Act → Assess → Settle
+### 14.2 Review loop — Act → Assess → Settle
 
 ```
 1. ACT       Specialist opens PR against issue acceptance criteria
@@ -376,38 +435,44 @@ FINDINGS:
 NEXT: <merge | address-and-resubmit | escalate-to-invoker>
 ```
 
-### 13.3 Reviewer overlay
+### 14.3 Reviewer overlay
 
-Each review uses the specialist's existing persona wrapped in `reviewer-overlay.md.tpl`. The overlay constrains the reviewer to:
+Each review pass uses the specialist's persona wrapped in a `reviewer-overlay.md.tpl` baseline. The overlay loads `automaton_base.md`, the specialist persona, and `review-loop.md`, then issues four read-only instructions:
 
-- Fetch the diff via `gh pr diff --repo <REPO>` (always with explicit `--repo` — the working tree reflects the base branch, not the PR branch)
-- Return a structured verdict block only — no file writes, no GitHub review submission
-- Treat the diff as the authoritative source; never read working-tree files to assess PR content
+1. Fetch the diff via `gh pr diff --repo <REPO>`
+2. Fetch the issue via `gh issue view --repo <REPO>` to extract acceptance criteria
+3. Assess every criterion against the diff using the verdict taxonomy from `review-loop.md`
+4. Return the structured verdict block — no output before or after it
 
-Old Major reads the returned verdict, posts it as a PR comment, then submits a GitHub PR review with the correct state: `--approve` for LGTM, `--request-changes` for MINOR/MAJOR/BLOCKED. The `REQUEST_CHANGES` event drives the relay to re-invoke the specialist for the REFINE cycle.
+The reviewer must not post, write, or create anything. The verdict text is returned to Old Major, who posts it via `gh pr comment --repo`, then submits a GitHub PR review: `--approve` for LGTM, `--request-changes` for MINOR/MAJOR/BLOCKED. On ASSESS-2, the overlay appends a terminal-cap notice to the verdict block.
 
-### 13.4 Trigger mechanism
+The reviewer is the same specialist who implemented the task — domain knowledge travels with the persona without re-establishing context.
 
-Old Major triggers a review dispatch when:
-- `hall:reconcile` detects a task transitioning to `REVIEWING` state, AND
-- Automation level ≥ 1
+### 14.4 Trigger mechanism
 
-Old Major files a `hall:<specialist>` issue with the reviewer overlay as context. The task state advances to `REVIEWING`. On ASSESS-2 or a terminal SETTLE, the task advances to `DONE` or `ESCALATED`.
+`hall:reconcile` sets `needs_review: true` on any task that newly transitions to REVIEWING when `automation_level ≥ 1`. `hall:dispatch` Step 0 processes these before the normal ready set:
+
+1. Locate the open PR for the task's issue.
+2. Render the reviewer overlay into `.hall-cache/session/claude-agents/<specialist>-reviewer.md`.
+3. Spawn the reviewer subagent with the PR number, issue number, and current review cycle.
+4. Post the returned verdict block via `gh pr comment --repo`.
+5. Route by verdict: LGTM → SETTLE; MINOR at `review_cycle == 1` → REFINE (set `review_cycle: 2`, requeue REVIEWING); any ASSESS-2, MAJOR, or BLOCKED → SETTLE.
+
+At SETTLE: LGTM at automation level 2 triggers `gh pr merge --merge`; otherwise the invoker is flagged. Terminal outcomes advance the task to DONE or ESCALATED.
 
 ---
 
-## 14. Future Work
+## 15. Future Work
 
 | Feature | Notes |
 |---|---|
-| Cross-user Old Major kanban | Each user's Old Major reads a shared per-invoker state file for coordination. Complex concurrency; future version. |
 | Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
 | Plugin release process | Document how to tag, package, and publish a new CLI plugin version. |
 | Repoless / HQ mode | Run Old Major without a target repo — pure planning and coordination, no dispatch. Useful as a command-and-conquer HQ for orchestrating across many repos simultaneously. |
 
 ---
 
-## 15. Reference Architecture
+## 16. Reference Architecture
 
 ```
 ┌─────────────────────────────────────────┐
