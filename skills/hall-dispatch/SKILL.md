@@ -14,6 +14,23 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 
 ## Execution
 
+### Local mode branch
+
+Read config before any GitHub API call:
+
+```bash
+LOCAL_MODE=$(python3 -c "
+import json
+try:
+    print(json.load(open('.hall-cache/session/config.json')).get('local_mode', False))
+except FileNotFoundError:
+    print(False)
+" 2>/dev/null || echo "False")
+```
+
+`LOCAL_MODE=True` → follow [LOCAL.md](LOCAL.md). Stop — do not continue to Step 0.
+`LOCAL_MODE=False` or config absent → continue to Step 0.
+
 ### Step 0: Review dispatch
 
 Using the active plan's `plan.json` (located as in Step 3), collect all tasks where `needs_review: true`. If none, skip to Step 1.
@@ -125,7 +142,6 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 ### Step 3: Check quota
 
 ```bash
-# Count open Hall issues on this repo (rough pool usage proxy)
 Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open(PLAN_DIR+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
 gh issue list --repo <ORG/REPO> \
   --label "hall:in-progress" --json number | jq length
