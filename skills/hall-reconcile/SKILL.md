@@ -1,7 +1,7 @@
 ---
 name: hall-reconcile
 description: Resync local plan state from GitHub issue/PR states
-allowed-tools: [Bash, Read, Write]
+allowed-tools: [Bash, Read, Write, CronDelete]
 ---
 
 # /hall:reconcile
@@ -81,6 +81,30 @@ except FileNotFoundError:
 ```
 
 Write the updated `plan.json`.
+
+After writing `plan.json`, check if all tasks have reached a terminal state:
+
+```bash
+ALL_DONE=$(python3 -c "
+import json
+tasks = json.load(open('${PLAN_DIR}plan.json')).get('tasks', [])
+terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
+print('true' if all(t['status'] in terminal for t in tasks) and tasks else 'false')
+")
+```
+
+If `ALL_DONE=true` and `.hall-cache/session/cron.json` exists:
+
+```bash
+CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])" 2>/dev/null || echo "")
+```
+
+If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`. Then:
+
+```bash
+rm -f .hall-cache/session/cron.json
+echo "All tasks terminal — autonomous cron cancelled."
+```
 
 If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED locally), report the discrepancy and apply the GitHub state.
 
