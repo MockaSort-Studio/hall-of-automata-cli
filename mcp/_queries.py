@@ -48,6 +48,7 @@ query ListItems($projectId: ID!, $cursor: String) {
               title
               state
               url
+              body
               assignees(first: 5) {
                 nodes { login }
               }

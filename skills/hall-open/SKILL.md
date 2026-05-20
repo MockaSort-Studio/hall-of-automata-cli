@@ -193,19 +193,54 @@ If `BOARD_NUM` is non-empty: call `read_board` MCP with `owner=$OWNER` and `proj
 
 ```bash
 python3 << 'PYEOF'
-import json
+import json, re
 from datetime import datetime, timezone
+
 b = json.load(open('.hall-cache/session/board.json'))
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-active = [i for i in b.get('items', []) if i.get('fields', {}).get('Status', '') not in ('Done', 'Closed')]
-done = len(b.get('items', [])) - len(active)
-hdr = [f'# Board Context (as of {ts})', '',
-       '| # | Title | Status | Invoker | Priority | Epic |',
-       '|---|-------|--------|---------|----------|------|']
-rows = [f"| {r['issue_number']} | {r['title'][:50]} | {r.get('fields',{}).get('Status','')} "
-        f"| {r.get('fields',{}).get('Invoker','')} | {r.get('fields',{}).get('Priority','')} "
-        f"| {r.get('fields',{}).get('Epic','')} |" for r in active] or ['No active items.']
-open('.hall-cache/session/board-context.md', 'w').write('\n'.join(hdr + rows + ['', f'Done/Closed items: {done}']) + '\n')
+items = b.get('items', [])
+
+TASKLIST = re.compile(r'- \[.?\] #(\d+)')
+
+def children(parent, pool):
+    nums = {int(n) for n in TASKLIST.findall(parent.get('body', ''))}
+    return [c for c in pool if c['issue_number'] in nums]
+
+def fmt_status(i):
+    return i.get('fields', {}).get('Status', '')
+
+if all(i.get('fields', {}).get('Type') is None for i in items):
+    # flat-table fallback for boards not yet migrated
+    active = [i for i in items if fmt_status(i) not in ('Done', 'Closed')]
+    done = len(items) - len(active)
+    hdr = [f'# Board Context (as of {ts})', '',
+           '| # | Title | Status | Invoker | Priority | Epic |',
+           '|---|-------|--------|---------|----------|------|']
+    rows = [f"| {r['issue_number']} | {r['title'][:50]} | {fmt_status(r)} "
+            f"| {r.get('fields',{}).get('Invoker','')} | {r.get('fields',{}).get('Priority','')} "
+            f"| {r.get('fields',{}).get('Epic','')} |" for r in active] or ['No active items.']
+    out = '\n'.join(hdr + rows + ['', f'Done/Closed items: {done}'])
+else:
+    okrs = [i for i in items if i['fields'].get('Type') == 'OKR']
+    krs  = [i for i in items if i['fields'].get('Type') == 'KR']
+    item_list = [i for i in items if i['fields'].get('Type') == 'Item']
+    unlinked = [i for i in items if i['fields'].get('Type') not in ('OKR', 'KR', 'Item')]
+    lines = [f'# Board Context (as of {ts})', '']
+    for okr in okrs:
+        owner = okr.get('fields', {}).get('Owner', '')
+        lines.append(f"## OKR #{okr['issue_number']}: {okr['title'][:60]} [{fmt_status(okr)}] — Owner: {owner}")
+        for kr in children(okr, krs):
+            lines.append(f"  ### KR #{kr['issue_number']}: {kr['title'][:60]} [{fmt_status(kr)}]")
+            for it in children(kr, item_list):
+                lines.append(f"    - Item #{it['issue_number']}: {it['title'][:50]} [{fmt_status(it)}]")
+        lines.append('')
+    if unlinked:
+        lines.append('## Unlinked Items')
+        for i in unlinked:
+            lines.append(f"- #{i['issue_number']}: {i['title'][:60]} [{fmt_status(i)}]")
+    out = '\n'.join(lines)
+
+open('.hall-cache/session/board-context.md', 'w').write(out + '\n')
 print('Board context written.')
 PYEOF
 ```
