@@ -143,6 +143,9 @@ at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 open('.hall-cache/session/CLAUDE-stack.md', 'w').write(
     open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', '.hall-cache').replace('{{ASSEMBLED_AT}}', at))
+open('.hall-cache/session/session-guard.md', 'w').write(
+    open(f'{pr}/templates/session-guard.md.tpl').read()
+    .replace('{{CACHE_ROOT}}', '.hall-cache'))
 IL = '@.hall-cache/session/CLAUDE-stack.md'
 mode = 'resume'
 if not os.path.exists('CLAUDE.md'):

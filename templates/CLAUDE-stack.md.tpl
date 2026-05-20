@@ -4,6 +4,8 @@
 <!-- Source plugin: {{PLUGIN_ROOT}} -->
 <!-- Cache root: {{CACHE_ROOT}} -->
 
+@{{CACHE_ROOT}}/session/session-guard.md
+
 @{{CACHE_ROOT}}/session/context.md
 
 @{{CACHE_ROOT}}/personas/automaton_base.md
