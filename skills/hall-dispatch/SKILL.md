@@ -2,7 +2,7 @@
 name: hall-dispatch
 description: Dispatch ready tasks to the Hall as GitHub Issues with quota stewardship
 argument-hint: [--single <task_id>] [--dry-run]
-allowed-tools: [Bash, Read, Write, mcp__github__*]
+allowed-tools: [Bash, Read, Write, CronCreate, mcp__github__*]
 ---
 
 # /hall:dispatch
@@ -204,7 +204,14 @@ Assigned to <Specialist>. Rationale: <routing_rationale text>
 
 ## Code quality
 
-All files produced by this task must be small enough for a human to review in one read (~200 lines hard ceiling). Prefer many small, focused files over fewer large ones. No duplicated logic. If a natural implementation would exceed this, decompose further and raise with Old Major before proceeding.
+Applies to all files produced by this task, regardless of language or framework:
+
+- **Size:** ≤200 lines per file. Hard ceiling — not a guideline.
+- **Readable:** clear, descriptive names; no magic values; no clever one-liners that obscure intent.
+- **Reusable:** no copy-paste logic — extract functions for anything used more than once.
+- **Modular:** single responsibility per file and per function. A file that does two things should be two files.
+
+If the natural implementation would exceed 200 lines for any file, decompose further and raise with Old Major before proceeding.
 ```
 
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
@@ -222,3 +229,17 @@ M tasks remain blocked on: [dependency list]
 ```
 
 // Snowball 🐷 — the gh CLI still works; it just waits its turn now
+
+### Step 7: Schedule autonomous advancement cron (first dispatch only)
+
+```bash
+CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
+```
+
+If `CRON_EXISTS=false`: call `CronCreate` with:
+- Schedule: `*/15 * * * *`
+- Prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:dispatch (review dispatch only — Step 0). If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."`
+
+Store the returned ID in `.hall-cache/session/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
+
+If `CRON_EXISTS=true`: print `Cron already active — skipping.`
