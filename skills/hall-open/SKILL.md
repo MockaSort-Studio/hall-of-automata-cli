@@ -84,8 +84,19 @@ python3 -c "import json,sys; d=json.load(open('.hall-cache/personas/.advisory-ro
   || exit 1
 ```
 
-For each path — `agents/automaton_base.md`, `roster/old-major.md`, and `roster/<name>.md` for each name in the roster JSON — call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`). Decode the returned `content` (base64) and write to `.hall-cache/personas/<target>.md`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/<path> --jq '.content' | base64 -d > <target>`
+Fetch and write persona files via Bash (the Write tool fails on new files; gh api writes directly):
+
+```bash
+SPECS=$(python3 -c "import json; print(' '.join(json.load(open('.hall-cache/personas/.advisory-roster.json'))))")
+gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
+  --jq '.content' | base64 -d > .hall-cache/personas/automaton_base.md
+gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
+  --jq '.content' | base64 -d > .hall-cache/personas/old-major.md
+for name in $SPECS; do
+  gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${name}.md" \
+    --jq '.content' | base64 -d > ".hall-cache/personas/${name}.md"
+done
+```
 
 ```bash
 python3 << 'PYEOF'
