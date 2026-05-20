@@ -78,18 +78,17 @@ Prompt:
 
 Wait for the subagent to return. Its output is the verdict comment block.
 
-#### 0d. Post verdict comment and submit GitHub review
+#### 0d. Submit GitHub review
 
-Call `mcp__github__add_issue_comment` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issue_number: <PR_NUMBER>`, `body: <verdict_text>`.  
-`# On rate_limit/secondary-rate-limit error: gh pr comment <PR_NUMBER> --repo <REPO> --body "<verdict_text>"`
+Submit a single GitHub PR review. The review body is the only communication to the specialist — do not post a separate issue or PR comment before or after.
 
-Then submit a GitHub PR review matching the verdict:
-
-LGTM: Call `mcp__github__pull_request_review_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`.  
+LGTM: Call `mcp__github__pull_request_review_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`, `body: <verdict_text>`.  
 `# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --approve`
 
-MINOR / MAJOR / BLOCKED: Call `mcp__github__pull_request_review_write` with same params, `event: "REQUEST_CHANGES"`, `body: "<one-line finding summary>"`.  
-`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "<one-line finding summary>"`
+MINOR / MAJOR / BLOCKED: Call `mcp__github__pull_request_review_write` with same params, `event: "REQUEST_CHANGES"`, `body: <verdict_text + findings + required fix>`.  
+`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "..."`
+
+For MINOR at `review_cycle == 1`, the review body must include: the VERDICT line, the specific finding, exactly what to change, and "Push a fix commit to this branch."
 
 The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
 
@@ -98,7 +97,7 @@ The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to
 Read the `VERDICT:` line from the returned block:
 
 - **LGTM** → go to 0f.
-- **MINOR** and `review_cycle == 1` → REFINE: post a PR comment directing the specialist to address findings and push a fix commit. In `plan.json`: set `review_cycle: 2`, `needs_review: false`, status `REVIEWING`. Write `plan.json`. Move to next task.
+- **MINOR** and `review_cycle == 1` → REFINE: in `plan.json` set `review_cycle: 2`, `needs_review: false`, status `REVIEWING`. Write `plan.json`. Move to next task. (The fix direction was already included in the REQUEST_CHANGES review body — no additional comment.)
 - **MINOR** and `review_cycle == 2` (ASSESS-2) → go to 0f.
 - **MAJOR** or **BLOCKED** → go to 0f with escalation.
 
