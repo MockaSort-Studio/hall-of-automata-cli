@@ -199,6 +199,12 @@ PYEOF
 On error from `read_board`: print `"Board context unavailable (board not provisioned)."` and continue.
 
 ```bash
+# Ensure board-context.md always exists for CLAUDE-stack @-import
+[ -f .hall-cache/session/board-context.md ] \
+  || printf '# Board Context\nNot provisioned.\n' > .hall-cache/session/board-context.md
+```
+
+```bash
 # Watcher
 WPID=$(cat .hall-cache/watcher.pid 2>/dev/null || echo "")
 if [ -n "$WPID" ] && kill -0 "$WPID" 2>/dev/null; then
