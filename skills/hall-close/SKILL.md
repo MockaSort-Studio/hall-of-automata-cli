@@ -1,7 +1,7 @@
 ---
 name: hall-close
 description: Exit Old Major session mode and clean up session files
-allowed-tools: [Bash, Write]
+allowed-tools: [Bash, Write, CronDelete]
 ---
 
 # /hall:close
@@ -32,12 +32,18 @@ fi
 ### Step 1.5: Cancel autonomous reconcile cron
 
 ```bash
+CRON_ID=""
 if [ -f .hall-cache/session/cron.json ]; then
   CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])")
-  # Call CronDelete with CRON_ID
-  echo "Cancelled autonomous cron (ID: $CRON_ID)."
-  rm .hall-cache/session/cron.json
+  echo "CRON_ID=${CRON_ID}"
 fi
+```
+
+If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
+
+```bash
+rm -f .hall-cache/session/cron.json
+echo "Autonomous cron cancelled."
 ```
 
 ### Step 2: Kill watcher daemon
