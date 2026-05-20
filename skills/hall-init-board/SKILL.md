@@ -41,6 +41,12 @@ BOARD_NUM=$(python3 -c \
   2>/dev/null || echo "")
 if [ -n "$BOARD_NUM" ]; then
   echo "Board #${BOARD_NUM} already provisioned — skipping Step 3."
+  python3 -c "
+import json
+s = json.load(open('.hall-cache/session/.board-init-state.json'))
+s['board_was_created'] = False
+json.dump(s, open('.hall-cache/session/.board-init-state.json','w'), indent=2)
+"
 else
   echo "No board cached — will create."
 fi
@@ -56,6 +62,8 @@ Skip if `BOARD_NUM` is set (from Step 2) and `--force` was not passed.
 set -euo pipefail
 OWNER=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['owner'])")
 OWNER_TYPE=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['owner_type'])")
+REPO=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['repo'])")
+REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
 
 if [ "$OWNER_TYPE" = "Organization" ]; then
   OWNER_ID=$(gh api graphql -f query='query($l:String!){organization(login:$l){id}}' \
@@ -67,11 +75,10 @@ fi
 
 RESULT=$(gh api graphql \
   -f query='mutation($o:ID!,$t:String!){createProjectV2(input:{ownerId:$o,title:$t}){projectV2{id number}}}' \
-  -F o="$OWNER_ID" -F t="Hall Board")
+  -F o="$OWNER_ID" -F t="$REPO_NAME")
 PROJECT_ID=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.id')
 PROJECT_NUM=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.number')
 
-REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
 REPO_ID=$(gh api graphql \
   -f query='query($o:String!,$r:String!){repository(owner:$o,name:$r){id}}' \
   -F o="$OWNER" -F r="$REPO_NAME" --jq '.data.repository.id')
@@ -85,9 +92,10 @@ import json
 s = json.load(open('.hall-cache/session/.board-init-state.json'))
 s['project_id'] = '${PROJECT_ID}'
 s['project_num'] = ${PROJECT_NUM}
+s['board_was_created'] = True
 json.dump(s, open('.hall-cache/session/.board-init-state.json','w'), indent=2)
 "
-echo "Created Hall Board #${PROJECT_NUM} (${PROJECT_ID})"
+echo "Created ${REPO_NAME} board #${PROJECT_NUM} (${PROJECT_ID})"
 ```
 
 ### Step 4: Create custom fields
