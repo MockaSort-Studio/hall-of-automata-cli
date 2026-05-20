@@ -43,7 +43,11 @@
             "description": "List of task IDs that must reach MERGED (or analysis posted) before this task can be dispatched"
           },
           "routing_rationale": { "type": "string" },
-          "issue_body": { "type": "string" }
+          "issue_body": { "type": "string" },
+          "board_parent": {
+            "type": ["integer", "null"],
+            "description": "Issue number of the parent Item on the board. When set, hall-dispatch appends the dispatched issue to that item's Dispatched Issues tasklist."
+          }
         }
       }
     }
