@@ -1,66 +1,73 @@
 # Hall of Automata — Claude Code Plugin
 
-**Hall of Automata** is an AI project management system built on top of Claude Code. You describe what you want to build, and Old Major — an orchestrator persona — breaks the work into tasks, assigns each one to a specialist AI agent, and coordinates everything through GitHub Issues. Each specialist works autonomously in its own Claude session, opens a pull request when done, and Old Major reviews and merges the results.
+Most AI coding tools work file by file, one change at a time. **Hall of Automata** works at project scale.
 
-This plugin is the local side of that system. It runs inside Claude Code and gives you the `/hall:*` commands to plan, dispatch, and track work across your project.
+You open a session, describe what you want to build, and Old Major — an orchestrator running entirely inside Claude Code — designs the work, breaks it into tasks, and dispatches each task to a specialist AI agent. Every agent runs in its own autonomous Claude session, opens a pull request when done, and Old Major reviews and merges it. While agents are working, you can keep building. When they finish, Old Major syncs, unblocks the next wave, and keeps going.
 
-> **You need an active Hall of Automata instance** (a GitHub org with the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) installed) to use dispatch mode. If you don't have one, Hall runs in **local mode**: Old Major plans and implements inline, without filing GitHub Issues.
+This plugin brings that loop to completion: persistent session state, GitHub Issues as the coordination layer, automated review and merge, cross-invoker board sync, Google Drive context ingestion, and fully unattended operation. It is the bridge between a human team's intent and an AI team's execution — a methodology, not just a tool.
+
+> **Dispatch mode requires a Hall of Automata instance** — a GitHub org with the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) installed. Without one, Hall runs in **local mode**: Old Major plans and implements inline, inside your current Claude session, with no external agents.
 
 ---
 
 ## Prerequisites
 
-Complete all four steps before installing the plugin.
+Complete all four steps before installing.
 
 ### 1. Claude Code
 
-Download and install Claude Code from [claude.ai/code](https://claude.ai/code). It is available as a desktop app for Mac and Windows, and as an extension for VS Code and JetBrains IDEs.
+Download and install Claude Code from [claude.ai/code](https://claude.ai/code). It runs as a desktop app on Mac and Windows, and as an extension for VS Code and JetBrains IDEs.
 
 ### 2. GitHub CLI
 
-The GitHub CLI (`gh`) is a small program that lets Claude connect to GitHub on your behalf.
+The GitHub CLI (`gh`) handles authentication between Claude and GitHub.
 
-1. Go to [cli.github.com](https://cli.github.com) and download the installer for your operating system (Mac, Windows, or Linux).
-2. Run the installer.
-3. Open a terminal and run:
+1. Go to [cli.github.com](https://cli.github.com) and download the installer for your operating system.
+2. Run the installer — it doesn't require any configuration during install.
+3. Authenticate by running this command in a terminal:
    ```
    gh auth login
    ```
-   Follow the prompts — it will open a browser window and ask you to sign in to GitHub.
+   It opens a browser window and walks you through signing in to GitHub.
 
 > **How to open a terminal:**
 > - **Mac:** press `Cmd + Space`, type "Terminal", press Enter
 > - **Windows:** press `Win + R`, type `cmd`, press Enter
-> - **Claude Code desktop / VS Code:** use the built-in terminal (`` Ctrl+` ``)
+> - **Inside Claude Code or VS Code:** press `` Ctrl+` `` to open the built-in terminal
 
 ### 3. GitHub Personal Access Token
 
-The plugin uses GitHub's MCP server to read and write issues, pull requests, and project boards. This requires a Personal Access Token stored in Claude's global settings.
+Hall uses GitHub's API to read and write issues, pull requests, and project boards on your behalf. This requires a Personal Access Token added to Claude's settings.
 
-**Step 1 — Create a token**
+**Step 1 — Create the token**
 
-1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) (sign in if needed)
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
 2. Click **Generate new token (classic)**
-3. Give it a name like `Hall of Automata CLI`
-4. Set expiration to **No expiration** (or however long you prefer)
-5. Select these scopes:
-   - ✅ **`repo`** — required (read/write issues, pull requests, code)
-   - ✅ **`read:org`** — recommended (needed to verify your invoker status)
-6. Click **Generate token** and copy it — it starts with `ghp_`
+3. Name it `Hall of Automata CLI`
+4. Set an expiration (or choose **No expiration**)
+5. Select exactly these scopes:
 
-> Keep this token private. Anyone with it can access your repositories.
+   | Scope | Why it's needed |
+   |---|---|
+   | ✅ `repo` | Read and write repositories — issues, pull requests, branches, code |
+   | ✅ `read:org` | Read your organisation's team membership (used to verify invoker status) |
+   | ✅ `project` | Create and update GitHub Projects v2 boards and fields |
+
+6. Click **Generate token** and copy it immediately — it is only shown once. It starts with `ghp_`.
+
+> This token has broad access to your repositories. Keep it private and do not share it.
 
 **Step 2 — Add it to Claude's settings**
 
-Open Claude's global settings file in a text editor:
+Locate Claude's global settings file on your computer:
 
-| Operating system | File location |
+| Operating system | File path |
 |---|---|
 | **Mac** | `~/.claude/settings.json` |
-| **Windows** | `%APPDATA%\Claude\settings.json` *(paste this into the File Explorer address bar)* |
+| **Windows** | `%APPDATA%\Claude\settings.json` — paste this directly into the address bar in File Explorer |
 | **Linux** | `~/.claude/settings.json` |
 
-Add an `env` block with your token. If the file already exists, merge this in — don't replace the whole file:
+Open the file in any text editor (Notepad works on Windows). Add an `env` section with your token. If the file already has content, add only the `env` block — don't replace what's there:
 
 ```json
 {
@@ -70,13 +77,13 @@ Add an `env` block with your token. If the file already exists, merge this in �
 }
 ```
 
-Save the file and restart Claude Code.
+Save and restart Claude Code.
 
 ### 4. Hall of Automata GitHub App
 
-If you want dispatch mode (AI agents working in your GitHub repo), the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) must be installed on your organization. An org owner can do this from the GitHub Marketplace page.
+For dispatch mode, the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) must be installed on the GitHub organisation that owns your target repository. An org owner can install it from the Marketplace page in a few clicks.
 
-If you are only using local mode (Old Major works inline), skip this step.
+Skip this step if you are using local mode only.
 
 ---
 
@@ -89,74 +96,60 @@ Inside any Claude Code session:
 /plugin install hall-of-automata-cli@mockasort
 ```
 
-This works in the desktop app, VS Code, JetBrains, and the CLI — no terminal or git required.
+Works in the desktop app, VS Code, JetBrains, and the CLI — no terminal or git required.
 
 ---
 
-## Quick Start
+## Working with Hall
 
-Open a Claude Code session in your project's folder, then run:
+Hall is built around a **session** — an active working context that you open at the start of your work and close when you are done. Opening a session is intentional: it pulls personas, assembles the instruction stack, and starts the background watcher. It is not a fire-and-forget operation, and it is not meant to be opened and closed repeatedly.
 
-```
-/hall:doctor    — check that everything is set up correctly
-/hall:open      — start a session and load Old Major
-/hall:plan      — describe what you want to build; Old Major breaks it into tasks
-/hall:dispatch  — send ready tasks to Hall specialists as GitHub Issues
-/hall:status    — see the current state of all tasks
-/hall:reconcile — sync task states with what's happened on GitHub
-/hall:close     — end the session
-```
+**The typical flow:**
 
-On first `/hall:open`, you'll be asked whether you are a **Hall invoker** — a member of your org's `automata-invokers` team, which grants dispatch access. If you are not, Hall automatically switches to local mode.
+1. Open Claude Code in your project folder.
+2. Run `/hall:open` — Old Major introduces himself and asks what you are building (or resumes a plan already in progress).
+3. Have a conversation. Old Major helps you decompose the work, routes design questions to the right specialist, and proposes a dispatch plan.
+4. Approve the dispatch. Hall files GitHub Issues for each task. Agents pick them up and start working.
+5. Keep working on other things. Hall runs a background cron that automatically syncs task states, triggers reviews, and dispatches newly unblocked tasks.
+6. Run `/hall:close` when you are done for the day. Hall saves session notes and shuts down cleanly.
+
+**The commands most users need most of the time are `/hall:open` and `/hall:close`.** Everything else — status, reconcile, reply, prune — is there for fine-grained control when you want it.
 
 ---
 
-## Commands
+## What Hall can do
+
+**Manage projects end-to-end.** Old Major takes a description of what you want to build, designs the decomposition, routes tasks to the right specialists, and tracks everything from first issue to merged PR. You direct; Hall executes.
+
+**Coordinate across a team.** If multiple invokers are working on the same Hall instance, the GitHub Projects v2 board keeps everyone in sync. Each invoker sees their own tasks; cross-invoker updates are posted as comments. Run `/hall:init-board` once on a repo to set up the coordination board.
+
+**Ingest context from Google Drive.** Drop a spec, a design doc, or a set of meeting notes into Google Drive and point Old Major at them. Hall can read Drive files directly into the planning conversation — no copy-paste required.
+
+**Work fully unattended.** With automation level 2 enabled at session open, Hall schedules a background cron that reconciles state, reviews PRs, and dispatches new work automatically. You can walk away and come back to merged pull requests.
+
+---
+
+## Command reference
 
 | Command | What it does |
 |---|---|
-| `/hall:doctor` | Runs a full preflight check — gh auth, token, Hall App installation, MCP health |
-| `/hall:open` | Loads Old Major, pulls specialist personas and methodology from Hall, starts the session |
-| `/hall:plan` | Design conversation with Old Major; produces a `plan.json` task graph |
-| `/hall:dispatch` | Files GitHub Issues for tasks that are ready to go |
-| `/hall:status` | Shows the current task board from `plan.json` |
-| `/hall:reconcile` | Pulls GitHub label and PR state changes into the local task graph |
-| `/hall:init-board` | Provisions the GitHub Projects v2 board, custom fields, and labels on the target repo |
-| `/hall:consultations` | Routes a design question to the right specialist (Tier 1/2/3) |
-| `/hall:reply` | Sends a message to a specialist whose task is waiting for input |
-| `/hall:prune` | Removes old completed plans or stale cache; `--invoker` resets invoker verification |
-| `/hall:close` | Ends the session, cancels the background cron, removes session files |
-
----
-
-## How it works
-
-All session state lives in `.hall-cache/` inside your project folder. This directory is gitignored — nothing from it is ever committed to your repo. GitHub Issues are the coordination layer between Old Major and Hall specialists.
-
-```
-.hall-cache/
-  personas/              # specialist personas pulled from Hall at /hall:open
-  methodology/           # Old Major's operating instructions
-  plans/
-    <date-plan-name>/
-      plan.json          # task graph with statuses and GitHub issue numbers
-      plan.md            # human-readable task board
-  session/
-    CLAUDE-stack.md      # assembled session instruction stack
-    claude-agents/       # rendered specialist overlays (one per agent)
-    config.json          # automation level and local/invoker mode
-    roster-index.md      # index of available specialists
-  watcher.pid            # background file-watch daemon PID
-  watcher-events.jsonl   # events since last reconcile
-```
-
-All GitHub API calls go through the GitHub MCP server, with `gh api` REST calls as inline fallbacks for rate-limit errors. A companion `hall-projects` MCP server (`mcp/hall-projects-server.py`) handles Projects v2 board operations — the GitHub MCP has no Projects v2 tools, so this split is structural. See [docs/design.md](docs/design.md) for the full architectural rationale.
+| `/hall:doctor` | Preflight check — gh auth, token, Hall App installation, MCP connectivity |
+| `/hall:open` | Start a session: load Old Major, pull personas and methodology, start watcher |
+| `/hall:plan` | Design conversation with Old Major; produces the task graph |
+| `/hall:dispatch` | File GitHub Issues for ready tasks |
+| `/hall:status` | Show current task states from the local plan |
+| `/hall:reconcile` | Sync task states with GitHub — picks up label changes, PR merges, new reviews |
+| `/hall:init-board` | Provision the GitHub Projects v2 board, custom fields, and labels on the target repo |
+| `/hall:consultations` | Route a design question to a specialist (Tier 1/2/3) |
+| `/hall:reply` | Send a message to a task that is waiting for input |
+| `/hall:prune` | Remove completed plans or stale cache; `--invoker` resets invoker verification |
+| `/hall:close` | End the session — cancel cron, save notes, clean up |
 
 ---
 
 ## Security
 
-The `guard-writes` hook enforces that AI agents running inside the session can only write inside `.hall-cache/` and modify `.gitignore`. Any attempt to write to your project source tree is blocked before the tool call executes.
+A `guard-writes` hook runs before every file write during a session. AI agents are restricted to writing inside `.hall-cache/` and modifying `.gitignore`. Any attempt to write to your project's source tree is blocked before it executes.
 
 ---
 
