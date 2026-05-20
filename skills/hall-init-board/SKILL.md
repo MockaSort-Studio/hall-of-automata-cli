@@ -71,6 +71,15 @@ RESULT=$(gh api graphql \
 PROJECT_ID=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.id')
 PROJECT_NUM=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.number')
 
+REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
+REPO_ID=$(gh api graphql \
+  -f query='query($o:String!,$r:String!){repository(owner:$o,name:$r){id}}' \
+  -F o="$OWNER" -F r="$REPO_NAME" --jq '.data.repository.id')
+gh api graphql \
+  -f query='mutation($p:ID!,$r:ID!){linkProjectV2ToRepository(input:{projectId:$p,repositoryId:$r}){repository{name}}}' \
+  -F p="$PROJECT_ID" -F r="$REPO_ID" --jq '.data.linkProjectV2ToRepository.repository.name'
+echo "Board linked to repository ${REPO}."
+
 python3 -c "
 import json
 s = json.load(open('.hall-cache/session/.board-init-state.json'))
