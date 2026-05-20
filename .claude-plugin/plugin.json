@@ -1,6 +1,6 @@
 {
   "name": "hall-of-automata-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Persistent local orchestrator for multi-task projects on the Hall of Automata. Plan, dispatch, and coordinate specialist agents via a design conversation with Old Major.",
   "author": {
     "name": "Borys Cherny",
