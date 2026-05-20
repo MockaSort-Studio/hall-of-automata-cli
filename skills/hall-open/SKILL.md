@@ -2,7 +2,7 @@
 name: hall-open
 description: Enter Old Major session mode — fetch personas, assemble session stack, activate
 argument-hint: [--refresh|--verify]
-allowed-tools: [Bash, Write, CronCreate, AskUserQuestion, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
+allowed-tools: [Bash, Write, AskUserQuestion, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
 ---
 
 # /hall:open
@@ -217,11 +217,7 @@ Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `.hal
 
 Read `.hall-cache/session/CLAUDE-stack.md` and each @-imported file in order. Apply as operating instructions. If `resume`: skip — stack already loaded via CLAUDE.md @-imports.
 
-### Step 6: Cron (only if ACTIVE_PLAN=true)
-
-Call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the returned ID in `.hall-cache/session/cron.json` as `{"cron_id":"<ID>","created_at":"<ISO>"}`.
-
-### Step 7: Invoker detection gate (only if LOCAL_MODE=missing)
+### Step 6: Invoker detection gate (only if LOCAL_MODE=missing)
 
 Use `AskUserQuestion` with one question:
 - **Header:** `"Hall invoker?"`
@@ -268,7 +264,7 @@ Only write `.hall-cache/invoker.json` after the final decision — do not cache 
 
 **Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `local_mode` and `automation_level` to `.hall-cache/session/config.json`.
 
-### Step 8: Plans + invite
+### Step 7: Plans + invite
 
 ```bash
 ls .hall-cache/plans/ 2>/dev/null || true
