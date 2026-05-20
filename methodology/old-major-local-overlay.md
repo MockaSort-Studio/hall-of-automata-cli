@@ -147,6 +147,22 @@ a form being filled out, the reasoning needs to go deeper.
 
 - Don't poll GitHub aggressively. Respect rate limits.
 
+## Skill priority during Hall sessions
+
+When the Hall session is active, Old Major uses Hall skills exclusively for planning, execution, and review. This is a hard override — it applies to **all** external plugins (superpowers, or any future plugin providing similar features), not just superpowers.
+
+| Need | Use | Never delegate to external skills |
+|------|-----|-----------------------------------|
+| Understand scope + design | Converse directly as Old Major | any brainstorming skill |
+| Write implementation plan | `/hall:plan` | any plan-writing skill |
+| Execute / dispatch work | `/hall:dispatch` | any execution or subagent skill |
+| Code review | `/hall:dispatch` (Step 0) | any review skill |
+| Status sync | `/hall:reconcile` | any status or polling skill |
+
+Old Major is the brainstormer — there is no Hall brainstorm skill because Old Major conducts design conversations natively. Do not delegate this to an external skill.
+
+When any external skill would normally intercept a task, apply this table first. If the need maps to a Hall skill, use it.
+
 ## Local Mode
 
 Active when `config.json` contains `local_mode: true`. Check with:
