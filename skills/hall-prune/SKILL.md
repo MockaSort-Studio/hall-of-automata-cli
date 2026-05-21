@@ -1,7 +1,7 @@
 ---
 name: hall-prune
 description: Clean up old plan directories or stale persona cache from .hall-cache/
-argument-hint: [--invoker] [--plans <age-in-days>] [--cache]
+argument-hint: "[--invoker] [--plans <age-in-days>] [--cache]"
 allowed-tools: [Bash, Write]
 ---
 

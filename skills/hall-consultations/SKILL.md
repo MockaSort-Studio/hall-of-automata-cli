@@ -1,7 +1,7 @@
 ---
 name: hall-consultations
 description: List, view, or prune saved Tier-2 subagent consultation outputs
-argument-hint: [list|view <id>|prune [--older-than <days>]]
+argument-hint: "list|view <id>|prune [--older-than <days>]"
 allowed-tools: [Read, Bash, Write]
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: hall-dispatch
 description: Dispatch ready tasks to the Hall as GitHub Issues with quota stewardship
-argument-hint: [--single <task_id>] [--dry-run]
+argument-hint: "[--single <task_id>] [--dry-run]"
 allowed-tools: [Bash, Read, Write, CronCreate, mcp__github__*]
 ---
 
