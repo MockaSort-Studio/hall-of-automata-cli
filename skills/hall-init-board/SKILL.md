@@ -209,6 +209,17 @@ print(f"Resolved {len(fields_out)} fields. Persisted board-meta.json and config.
 PYEOF
 ```
 
+### Step 6.5: Provision Roadmap view
+
+```bash
+PROJECT_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/board-meta.json'))['project_id'])")
+EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on ProjectV2{views(first:20){nodes{name}}}}}" --jq '[.data.node.views.nodes[].name]|index("Roadmap")' 2>/dev/null || echo "null")
+[ "$EXISTS" != "null" ] && { echo "skip: Roadmap view already exists"; } || \
+  gh api graphql -f query="mutation{createProjectV2View(input:{projectId:\"${PROJECT_ID}\",name:\"Roadmap\",layout:ROADMAP_LAYOUT}){projectV2View{name}}}" \
+    --jq '.data.createProjectV2View.projectV2View.name' 2>/dev/null \
+    && echo "created: Roadmap view" || echo "WARN: Roadmap layout unavailable — continuing"
+```
+
 ### Step 7: Confirm
 
 ```bash
