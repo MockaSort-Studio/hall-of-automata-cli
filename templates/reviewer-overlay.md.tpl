@@ -1,9 +1,3 @@
----
-description: {{SPECIALIST_NAME}} — reviewer mode. Assess PR against acceptance criteria and return a structured verdict.
-model: claude-opus-4-7
-tools: [Read, Glob, Grep, Bash]
----
-
 @{{CACHE_ROOT}}/personas/automaton_base.md
 
 @{{PERSONA_PATH}}

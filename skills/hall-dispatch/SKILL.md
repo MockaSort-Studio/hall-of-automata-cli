@@ -69,14 +69,11 @@ with open(f'{cache_root}/session/claude-agents/{specialist}-reviewer.md', 'w') a
 PYEOF
 ```
 
-#### 0c. Spawn reviewer subagent
+#### 0c. Run inline review
 
-Spawn `.hall-cache/session/claude-agents/<specialist>-reviewer.md`. Treat `review_cycle` as 1 if the task entry does not carry it.
+Treat `review_cycle` as 1 if the task entry does not carry it.
 
-Prompt:
-> "Review PR #<PR_NUMBER> in <REPO> which addresses issue #<ISSUE_NUMBER>. This is review cycle <review_cycle> of 2."
-
-Wait for the subagent to return. Its output is the verdict comment block.
+Load `.hall-cache/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block. Continue to Step 0d with that verdict text.
 
 #### 0d. Submit GitHub review
 
