@@ -2,7 +2,7 @@
 name: hall-open
 description: Enter Old Major session mode — fetch personas, assemble session stack, activate
 argument-hint: [--refresh|--verify]
-allowed-tools: [Bash, Write, AskUserQuestion, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
+allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
 ---
 
 # /hall:open
@@ -119,6 +119,8 @@ echo "$CURRENT_SHA" > .hall-cache/personas/.agents-yml-sha
 echo "Fetched (SHA: ${CURRENT_SHA:0:8})."
 ```
 
+**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for persona or methodology changes to apply. Mitigated in Step 5.5.
+
 ### Step 3: Setup — methodology, overlays, stack, watcher
 
 ```bash
@@ -149,9 +151,15 @@ open('.hall-cache/session/session-guard.md', 'w').write(
 IL = '@.hall-cache/session/CLAUDE-stack.md'
 mode = 'resume'
 if not os.path.exists('CLAUDE.md'):
-    open('CLAUDE.md', 'w').write(IL + '\n'); mode = 'first_open'
-elif IL not in open('CLAUDE.md').read():
-    open('CLAUDE.md', 'a').write('\n' + IL + '\n'); mode = 'first_open'
+    open('CLAUDE.md', 'w').write(IL + '\n')
+    mode = 'first_open'
+else:
+    content = open('CLAUDE.md').read()
+    if IL not in content:
+        mode = 'first_open'
+    new_content = IL + '\n' + content.replace(IL, '').lstrip('\n')
+    if new_content != content:
+        open('CLAUDE.md', 'w').write(new_content)
 open('.hall-cache/session/.open_mode', 'w').write(mode)
 if not os.path.exists('.claude/settings.json'):
     os.makedirs('.claude', exist_ok=True)
@@ -180,6 +188,35 @@ if key not in mcp_cfg:
     print('Added hall-projects MCP server to .mcp.json.')
 print(f'Setup complete (mode={mode}).')
 PYEOF
+```
+
+**Cron restart (resume with in-flight tasks):**
+
+```bash
+python3 << 'PYEOF'
+import json, glob, sys
+found = any(
+    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
+    for f in glob.glob('.hall-cache/plans/*/plan.json')
+)
+sys.exit(0 if found else 1)
+PYEOF
+&& INFLIGHT=true || INFLIGHT=false
+CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
+echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
+```
+
+If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:dispatch (review dispatch only — Step 0). If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Then write the returned cron ID:
+
+```python
+import json
+from datetime import datetime, timezone
+cron_id = "<returned cron ID>"
+json.dump(
+    {"cron_id": cron_id, "created_at": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')},
+    open('.hall-cache/session/cron.json', 'w')
+)
+print('Cron restarted (in-flight tasks detected).')
 ```
 
 **Board context:** Read `board_project_number` from `.hall-cache/session/config.json`. If absent, skip silently.
@@ -256,7 +293,7 @@ On error from `read_board`: print `"Board context unavailable (board not provisi
 ```bash
 # Watcher
 WPID=$(cat .hall-cache/watcher.pid 2>/dev/null || echo "")
-if [ -n "$WPID" ] && kill -0 "$WPID" 2>/dev/null; then
+if [ -n "$WPID" ] && ps -p "$WPID" -o comm= 2>/dev/null | grep -q watcher; then
   echo "Watcher OK (PID $WPID)."
 else
   nohup bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/watcher.sh" &> .hall-cache/watcher.log &
@@ -271,6 +308,10 @@ Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `.hal
 ### Step 5: Context injection (only if open_mode=first_open)
 
 Read `.hall-cache/session/CLAUDE-stack.md` and each @-imported file in order. Apply as operating instructions. If `resume`: skip — stack already loaded via CLAUDE.md @-imports.
+
+### Step 5.5: Force-read on --refresh (only if --refresh was passed)
+
+Read `.hall-cache/session/CLAUDE-stack.md` and each @-imported file in order. Apply their contents as operating instructions for the current session — identical to Step 5 context injection. This mitigates the platform constraint that @-import chains are not re-evaluated mid-session; the regenerated stack content becomes active immediately.
 
 ### Step 6: Invoker detection gate (only if LOCAL_MODE=missing)
 
