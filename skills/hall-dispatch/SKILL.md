@@ -92,6 +92,14 @@ For MINOR at `review_cycle == 1`, the review body must include: the VERDICT line
 
 The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
 
+After submitting the review, fetch and store the reviewed SHA:
+
+```bash
+HEAD_SHA=$(gh pr view <PR_NUMBER> --repo <REPO> --json headRefOid --jq '.headRefOid')
+```
+
+Write `last_reviewed_sha: <HEAD_SHA>` to the task entry in `plan.json`.
+
 #### 0e. Route by verdict
 
 Read the `VERDICT:` line from the returned block:

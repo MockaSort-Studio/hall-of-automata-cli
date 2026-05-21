@@ -47,6 +47,10 @@
           "board_parent": {
             "type": ["integer", "null"],
             "description": "Issue number of the parent Item on the board. When set, hall-dispatch appends the dispatched issue to that item's Dispatched Issues tasklist."
+          },
+          "last_reviewed_sha": {
+            "type": "string",
+            "description": "headRefOid of the PR commit most recently reviewed; used to detect fix commits after REQUEST_CHANGES."
           }
         }
       }
