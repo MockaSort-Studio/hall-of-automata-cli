@@ -139,8 +139,9 @@ Hall is built around a **session** — an active working context that you open a
 | `/hall:dispatch` | File GitHub Issues for ready tasks |
 | `/hall:status` | Show current task states from the local plan |
 | `/hall:reconcile` | Sync task states with GitHub — picks up label changes, PR merges, new reviews |
+| `/hall:review` | Run the inline review loop — assess open PRs and settle or escalate |
 | `/hall:init-board` | Provision the GitHub Projects v2 board, custom fields, and labels on the target repo |
-| `/hall:consultations` | Route a design question to a specialist (Tier 1/2/3) |
+| `/hall:consultations` | List, view, or prune saved Tier-2 consultation outputs |
 | `/hall:reply` | Send a message to a task that is waiting for input |
 | `/hall:prune` | Remove completed plans or stale cache; `--invoker` resets invoker verification |
 | `/hall:close` | End the session — cancel cron, save notes, clean up |

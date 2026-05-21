@@ -16,6 +16,7 @@ bash tests/validate-plugin.sh
 bash tests/hooks/test-guard-writes.sh
 bash tests/hooks/test-session-start.sh
 bash tests/hooks/test-watcher.sh
+bash tests/hooks/test-skill-guard.sh
 ```
 
 All should exit `0`. These tests cover:
@@ -37,7 +38,7 @@ cd /home/mike/Workspace/hall-of-automata-cli
 cc --plugin-dir . --debug
 ```
 
-In the Claude session, type `/` and verify the `hall:` commands appear in autocomplete. The `--debug` flag shows hook registration — confirm `PreToolUse`, `SessionStart`, and `Stop` hooks are listed.
+In the Claude session, type `/` and verify the `hall:` commands appear in autocomplete — expected: `hall:open`, `hall:close`, `hall:doctor`, `hall:plan`, `hall:status`, `hall:dispatch`, `hall:review`, `hall:reply`, `hall:reconcile`, `hall:consultations`, `hall:prune`. The `--debug` flag shows hook registration — confirm `PreToolUse`, `SessionStart`, and `Stop` hooks are listed.
 
 ---
 
@@ -82,7 +83,7 @@ Expected:
 
 Expected:
 - Watcher process killed
-- `.hall-cache/` removed (or archived if `/hall:close` saves notes)
+- `CLAUDE-stack.md` and `claude-agents/` removed; plans and persona cache remain intact
 
 ### 3c. Plan and dispatch dry run
 
@@ -95,7 +96,7 @@ After `/hall:open`, describe a small multi-task project to Old Major:
 Walk through the decomposition conversation until `plan.json` is written. Inspect it:
 
 ```bash
-cat .hall-cache/plan.json | python3 -m json.tool
+cat .hall-cache/plans/<plan-slug>/plan.json | python3 -m json.tool
 ```
 
 Verify tasks have `status`, `mode` (`doing`/`advising`/`researching`), and `repo` fields.
@@ -120,7 +121,7 @@ After the issue is closed on GitHub:
 /hall:reconcile
 ```
 
-Expected: that task's status updates to `DONE` in `plan.json`.
+Expected: that task's status updates to `MERGED` in `plan.json`.
 
 ### 3e. Guard-writes enforcement
 

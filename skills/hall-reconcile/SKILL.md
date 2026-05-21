@@ -175,5 +175,3 @@ K tasks newly REVIEWING — review dispatch pending
 ```
 
 Omit the second line if K = 0.
-
-// Snowball 🐷 — board writes now conditional, scope honest about what they touch
