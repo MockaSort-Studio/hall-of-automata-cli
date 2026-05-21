@@ -1,8 +1,7 @@
-@{{CACHE_ROOT}}/personas/automaton_base.md
-
-@{{PERSONA_PATH}}
-
-@{{CACHE_ROOT}}/methodology/review-loop.md
+Before beginning:
+- Read `{{CACHE_ROOT}}/personas/automaton_base.md`
+- Read `{{PERSONA_PATH}}`
+- Read `{{CACHE_ROOT}}/methodology/review-loop.md`
 
 # Reviewer overlay
 
