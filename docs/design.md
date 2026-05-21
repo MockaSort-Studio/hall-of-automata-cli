@@ -92,7 +92,9 @@ hall-of-automata-cli/
 │   └── plugin.json
 │
 ├── skills/                          # all user-invoked commands
-│   ├── hall-open/SKILL.md           # /hall:open
+│   ├── hall-open/
+│   │   ├── SKILL.md                 # /hall:open
+│   │   └── invoker-gate.md          # invoker detection procedure (read by Step 6)
 │   ├── hall-close/SKILL.md          # /hall:close
 │   ├── hall-doctor/SKILL.md         # /hall:doctor
 │   ├── hall-plan/SKILL.md           # /hall:plan
@@ -106,14 +108,21 @@ hall-of-automata-cli/
 │
 ├── methodology/                     # plugin-owned Old Major overlays
 │   ├── old-major-local-overlay.md   # do/don't contract for local session
-│   ├── decomposition.md             # project decomposition methodology
-│   ├── consultation-router.md       # inline vs subagent vs Hall issue
-│   ├── routing-rationale.md         # specialist selection and documentation
+│   ├── decomposition.md             # project decomposition methodology (on-demand)
+│   ├── consultation-router.md       # inline vs subagent vs Hall issue (on-demand)
+│   ├── routing-rationale.md         # specialist selection and documentation (on-demand)
 │   └── advisory-frameworks/        # inline advisory coverage per specialist type
+│
+├── scripts/                         # Python helpers called from skills
+│   ├── hall-open-setup.py           # methodology copy, overlay render, stack assembly
+│   ├── format-board-context.py      # board-context.md formatting
+│   └── verify-personas.py           # persona validation + roster-index build
 │
 ├── templates/
 │   ├── CLAUDE-stack.md.tpl          # session stack assembly template
-│   ├── subagents/                   # per-specialist subagent overlays
+│   ├── session-guard.md.tpl         # session-active guard (first @-import in stack)
+│   ├── reviewer-overlay.md.tpl      # reviewer context template
+│   ├── subagent-overlay.md.tpl      # Tier-2 subagent context template
 │   └── plan.json.schema
 │
 ├── hooks/
@@ -121,7 +130,8 @@ hall-of-automata-cli/
 │   └── scripts/
 │       ├── guard-writes.sh          # PreToolUse: block writes outside .hall-cache/
 │       ├── session-start.sh         # SessionStart: detect interrupted sessions
-│       └── watcher.sh               # background GitHub polling daemon
+│       ├── watcher.sh               # background GitHub polling daemon
+│       └── skill-guard.sh           # PreToolUse: suppress non-Hall skills during sessions
 │
 └── .mcp.json                        # sequential-thinking, fetch, github, google-drive
 ```
@@ -134,7 +144,7 @@ hall-of-automata-cli/
 
 1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `.hall-cache/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
 2. **Gitignore** — add `.hall-cache/` if missing.
-3. **Synthesise project context** — read `README.md`, `CLAUDE.md`, `docs/design.md` (first 80 lines) from working directory; write 2–4 sentence brief to `.hall-cache/session/context.md`.
+3. **Synthesise project context** — read first 30 lines of `README.md`; write 2–4 sentence brief to `.hall-cache/session/context.md`. Skipped if `context.md` already exists.
 4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
 5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `.hall-cache/personas/` with 24 h TTL, **or** force re-fetch if `agents.yml` SHA differs from `.hall-cache/personas/.agents-yml-sha` (whichever condition triggers first).
 6. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`.
@@ -142,7 +152,7 @@ hall-of-automata-cli/
 8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
 9. **CLAUDE.md injection** — write or append Hall stack import to workspace `CLAUDE.md`.
 10. **Watcher start** — launch `watcher.sh` as background daemon; log to `.hall-cache/watcher.log`.
-11. **Autonomous cron** — if an active plan exists, call `CronCreate` (every 7 min) to wake Old Major for unattended reconcile and dispatch; store cron ID in `.hall-cache/session/cron.json`. If no active plan at open time, Old Major schedules the cron when the first `plan.json` is written.
+11. **Autonomous cron (resume path)** — if any task has status DISPATCHED or IN_PROGRESS and no `cron.json` is present, restart the cron (every 15 min). On a fresh session, `/hall:dispatch` Step 7 creates the cron after the first batch of issues is filed.
 12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
 13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `.hall-cache/invoker.json`; set `local_mode` in `config.json`. Invoker path also prompts automation Q&A and writes `automation_level`. See [Invoker Detection](#invoker-detection).
 14. **Plan check** — offer to resume if plans exist in `.hall-cache/plans/`.
@@ -310,7 +320,7 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 
 ### Background Watcher
 
-`watcher.sh` runs as a background daemon during the session (started at Step 8 of `/hall:open`, killed at Step 2 of `/hall:close`). It polls GitHub every `$POLL_INTERVAL` seconds (default 120) and emits events on state transitions.
+`watcher.sh` runs as a background daemon during the session (started at Step 3 of `/hall:open`, killed at Step 2 of `/hall:close`). It polls GitHub every `$POLL_INTERVAL` seconds (default 120) and emits events on state transitions.
 
 **Detected events:**
 
@@ -334,10 +344,10 @@ Events are emitted only on transition (compared to `.hall-cache/watcher-state.js
 watcher.sh (every 120s)
   └─ polls GitHub → writes watcher-events.jsonl + watcher.log
 
-CronCreate job (every 7 min, set by /hall:open Step 8.5)
+CronCreate job (every 15 min, set by /hall:dispatch Step 7 or /hall:open Step 3 on resume)
   └─ wakes Old Major
        └─ /hall:reconcile (Step 0: drains watcher-events.jsonl)
-            └─ /hall:dispatch → advances plan without user input
+            └─ /hall:review + /hall:dispatch → advances plan without user input
 ```
 
 ---
@@ -508,7 +518,7 @@ Each review pass uses the specialist's persona wrapped in a `reviewer-overlay.md
 3. Assess every criterion against the diff using the verdict taxonomy from `review-loop.md`
 4. Return the structured verdict block — no output before or after it
 
-The reviewer must not post, write, or create anything. The verdict text is returned to Old Major, who posts it via `gh pr comment --repo`, then submits a GitHub PR review: `--approve` for LGTM, `--request-changes` for MINOR/MAJOR/BLOCKED. On ASSESS-2, the overlay appends a terminal-cap notice to the verdict block.
+The reviewer must not post, write, or create anything. The verdict text is returned to Old Major, who submits a GitHub PR review: `APPROVE` for LGTM, `REQUEST_CHANGES` for MINOR/MAJOR/BLOCKED. The review body carries the structured verdict block — no separate comment is posted. On ASSESS-2, the overlay appends a terminal-cap notice to the verdict block.
 
 The reviewer is the same specialist who implemented the task — domain knowledge travels with the persona without re-establishing context.
 

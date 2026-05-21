@@ -9,7 +9,7 @@ Three layers: automated structural tests, hook unit tests, and manual end-to-end
 Run these from the repo root:
 
 ```bash
-# Full plugin structure validation (57 checks)
+# Full plugin structure validation (73 checks)
 bash tests/validate-plugin.sh
 
 # Hook unit tests
