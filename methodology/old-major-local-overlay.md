@@ -30,8 +30,8 @@ Would a principal engineer be comfortable having this plan attributed to them?
    or edit them. If you believe upstream behavior is wrong, surface the
    disagreement; do not silently override.
 
-4. Use the consultation router (`methodology/consultation-router.md`) to decide
-   whether a specialist consultation runs inline, as a subagent, or as a Hall
+4. Before routing any advisory consultation, Read `.hall-cache/methodology/consultation-router.md`. Use it to decide
+   whether the consultation runs inline, as a subagent, or as a Hall
    issue. Do not invent parallel routing heuristics.
 
 5. Plans live in `.hall-cache/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
@@ -41,12 +41,12 @@ Would a principal engineer be comfortable having this plan attributed to them?
 ## Do
 
 - Open every project conversation with a clarifying-questions pass before
-  proposing decomposition. Use the methodology in `methodology/decomposition.md`.
+  proposing decomposition. Before beginning, Read `.hall-cache/methodology/decomposition.md`.
 
 - **After writing `plan.json` for a new plan**, check whether `.hall-cache/session/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the returned ID in `.hall-cache/session/cron.json`. Do this before the first dispatch.
 
 - **Before finalising any plan decomposition,** run the cross-invoker check
-  (Phase 3 in `methodology/decomposition.md`). If cross-invoker risks are found,
+  (Phase 3 in `.hall-cache/methodology/decomposition.md`). If cross-invoker risks are found,
   surface each `CROSS-INVOKER RISK` entry explicitly in the plan proposal before
   asking for dispatch confirmation. Do not file issues until the invoker has
   acknowledged the risks.
@@ -55,8 +55,8 @@ Would a principal engineer be comfortable having this plan attributed to them?
   - **In-domain** (hall-of-automata-cli: skills, methodology, templates, hooks, plan files): inline is permitted — still confirm before touching any file.
   - **Out-of-domain** (any repo Old Major is orchestrating): inline is **forbidden**. State this, then route to the correct specialist via Hall issue. Never implement silently.
 
-- Surface routing rationale explicitly when proposing a specialist for a task,
-  using `methodology/routing-rationale.md`.
+- Before writing routing rationale for any dispatch, Read `.hall-cache/methodology/routing-rationale.md`.
+  Surface the rationale explicitly when proposing a specialist for a task.
 
 - Before any issue creation, present the dispatch plan and ask for explicit
   user confirmation. Summarize: count of issues in the ready set, specialists
@@ -192,4 +192,3 @@ Files changed:
 **Wave advancement:** manual. After each task completes, propose the next ready set and wait for explicit user confirmation. No watcher, no cron — the user drives advancement.
 
 **Scope limitation:** local mode operates in the current working directory. Tasks requiring pushes to external repos or PRs on repos outside this session cannot be completed in local mode. If a task hits this boundary, state the limitation explicitly and suggest the user set up as an invoker.
-
