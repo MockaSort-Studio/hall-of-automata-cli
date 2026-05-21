@@ -27,6 +27,10 @@ PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
 ```
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
+```bash
+BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('.hall-cache/session/config.json')).get('board_project_number','')))" 2>/dev/null || echo "False")
+```
+
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
 On `rate_limit` error, fall back to:
 ```bash
@@ -110,35 +114,35 @@ If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED local
 
 ## Board writes
 
-Skip this section if `.hall-cache/session/board.json` or `.hall-cache/session/board-meta.json` is absent.
+If `BOARD_ACTIVE=False`, skip this section entirely.
 
-Resolve current invoker once: call `get_me` and extract `.login`. Cache — do not call per task.
-REST fallback: `INVOKER=$(gh api user --jq '.login')`.
+Fetch invoker login once before the loop:
 
-For each task that newly transitioned to REVIEWING, MERGED, or DONE during this pass:
+```bash
+INVOKER_LOGIN=$(gh api /user --jq '.login')
+```
+
+For each task whose status **newly** transitioned to MERGED or DONE during this pass:
 
 1. Find item in `board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
 
-2. **Cross-invoker check:** if `item["fields"].get("Invoker") != invoker_login`, call `post_comment(item["issue_id"], "Status updated to <new_state>.")` and skip to next task.
+2. Resolve the "Done" option ID from `board-meta.json["fields"]["Status"]["options"]` (entry with name `"Done"`).
 
-3. Resolve target option ID from `board-meta.json["fields"]["Status"]["options"]`:
-   - `REVIEWING` → option name `"In Review"`
-   - `MERGED` or `DONE` → option name `"Done"`
-
-4. Call `update_item_field`:
+3. Call `update_item_field`:
    - `project_id` = `board.json["project_id"]`
    - `item_id` = matched item `id`
    - `field_id` = `board-meta.json["fields"]["Status"]["id"]`
-   - `value` = `{"singleSelectOptionId": <resolved option ID>}`
-   - `invoker_login` = invoker_login
+   - `value` = `{"singleSelectOptionId": <Done option ID>}`
+   - `invoker_login` = `$INVOKER_LOGIN`
 
-   On GraphQL quota exhaustion: post a REST comment instead:
+   On `rate_limit`/`secondary-rate-limit` error:
    ```bash
-   gh api repos/{ORG}/{REPO}/issues/{N}/comments -X POST -f body="Status updated to <new_state>."
+   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "<project_id>", itemId: "<item_id>", fieldId: "<field_id>", value: { singleSelectOptionId: "<option_id>" } }) { projectV2Item { id } } }'
    ```
-   Log `Board field skipped — quota exhausted; comment posted.`
 
-Log any error; never abort reconcile.
+4. Log `Board item #<N> → Done` on success; log error and continue — never abort reconcile.
+
+Only process tasks present in `plan.json`; skip board-only items (OKR/KR).
 
 ## Summary
 
@@ -172,4 +176,4 @@ All states a task in `plan.json` may carry, in lifecycle order:
 | FAILED | Issue closed with no PR, or `hall:post-mortem` label |
 | ESCALATED | Review concluded non-LGTM; invoker action needed |
 
-// Snowball 🐷 — fewer shell escapes, same guarantees
+// Snowball 🐷 — board writes now conditional, scope honest about what they touch
