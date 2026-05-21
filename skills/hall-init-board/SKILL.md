@@ -139,8 +139,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?}"
 echo "Pushing issue templates..."
 for tpl in okr kr item; do
   path=".github/ISSUE_TEMPLATE/${tpl}.yml"
-  sha=$(gh api "repos/${REPO}/contents/${path}" --jq '.sha' 2>/dev/null || echo "")
-  if [ -n "$sha" ]; then
+  if gh api "repos/${REPO}/contents/${path}" > /dev/null 2>&1; then
     echo "  skip: ${path} (exists)"
     continue
   fi
