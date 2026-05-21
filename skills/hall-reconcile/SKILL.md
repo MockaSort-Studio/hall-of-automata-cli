@@ -65,7 +65,23 @@ After updating all tasks, identify any newly-eligible tasks (tasks whose `depend
 
 ## Setting `needs_review`
 
-After updating task states, determine which tasks **newly** transitioned into REVIEWING — status was not REVIEWING on the prior reconcile pass, is now REVIEWING. For each such task:
+**Open PR detection:** For each task with status DISPATCHED or IN_PROGRESS that has a `github_issue` and does NOT already have `needs_review: true`:
+
+```bash
+PR_INFO=$(gh pr list --repo {ORG}/{REPO} --search "closes #{N} is:open" --json number,headSha --jq '.[0]')
+```
+
+If the result is non-empty and non-null: set `github_pr` to the PR number (if not already set or changed); set `needs_review: true` and `review_cycle: 1` on the task entry.
+
+**Fix-commit detection:** For each task with `github_pr` set, `review_cycle >= 1`, and `needs_review: false`:
+
+```bash
+HEAD_SHA=$(gh pr view {github_pr} --repo {ORG}/{REPO} --json headRefOid --jq '.headRefOid')
+```
+
+If `HEAD_SHA` differs from `task["last_reviewed_sha"]` (and `last_reviewed_sha` is non-empty): set `needs_review: true`.
+
+**Newly REVIEWING:** Determine which tasks newly transitioned into REVIEWING — status was not REVIEWING on the prior reconcile pass, is now REVIEWING. For each such task:
 
 1. Read `automation_level` from `.hall-cache/session/config.json`. If the file is absent, treat as 0.
 2. If `automation_level >= 1`, set `needs_review: true` on that task in `plan.json`.
