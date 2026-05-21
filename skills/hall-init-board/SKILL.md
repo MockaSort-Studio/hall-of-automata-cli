@@ -130,6 +130,30 @@ source "${PLUGIN_ROOT}/skills/hall-init-board/lib/create-labels.sh"
 create_labels
 ```
 
+### Step 5.5: Push issue templates
+
+```bash
+REPO=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['repo'])")
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?}"
+
+echo "Pushing issue templates..."
+for tpl in okr kr item; do
+  path=".github/ISSUE_TEMPLATE/${tpl}.yml"
+  sha=$(gh api "repos/${REPO}/contents/${path}" --jq '.sha' 2>/dev/null || echo "")
+  if [ -n "$sha" ]; then
+    echo "  skip: ${path} (exists)"
+    continue
+  fi
+  content=$(base64 -w0 < "${PLUGIN_ROOT}/templates/issue-templates/${tpl}.yml")
+  gh api "repos/${REPO}/contents/${path}" \
+    -X PUT \
+    -f message="chore: add ${tpl} issue template [hall-init-board]" \
+    -f content="$content" > /dev/null \
+    && echo "  created: ${path}" \
+    || echo "  WARN: failed to push ${path} — continuing"
+done
+```
+
 ### Step 6: Run GetProjectMeta and persist
 
 ```bash
