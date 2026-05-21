@@ -15,20 +15,6 @@
     "github-actions",
     "old-major"
   ],
-  "skills": [
-    { "name": "hall-open",          "path": "skills/hall-open/SKILL.md" },
-    { "name": "hall-close",         "path": "skills/hall-close/SKILL.md" },
-    { "name": "hall-plan",          "path": "skills/hall-plan/SKILL.md" },
-    { "name": "hall-dispatch",      "path": "skills/hall-dispatch/SKILL.md" },
-    { "name": "hall-review",        "path": "skills/hall-review/SKILL.md" },
-    { "name": "hall-reconcile",     "path": "skills/hall-reconcile/SKILL.md" },
-    { "name": "hall-status",        "path": "skills/hall-status/SKILL.md" },
-    { "name": "hall-reply",         "path": "skills/hall-reply/SKILL.md" },
-    { "name": "hall-consultations", "path": "skills/hall-consultations/SKILL.md" },
-    { "name": "hall-init-board",    "path": "skills/hall-init-board/SKILL.md" },
-    { "name": "hall-doctor",        "path": "skills/hall-doctor/SKILL.md" },
-    { "name": "hall-prune",         "path": "skills/hall-prune/SKILL.md" }
-  ],
   "permissions": {
     "allow": [
       "Bash(*)",

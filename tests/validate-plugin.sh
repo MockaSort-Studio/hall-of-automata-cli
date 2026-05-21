@@ -37,7 +37,6 @@ check "skills/hall-review/SKILL.md has frontmatter"         "grep -q '^---' skil
 check "skills/hall-review/SKILL.md has name field"          "grep -q '^name:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has description field"   "grep -q '^description:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has allowed-tools field" "grep -q '^allowed-tools:' skills/hall-review/SKILL.md"
-check "skills/hall-review registered in plugin.json"        "python3 -c \"import json,sys; d=json.load(open('.claude-plugin/plugin.json')); sys.exit(0 if any(s.get('name')=='hall-review' for s in d.get('skills',[])) else 1)\""
 check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -lt 200 ]"
 check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -lt 200 ]"
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
