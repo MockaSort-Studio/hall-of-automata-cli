@@ -116,6 +116,12 @@ If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED local
 
 If `BOARD_ACTIVE=False`, skip this section entirely.
 
+Fetch invoker login once before the loop:
+
+```bash
+INVOKER_LOGIN=$(gh api /user --jq '.login')
+```
+
 For each task whose status **newly** transitioned to MERGED or DONE during this pass:
 
 1. Find item in `board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
@@ -127,6 +133,7 @@ For each task whose status **newly** transitioned to MERGED or DONE during this 
    - `item_id` = matched item `id`
    - `field_id` = `board-meta.json["fields"]["Status"]["id"]`
    - `value` = `{"singleSelectOptionId": <Done option ID>}`
+   - `invoker_login` = `$INVOKER_LOGIN`
 
    On `rate_limit`/`secondary-rate-limit` error:
    ```bash
