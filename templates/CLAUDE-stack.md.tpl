@@ -14,12 +14,6 @@
 
 @{{CACHE_ROOT}}/methodology/old-major-local-overlay.md
 
-@{{CACHE_ROOT}}/methodology/decomposition.md
-
-@{{CACHE_ROOT}}/methodology/consultation-router.md
-
-@{{CACHE_ROOT}}/methodology/routing-rationale.md
-
 @{{CACHE_ROOT}}/session/roster-index.md
 
 @{{CACHE_ROOT}}/session/board-context.md
