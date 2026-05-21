@@ -169,13 +169,9 @@ Active when `config.json` contains `local_mode: true`. Check with:
 
 **Before implementing each task:**
 
-1. Read the task's assigned specialist persona from `.hall-cache/personas/<name>.md`. If the file is absent, re-fetch it:
-   ```bash
-   gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/<name>.md" \
-     --jq '.content' | base64 -d > ".hall-cache/personas/<name>.md"
-   ```
-2. Apply the specialist's domain methodology, coding standards, and domain knowledge. Do not adopt their voice or name — stay as Old Major throughout.
-3. Follow the planning discipline: state task understanding in 2–3 sentences, list files to touch, identify one risk.
+Old Major implements using its own engineering judgment.
+
+1. Follow the planning discipline: state task understanding in 2–3 sentences, list files to touch, identify one risk.
 
 **Branch convention:** `local/<task-slug>` (e.g., `local/invoker-dispatch-gate`)
 
