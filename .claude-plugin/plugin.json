@@ -15,6 +15,12 @@
     "github-actions",
     "old-major"
   ],
+  "skills": [
+    {
+      "name": "hall-review",
+      "path": "skills/hall-review/SKILL.md"
+    }
+  ],
   "permissions": {
     "allow": [
       "Bash(*)",
