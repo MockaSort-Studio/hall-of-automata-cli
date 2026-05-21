@@ -46,9 +46,9 @@ create_fields() {
       echo "  skip: $name (field not found)"
       return
     fi
-    local q='mutation($pid:ID!,$fid:ID!,$opts:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field(input:{projectId:$pid,fieldId:$fid,singleSelectOptions:$opts}){projectV2Field{id}}}'
-    jq -n --arg q "$q" --arg pid "$pid" --arg fid "$fid" --argjson opts "$opts" \
-      '{"query":$q,"variables":{"pid":$pid,"fid":$fid,"opts":$opts}}' \
+    local q='mutation($fid:ID!,$opts:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field(input:{fieldId:$fid,singleSelectOptions:$opts}){projectV2Field{...on ProjectV2SingleSelectField{id}}}}'
+    jq -n --arg q "$q" --arg fid "$fid" --argjson opts "$opts" \
+      '{"query":$q,"variables":{"fid":$fid,"opts":$opts}}' \
     | gh api graphql --input - > /dev/null
     echo "  updated: $name (options replaced)"
   }
@@ -56,9 +56,9 @@ create_fields() {
   # -- field creation ---------------------------------------------------------
 
   echo "Creating custom fields..."
-  _select "Type"     '[{"name":"OKR"},{"name":"KR"},{"name":"Item"}]'
+  _select "ItemType" '[{"name":"OKR","color":"BLUE","description":""},{"name":"KR","color":"PURPLE","description":""},{"name":"Item","color":"GRAY","description":""}]'
   _text   "Owner"
-  _select "Priority" '[{"name":"P0"},{"name":"P1"},{"name":"P2"},{"name":"P3"}]'
+  _select "Priority" '[{"name":"P0","color":"RED","description":""},{"name":"P1","color":"ORANGE","description":""},{"name":"P2","color":"YELLOW","description":""},{"name":"P3","color":"GRAY","description":""}]'
   _text   "Reference"
 
   # -- Status options: only on fresh boards to avoid clobbering live values --
@@ -69,7 +69,7 @@ create_fields() {
     2>/dev/null || echo "False")
   if [ "$board_was_created" = "True" ]; then
     echo "Updating Status options (fresh board)..."
-    _update_select_options "Status" '[{"name":"Backlog"},{"name":"In Design"},{"name":"In Progress"},{"name":"Done"}]'
+    _update_select_options "Status" '[{"name":"Backlog","color":"GRAY","description":""},{"name":"In Design","color":"BLUE","description":""},{"name":"In Progress","color":"ORANGE","description":""},{"name":"Done","color":"GREEN","description":""}]'
   fi
 
   echo "Fields done."
