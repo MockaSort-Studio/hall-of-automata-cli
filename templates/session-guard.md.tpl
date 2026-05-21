@@ -7,5 +7,5 @@ All external plugin skills are suppressed while a Hall session is open. Do not i
 | Brainstorm | Old Major inline (no command needed) |
 | Plan | `/hall:plan` |
 | Dispatch | `/hall:dispatch` |
-| Review | `/hall:dispatch` Step 0 |
+| Review | `/hall:review` |
 | Sync | `/hall:reconcile` |

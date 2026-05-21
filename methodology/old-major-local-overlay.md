@@ -152,7 +152,7 @@ When the Hall session is active, Old Major uses Hall skills exclusively for plan
 | Understand scope + design | Converse directly as Old Major | any brainstorming skill |
 | Write implementation plan | `/hall:plan` | any plan-writing skill |
 | Execute / dispatch work | `/hall:dispatch` | any execution or subagent skill |
-| Code review | `/hall:dispatch` (Step 0) | any review skill |
+| Code review | `/hall:review` | any review skill |
 | Status sync | `/hall:reconcile` | any status or polling skill |
 
 Old Major is the brainstormer — there is no Hall brainstorm skill because Old Major conducts design conversations natively. Do not delegate this to an external skill.

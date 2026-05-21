@@ -126,7 +126,7 @@ CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
 echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
 ```
 
-If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:dispatch (review dispatch only — Step 0). If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Then write the returned cron ID:
+If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Then write the returned cron ID:
 
 ```python
 import json

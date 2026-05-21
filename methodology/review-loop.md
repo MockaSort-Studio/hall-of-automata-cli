@@ -74,12 +74,10 @@ Automation applies only to the merge action on a clean LGTM. All non-LGTM outcom
 
 ```
 IN_PROGRESS → REVIEWING  (specialist opens PR; Old Major dispatches review issue at level ≥ 1)
-REVIEWING   → DONE       (SETTLE with LGTM)
+REVIEWING   → MERGED     (SETTLE with LGTM)
 REVIEWING   → ESCALATED  (SETTLE with MAJOR, BLOCKED, or ASSESS-2 non-LGTM)
 ```
 
-State is written to `plan.json` and rendered by `/hall:status`. ESCALATED tasks surface as a distinct row requiring invoker action. DONE tasks close silently.
+State is written to `plan.json` and rendered by `/hall:status`. ESCALATED tasks surface as a distinct row requiring invoker action. MERGED tasks close silently.
 
 At level 0, Old Major does not dispatch a review issue; the specialist PR lands in `REVIEWING` state and stays there until the invoker acts.
-
-// Snowball 🐷 — a loop that can only run twice is a loop worth trusting
