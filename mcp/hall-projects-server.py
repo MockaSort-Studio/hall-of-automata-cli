@@ -63,18 +63,18 @@ def update_item_field(
     value: dict,
     invoker_login: str,
 ) -> dict:
-    """Update one field on one item; rejects if Invoker field doesn't match invoker_login."""
+    """Update one field on one item; rejects if Owner (or Invoker) field doesn't match invoker_login."""
     if os.path.exists(_BOARD):
         try:
             board = json.load(open(_BOARD))
             item = next((i for i in board.get("items", []) if i["id"] == item_id), None)
             if item is None:
                 return {"error": "item_not_in_board", "hint": "call read_board to refresh cache"}
-            item_invoker = item.get("fields", {}).get("Invoker", "")
-            if item_invoker != invoker_login:
+            item_owner = item.get("fields", {}).get("Owner") or item.get("fields", {}).get("Invoker", "")
+            if item_owner != invoker_login:
                 return {
                     "error": "invoker_mismatch",
-                    "item_invoker": item_invoker,
+                    "item_owner": item_owner,
                     "requested_by": invoker_login,
                 }
         except (json.JSONDecodeError, KeyError):
