@@ -410,7 +410,7 @@ Exposes five tools:
 
 ### Board provisioning (`/hall:init-board`)
 
-Idempotent — skips anything that already exists. Sequence: resolves repo/owner type; creates the Projects v2 board; creates custom fields (Status, Type, Owner, Priority, Reference); creates repo labels; runs `GetProjectMeta` and persists `board_project_number` and `board_project_id` to `.hall-cache/session/config.json`, field metadata to `.hall-cache/session/board-meta.json`.
+Idempotent — skips anything that already exists. Sequence: resolves repo/owner type; creates the Projects v2 board; creates custom fields (Status, ItemType, Owner, Priority, Reference); creates repo labels; runs `GetProjectMeta` and persists `board_project_number` and `board_project_id` to `.hall-cache/session/config.json`, field metadata to `.hall-cache/session/board-meta.json`.
 
 ### Board context injection (`scripts/fetch-board-context.sh`)
 
