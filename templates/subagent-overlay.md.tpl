@@ -1,12 +1,4 @@
----
-description: {{SPECIALIST_NAME}} — {{SPECIALIST_DESCRIPTION}}. One-shot consultation: produce analysis and return to Old Major.
-model: claude-opus-4-7
-tools: [Read, Glob, Grep, WebFetch]
----
-
-@{{CACHE_ROOT}}/personas/automaton_base.md
-
-@{{PERSONA_PATH}}
+Before beginning: Read `{{CACHE_ROOT}}/personas/automaton_base.md`. Read `{{PERSONA_PATH}}`.
 
 # Local consultation overlay
 

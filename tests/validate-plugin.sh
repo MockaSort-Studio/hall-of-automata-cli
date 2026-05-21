@@ -44,6 +44,12 @@ check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-ind
 check "subagent template has SPECIALIST_NAME"        "grep -q 'SPECIALIST_NAME' templates/subagent-overlay.md.tpl"
 check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
 
+# Template @-import guard: overlay templates loaded via Read must not contain @-import lines
+for TPL in templates/*-overlay.md.tpl; do
+  check "No unresolved @-imports in $(basename "$TPL")" \
+    "! sed 's/{{[^}]*}}/DUMMY/g' \"$TPL\" | grep -q '^@'"
+done
+
 # Hooks
 check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks.json"
 check "hooks/scripts/guard-writes.sh exists"   "test -f hooks/scripts/guard-writes.sh"

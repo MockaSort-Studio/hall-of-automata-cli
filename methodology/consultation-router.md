@@ -28,7 +28,7 @@ Cost: just continued conversation.
 
 ## Tier 2 — Subagent
 
-Spawn a one-shot subagent using the Agent tool. Read `.hall-cache/session/claude-agents/<specialist>.md` to get the overlay, then pass it as the system context in the Agent prompt alongside the analysis question. The overlay already bundles the upstream persona; no separate file is needed.
+Spawn a one-shot subagent using the Agent tool. Before spawning, Read `.hall-cache/personas/automaton_base.md` and `.hall-cache/personas/<specialist>.md` directly. Inline both files' full content into the Agent prompt description alongside the analysis question. Do not rely on the overlay file's @-import lines — they are not resolved when content is passed as an Agent prompt.
 
 Triggers: substantive design analysis (architecture tradeoffs, data model review, performance analysis) that is private to this conversation and doesn't need to be committed anywhere.
 
