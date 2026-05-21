@@ -5,7 +5,7 @@ Distribution is via the [MockaSort marketplace](https://github.com/MockaSort-Stu
 ## Pre-release checklist
 
 - [ ] All tests pass: `bash tests/validate-plugin.sh`
-- [ ] Hook tests pass: `bash tests/hooks/test-guard-writes.sh && bash tests/hooks/test-session-start.sh && bash tests/hooks/test-watcher.sh`
+- [ ] Hook tests pass: `bash tests/hooks/test-guard-writes.sh && bash tests/hooks/test-session-start.sh && bash tests/hooks/test-watcher.sh && bash tests/hooks/test-skill-guard.sh`
 - [ ] `.claude-plugin/plugin.json` version bumped (semver)
 - [ ] `CHANGELOG.md` updated (create if absent)
 - [ ] No uncommitted changes: `git status`

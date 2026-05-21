@@ -129,7 +129,7 @@ Variables: `{ "projectId": "<project node ID>", "cursor": null }` — set `curso
 
 ## 3. UpdateField
 
-Updates one field on one item. Only call on items where `Invoker` field matches current session login (enforced by MCP server before calling).
+Updates one field on one item. Only call on items where `Owner` field matches current session login (enforced by MCP server before calling).
 
 ```graphql
 mutation UpdateField(
