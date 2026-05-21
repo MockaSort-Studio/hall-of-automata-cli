@@ -33,100 +33,7 @@ except FileNotFoundError:
 
 ### Step 0: Review dispatch
 
-Using the active plan's `plan.json` (located as in Step 3), collect all tasks where `needs_review: true`. If none, skip to Step 1.
-
-For each such task, in order:
-
-#### 0a. Locate the PR
-
-Call `mcp__github__list_pull_requests` with `query: "repo:<ORG/REPO> closes #<ISSUE_NUMBER> is:open"`. Take `number` and `head.sha` from the first result.  
-`# On rate_limit/secondary-rate-limit error: gh pr list --repo <REPO> --search "closes #<ISSUE_NUMBER> is:open" --json number,headSha --jq '.[0]'`
-
-Empty result: print `Task <id> has needs_review but no open PR — skipping.` and move to next task.
-
-#### 0b. Render the reviewer overlay
-
-```bash
-python3 << 'PYEOF'
-import json, os
-plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '.')
-cache_root = '.hall-cache'
-specialist = '<SPECIALIST>'  # substitute task['specialist']
-persona_path = f'{cache_root}/personas/{specialist}.md'
-with open(f'{plugin_root}/templates/reviewer-overlay.md.tpl') as f:
-    template = f.read()
-with open(persona_path) as f:
-    lines = [l.rstrip() for l in f if l.strip()]
-description = next((l.lstrip('# ') for l in lines if l.startswith('#')), specialist)
-content = (template
-    .replace('{{SPECIALIST_NAME}}', specialist)
-    .replace('{{SPECIALIST_DESCRIPTION}}', description)
-    .replace('{{PERSONA_PATH}}', persona_path)
-    .replace('{{CACHE_ROOT}}', cache_root))
-os.makedirs(f'{cache_root}/session/claude-agents', exist_ok=True)
-with open(f'{cache_root}/session/claude-agents/{specialist}-reviewer.md', 'w') as f:
-    f.write(content)
-PYEOF
-```
-
-#### 0c. Run inline review
-
-Treat `review_cycle` as 1 if the task entry does not carry it.
-
-Load `.hall-cache/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block. Continue to Step 0d with that verdict text.
-
-#### 0d. Submit GitHub review
-
-Submit a single GitHub PR review. The review body is the only communication to the specialist — do not post a separate issue or PR comment before or after.
-
-LGTM: Call `mcp__github__pull_request_review_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`, `event: "APPROVE"`, `body: <verdict_text>`.  
-`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --approve`
-
-MINOR / MAJOR / BLOCKED: Call `mcp__github__pull_request_review_write` with same params, `event: "REQUEST_CHANGES"`, `body: <verdict_text + findings + required fix>`.  
-`# On rate_limit/secondary-rate-limit error: gh pr review <PR_NUMBER> --repo <REPO> --request-changes --body "..."`
-
-For MINOR at `review_cycle == 1`, the review body must include: the VERDICT line, the specific finding, exactly what to change, and "Push a fix commit to this branch."
-
-The GitHub review state drives the relay: `REQUEST_CHANGES` triggers the Hall to re-invoke the specialist for the REFINE cycle. Never skip this step.
-
-After submitting the review, fetch and store the reviewed SHA:
-
-```bash
-HEAD_SHA=$(gh pr view <PR_NUMBER> --repo <REPO> --json headRefOid --jq '.headRefOid')
-```
-
-Write `last_reviewed_sha: <HEAD_SHA>` to the task entry in `plan.json`.
-
-#### 0e. Route by verdict
-
-Read the `VERDICT:` line from the returned block:
-
-- **LGTM** → go to 0f.
-- **MINOR** and `review_cycle == 1` → REFINE: in `plan.json` set `review_cycle: 2`, `needs_review: false`, status `REVIEWING`. Write `plan.json`. Move to next task. (The fix direction was already included in the REQUEST_CHANGES review body — no additional comment.)
-- **MINOR** and `review_cycle == 2` (ASSESS-2) → go to 0f.
-- **MAJOR** or **BLOCKED** → go to 0f with escalation.
-
-#### 0f. SETTLE
-
-Read `automation_level` from `.hall-cache/session/config.json`.
-
-| Verdict | Level | Action |
-|---------|-------|--------|
-| LGTM | 2 | Call `mcp__github__merge_pull_request` (`owner`, `repo`, `pullNumber: <PR>`, `merge_method: "merge"`); `# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <REPO> <PR_NUMBER>` — set status `DONE`, clear `needs_review` |
-| LGTM | 0 or 1 | Print: `PR #<N> is LGTM — please review and merge. Task remains REVIEWING.` |
-| MINOR (ASSESS-2), MAJOR, BLOCKED | any | Print verdict summary and findings. Set status `ESCALATED`. Clear `needs_review`. |
-
-Write `plan.json`.
-
-#### 0g. Summary
-
-After processing all `needs_review` tasks, print:
-
-```
-Review dispatch complete: N reviewed, M settled (DONE/ESCALATED), K pending REFINE.
-```
-
-Continue to Step 1.
+Run `/hall:review`. Wait for it to complete before continuing to Step 1.
 
 ### Step 1: Reconcile
 
@@ -249,7 +156,7 @@ CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
 
 If `CRON_EXISTS=false`: call `CronCreate` with:
 - Schedule: `*/15 * * * *`
-- Prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:dispatch (review dispatch only — Step 0). If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."`
+- Prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."`
 
 Store the returned ID in `.hall-cache/session/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
 

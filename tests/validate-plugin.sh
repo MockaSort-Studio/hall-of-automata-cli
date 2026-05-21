@@ -31,6 +31,15 @@ for CMD in hall-doctor hall-open hall-close hall-status hall-plan hall-dispatch 
   check "skills/$CMD/SKILL.md has name field" "grep -q '^name:' skills/$CMD/SKILL.md"
 done
 
+# hall-review
+check "skills/hall-review/SKILL.md exists"                  "test -f skills/hall-review/SKILL.md"
+check "skills/hall-review/SKILL.md has frontmatter"         "grep -q '^---' skills/hall-review/SKILL.md"
+check "skills/hall-review/SKILL.md has name field"          "grep -q '^name:' skills/hall-review/SKILL.md"
+check "skills/hall-review/SKILL.md has description field"   "grep -q '^description:' skills/hall-review/SKILL.md"
+check "skills/hall-review/SKILL.md has allowed-tools field" "grep -q '^allowed-tools:' skills/hall-review/SKILL.md"
+check "skills/hall-review registered in plugin.json"        "python3 -c \"import json,sys; d=json.load(open('.claude-plugin/plugin.json')); sys.exit(0 if any(s.get('name')=='hall-review' for s in d.get('skills',[])) else 1)\""
+check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -lt 200 ]"
+
 # Methodology
 for F in old-major-local-overlay decomposition consultation-router routing-rationale; do
   check "methodology/$F.md exists" "test -f methodology/$F.md"
