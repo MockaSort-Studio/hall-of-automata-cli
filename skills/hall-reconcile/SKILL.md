@@ -176,20 +176,4 @@ K tasks newly REVIEWING — review dispatch pending
 
 Omit the second line if K = 0.
 
-## Full state reference
-
-All states a task in `plan.json` may carry, in lifecycle order:
-
-| Status | Meaning |
-|---|---|
-| PLANNED | Not yet ready; dependencies unresolved |
-| READY | Dependencies met; awaiting dispatch |
-| DISPATCHED | Issue filed and assigned |
-| IN_PROGRESS | Agent actively working |
-| AWAITING_INPUT | Agent blocked; invoker input needed |
-| REVIEWING | Issue closed; linked PR open and not yet merged |
-| MERGED | PR merged; task complete |
-| FAILED | Issue closed with no PR, or `hall:post-mortem` label |
-| ESCALATED | Review concluded non-LGTM; invoker action needed |
-
 // Snowball 🐷 — board writes now conditional, scope honest about what they touch

@@ -60,6 +60,7 @@ fi
 
 ```bash
 rm -f .hall-cache/session/CLAUDE-stack.md
+rm -f .hall-cache/session/.open_mode
 rm -rf .hall-cache/session/claude-agents/
 echo "Session files cleaned up."
 ```

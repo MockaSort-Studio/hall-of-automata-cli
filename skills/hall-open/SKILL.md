@@ -214,11 +214,11 @@ if all(i.get('fields', {}).get('Type') is None for i in items):
     active = [i for i in items if fmt_status(i) not in ('Done', 'Closed')]
     done = len(items) - len(active)
     hdr = [f'# Board Context (as of {ts})', '',
-           '| # | Title | Status | Invoker | Priority | Epic |',
-           '|---|-------|--------|---------|----------|------|']
+           '| # | Title | Status | Owner | Priority | Reference |',
+           '|---|-------|--------|-------|----------|-----------|']
     rows = [f"| {r['issue_number']} | {r['title'][:50]} | {fmt_status(r)} "
-            f"| {r.get('fields',{}).get('Invoker','')} | {r.get('fields',{}).get('Priority','')} "
-            f"| {r.get('fields',{}).get('Epic','')} |" for r in active] or ['No active items.']
+            f"| {r.get('fields',{}).get('Owner','')} | {r.get('fields',{}).get('Priority','')} "
+            f"| {r.get('fields',{}).get('Reference','')} |" for r in active] or ['No active items.']
     out = '\n'.join(hdr + rows + ['', f'Done/Closed items: {done}'])
 else:
     okrs = [i for i in items if i['fields'].get('Type') == 'OKR']
