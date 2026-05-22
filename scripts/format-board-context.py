@@ -14,7 +14,7 @@ def children(parent, pool):
 def fmt_status(i):
     return i.get('fields', {}).get('Status', '')
 
-if all(i.get('fields', {}).get('Type') is None for i in items):
+if all(i.get('fields', {}).get('ItemType') is None for i in items):
     active = [i for i in items if fmt_status(i) not in ('Done', 'Closed')]
     done = len(items) - len(active)
     hdr = [f'# Board Context (as of {ts})', '',
@@ -25,10 +25,10 @@ if all(i.get('fields', {}).get('Type') is None for i in items):
             f"| {r.get('fields',{}).get('Reference','')} |" for r in active] or ['No active items.']
     out = '\n'.join(hdr + rows + ['', f'Done/Closed items: {done}'])
 else:
-    okrs = [i for i in items if i['fields'].get('Type') == 'OKR']
-    krs  = [i for i in items if i['fields'].get('Type') == 'KR']
-    item_list = [i for i in items if i['fields'].get('Type') == 'Item']
-    unlinked = [i for i in items if i['fields'].get('Type') not in ('OKR', 'KR', 'Item')]
+    okrs = [i for i in items if i['fields'].get('ItemType') == 'OKR']
+    krs  = [i for i in items if i['fields'].get('ItemType') == 'KR']
+    item_list = [i for i in items if i['fields'].get('ItemType') == 'Item']
+    unlinked = [i for i in items if i['fields'].get('ItemType') not in ('OKR', 'KR', 'Item')]
     lines = [f'# Board Context (as of {ts})', '']
     for okr in okrs:
         owner = okr.get('fields', {}).get('Owner', '')
