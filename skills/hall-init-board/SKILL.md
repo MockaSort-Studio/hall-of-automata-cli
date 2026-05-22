@@ -223,10 +223,19 @@ EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on Project
 ### Step 7: Confirm
 
 ```bash
-python3 -c "
+python3 << 'PYEOF'
 import json
 meta = json.load(open('.hall-cache/session/board-meta.json'))
 cfg = json.load(open('.hall-cache/session/config.json'))
-print(f\"Hall Board #{cfg.get('board_project_number','?')} ready — {len(meta.get('fields',{}))} fields resolved, labels provisioned.\")
-"
+state = json.load(open('.hall-cache/session/.board-init-state.json'))
+board_num = cfg.get('board_project_number', '?')
+print(f"Hall Board #{board_num} ready — {len(meta.get('fields', {}))} fields resolved, labels provisioned.")
+if state.get('board_was_created', False):
+    owner = state['owner']
+    repo = state['repo']
+    url_seg = 'orgs' if state.get('owner_type', 'Organization') == 'Organization' else 'users'
+    print(f"\n⚠  Manual step required: go to the board settings and set Default repository")
+    print(f"   to {repo}. This field is not settable via the GitHub API.")
+    print(f"   Board settings: https://github.com/{url_seg}/{owner}/projects/{board_num}/settings")
+PYEOF
 ```
