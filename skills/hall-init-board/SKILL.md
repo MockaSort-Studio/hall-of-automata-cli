@@ -52,7 +52,7 @@ else
 fi
 ```
 
-If `BOARD_NUM` is non-empty and `--force` was not passed, skip Step 3 and continue to Step 4.
+If `BOARD_NUM` is non-empty and `--force` was not passed, skip Step 3 and continue to Step 3.5.
 
 ### Step 3: Create Projects v2 board
 
@@ -96,6 +96,35 @@ s['board_was_created'] = True
 json.dump(s, open('.hall-cache/session/.board-init-state.json','w'), indent=2)
 "
 echo "Created ${REPO_NAME} board #${PROJECT_NUM} (${PROJECT_ID})"
+```
+
+### Step 3.5: Scope default view to invoking repository
+
+Runs unconditionally — applies the repository filter whether the board was just created or already existed. Idempotent: setting the same filter on re-run is harmless.
+
+```bash
+set -euo pipefail
+OWNER=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['owner'])")
+REPO=$(python3 -c "import json; print(json.load(open('.hall-cache/session/.board-init-state.json'))['repo'])")
+REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
+
+PROJECT_ID=$(python3 -c "
+import json, os
+s = json.load(open('.hall-cache/session/.board-init-state.json'))
+cfg_path = '.hall-cache/session/config.json'
+cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+print(s.get('project_id') or cfg.get('board_project_id',''))
+")
+
+DEFAULT_VIEW_ID=$(gh api graphql \
+  -f query='query($p:ID!){node(id:$p){...on ProjectV2{views(first:1){nodes{id}}}}}' \
+  -F p="$PROJECT_ID" --jq '.data.node.views.nodes[0].id')
+
+gh api graphql \
+  -f query='mutation($vid:ID!,$f:String!){updateProjectV2View(input:{viewId:$vid,filter:$f}){projectV2View{id}}}' \
+  -F vid="$DEFAULT_VIEW_ID" \
+  -F f="repo:${OWNER}/${REPO_NAME}" > /dev/null \
+  && echo "Default view scoped to repo:${OWNER}/${REPO_NAME}."
 ```
 
 ### Step 4: Create custom fields
