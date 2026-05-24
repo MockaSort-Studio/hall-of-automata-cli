@@ -152,12 +152,22 @@ M tasks remain blocked on: [dependency list]
 
 ```bash
 CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
+INFLIGHT=$(python3 -c "
+import json, glob
+found = any(
+    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
+    for f in glob.glob('.hall-cache/plans/*/plan.json')
+)
+print('true' if found else 'false')
+" 2>/dev/null || echo "false")
 ```
 
-If `CRON_EXISTS=false`: call `CronCreate` with:
+If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:
 - Schedule: `*/15 * * * *`
 - Prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."`
 
 Store the returned ID in `.hall-cache/session/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
+
+If `CRON_EXISTS=false` and `INFLIGHT=false`: print `No in-flight tasks found — skipping cron creation.`
 
 If `CRON_EXISTS=true`: print `Cron already active — skipping.`

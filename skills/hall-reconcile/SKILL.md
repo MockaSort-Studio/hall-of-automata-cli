@@ -28,7 +28,7 @@ PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('.hall-cache/session/config.json')).get('board_project_number','')))" 2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('.hall-cache/session/config.json')).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -102,14 +102,14 @@ except FileNotFoundError:
 
 Write the updated `plan.json`.
 
-After writing `plan.json`, check if all tasks have reached a terminal state:
+After writing `plan.json`, check if all tasks across all plans have reached a terminal state:
 
 ```bash
 ALL_DONE=$(python3 -c "
-import json
-tasks = json.load(open('${PLAN_DIR}plan.json')).get('tasks', [])
+import json, glob
+all_tasks = [t for f in glob.glob('.hall-cache/plans/*/plan.json') for t in json.load(open(f)).get('tasks', [])]
 terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
-print('true' if all(t['status'] in terminal for t in tasks) and tasks else 'false')
+print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) else 'false')
 ")
 ```
 
