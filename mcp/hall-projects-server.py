@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
-from _queries import GET_PROJECT_META, LIST_ITEMS, UPDATE_FIELD, ADD_COMMENT
+from _queries import GET_PROJECT_META, LIST_ITEMS, LIST_PROJECTS, UPDATE_FIELD, ADD_COMMENT
 from _helpers import _graphql as _call, _parse_meta, _build_item
 
 _token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
@@ -35,7 +35,7 @@ def get_project_meta(owner: str, project_number: int) -> dict:
     try:
         meta = _parse_meta(raw)
     except (KeyError, TypeError) as e:
-        sys.exit(f"Unrecoverable: empty meta response — {e}")
+        return {"error": "parse_error", "detail": str(e), "raw": raw}
     os.makedirs(_CACHE, exist_ok=True)
     json.dump(meta, open(_BOARD_META, "w"), indent=2)
     return meta
@@ -104,11 +104,37 @@ def post_comment(issue_id: str, body: str) -> dict:
 
 
 @mcp.tool()
-def read_board(owner: str, project_number: int) -> dict:
-    """Fetch full board (all pages), write board.json, return item count."""
+def find_project_number(owner: str, project_title: str) -> dict:
+    """Find a project number and ID by title within an org."""
+    raw = _graphql(LIST_PROJECTS, {"owner": owner})
+    if "error" in raw:
+        return raw
+    try:
+        nodes = raw["data"]["organization"]["projectsV2"]["nodes"]
+        for node in nodes:
+            if node["title"].lower() == project_title.lower():
+                return {"number": node["number"], "id": node["id"], "title": node["title"]}
+        return {"error": "not_found", "title": project_title, "available": [n["title"] for n in nodes]}
+    except (KeyError, TypeError) as e:
+        return {"error": "parse_error", "detail": str(e), "raw": raw}
+
+
+@mcp.tool()
+def read_board(owner: str, project_number: Optional[int] = None, project_title: Optional[str] = None) -> dict:
+    """Fetch full board (all pages), write board.json, return item count.
+
+    Accepts project_number or project_title — if only title given, looks up the number first.
+    """
+    if project_number is None and project_title is None:
+        return {"error": "must provide project_number or project_title"}
+    if project_number is None:
+        lookup = find_project_number(owner, project_title)
+        if "error" in lookup:
+            return lookup
+        project_number = lookup["number"]
     meta = get_project_meta(owner, project_number)
     if "error" in meta:
-        sys.exit(f"Unrecoverable: cannot fetch project meta — {meta}")
+        return {"error": "cannot_fetch_meta", "detail": meta}
     project_id = meta["project_id"]
     items = []
     cursor = None
@@ -136,4 +162,4 @@ def read_board(owner: str, project_number: int) -> dict:
 if __name__ == "__main__":
     mcp.run()
 
-# Snowball 🐷 — helpers extracted; OKR→KR→Item hierarchy now flows from board.json
+# Snowball 🐷 — sys.exit crashes fixed; find_project_number and title lookup wired into read_board
