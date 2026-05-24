@@ -30,6 +30,20 @@ query GetProjectMeta($owner: String!, $number: Int!) {
 }
 """
 
+LIST_PROJECTS = """
+query ListProjects($owner: String!) {
+  organization(login: $owner) {
+    projectsV2(first: 50) {
+      nodes {
+        number
+        title
+        id
+      }
+    }
+  }
+}
+"""
+
 LIST_ITEMS = """
 query ListItems($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
