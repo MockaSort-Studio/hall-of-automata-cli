@@ -13,7 +13,7 @@ Force-dump the current plan. Default: all three formats. Use `--format` to selec
 
 Find the active plan and read its `plan.json`.
 
-**JSON output:** Print `plan.json` contents.
+**JSON output:** Print `plan.json` contents. Key per-task field: `task_type` (`"pr"` | `"report"`, default `"pr"`) — `"pr"` tasks open a branch and PR; `"report"` tasks post findings as an issue comment only.
 
 **Markdown output:** Print `plan.md` contents (the human-readable rendering).
 

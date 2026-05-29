@@ -67,7 +67,7 @@ Ready to dispatch N tasks:
 
   Task 1 title → <specialist-A> (hall:<specialist-A>) [doing]
     Routing: <rationale>.
-  Task 2 title → <specialist-B> (hall:<specialist-B>) [doing]
+  Task 2 title → <specialist-B> (hall:<specialist-B>) [reporting]
     Routing: <rationale>.
 
 Dispatch order: Task 1 at T+0, Task 2 at T+15s (15s inter-dispatch jitter).
@@ -75,6 +75,8 @@ Estimated turn budget: ~40 turns per task.
 
 Proceed? [y/N]
 ```
+
+Label: `[doing]` when `task_type: "pr"` (or absent); `[reporting]` when `task_type: "report"`.
 
 If `--dry-run`, show the confirmation summary and the issue bodies that would be created, then stop.
 
@@ -85,7 +87,9 @@ For each task in dispatch order, spaced 15 seconds apart:
 Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
 `# On rate_limit/secondary-rate-limit error: gh issue create --repo <ORG/REPO> --title "<task title>" --label "hall:<specialist>" --body "<issue body>"`
 
-Issue body format:
+Issue body — select by `task_type` (default `"pr"`):
+
+**PR body** (`task_type: "pr"` or absent):
 ```
 <!-- Hall dispatch by Old Major (Session Mode) -->
 
@@ -123,6 +127,35 @@ Applies to all files produced by this task, regardless of language or framework:
 - **Modular:** single responsibility per file and per function. A file that does two things should be two files.
 
 If the natural implementation would exceed 200 lines for any file, decompose further and raise with Old Major before proceeding.
+```
+
+**Report body** (`task_type: "report"`):
+```
+<!-- Hall dispatch by Old Major (Session Mode) -->
+
+## Summary
+
+<one paragraph description of the task>
+
+## Output
+
+Post your findings as a comment on this issue. Do not open a branch or PR.
+
+## Acceptance criteria
+
+<what done looks like>
+
+## Context
+
+<relevant context the specialist needs — existing code references, design decisions, constraints>
+
+## Routing
+
+Assigned to <Specialist>. Rationale: <routing_rationale text>
+
+## Dependencies
+
+<list of parent tasks that have completed, with their PR links>
 ```
 
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
