@@ -31,6 +31,12 @@
             "type": "string",
             "enum": ["doing", "advising", "researching"]
           },
+          "task_type": {
+            "type": "string",
+            "enum": ["pr", "report"],
+            "default": "pr",
+            "description": "Dispatch output type: 'pr' (default) → branch + PR; 'report' → post findings as issue comment only, no branch or PR"
+          },
           "status": {
             "type": "string",
             "enum": ["PLANNED", "READY", "DISPATCHED", "IN_PROGRESS", "AWAITING_INPUT", "MERGED", "FAILED", "BLOCKED", "ESCALATED"]

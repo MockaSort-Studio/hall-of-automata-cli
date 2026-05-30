@@ -67,7 +67,7 @@ Ready to dispatch N tasks:
 
   Task 1 title → <specialist-A> (hall:<specialist-A>) [doing]
     Routing: <rationale>.
-  Task 2 title → <specialist-B> (hall:<specialist-B>) [doing]
+  Task 2 title → <specialist-B> (hall:<specialist-B>) [reporting]
     Routing: <rationale>.
 
 Dispatch order: Task 1 at T+0, Task 2 at T+15s (15s inter-dispatch jitter).
@@ -75,6 +75,8 @@ Estimated turn budget: ~40 turns per task.
 
 Proceed? [y/N]
 ```
+
+Label: `[doing]` when `task_type: "pr"` (or absent); `[reporting]` when `task_type: "report"`.
 
 If `--dry-run`, show the confirmation summary and the issue bodies that would be created, then stop.
 
@@ -85,7 +87,9 @@ For each task in dispatch order, spaced 15 seconds apart:
 Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
 `# On rate_limit/secondary-rate-limit error: gh issue create --repo <ORG/REPO> --title "<task title>" --label "hall:<specialist>" --body "<issue body>"`
 
-Issue body format:
+Issue body — select by `task_type` (default `"pr"`):
+
+**PR body** (`task_type: "pr"` or absent):
 ```
 <!-- Hall dispatch by Old Major (Session Mode) -->
 
@@ -125,6 +129,35 @@ Applies to all files produced by this task, regardless of language or framework:
 If the natural implementation would exceed 200 lines for any file, decompose further and raise with Old Major before proceeding.
 ```
 
+**Report body** (`task_type: "report"`):
+```
+<!-- Hall dispatch by Old Major (Session Mode) -->
+
+## Summary
+
+<one paragraph description of the task>
+
+## Output
+
+Post your findings as a comment on this issue. Do not open a branch or PR.
+
+## Acceptance criteria
+
+<what done looks like>
+
+## Context
+
+<relevant context the specialist needs — existing code references, design decisions, constraints>
+
+## Routing
+
+Assigned to <Specialist>. Rationale: <routing_rationale text>
+
+## Dependencies
+
+<list of parent tasks that have completed, with their PR links>
+```
+
 After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
 
 **Board parent append:** If the task's `board_parent` is a non-null integer:
@@ -152,14 +185,7 @@ M tasks remain blocked on: [dependency list]
 
 ```bash
 CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
-INFLIGHT=$(python3 -c "
-import json, glob
-found = any(
-    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob('.hall-cache/plans/*/plan.json')
-)
-print('true' if found else 'false')
-" 2>/dev/null || echo "false")
+INFLIGHT=$(python3 -c "import json,glob; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob('.hall-cache/plans/*/plan.json')) else 'false'" 2>/dev/null || echo "false")
 ```
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:
