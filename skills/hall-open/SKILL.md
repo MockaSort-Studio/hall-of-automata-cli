@@ -70,7 +70,7 @@ LOCAL_MODE=$(python3 -c "import json; print(json.load(open('.hall-cache/session/
   2>/dev/null || echo "missing")
 
 echo "$CURRENT_SHA" > .hall-cache/session/.current-sha
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
+echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f .hall-cache/session/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```

@@ -60,13 +60,15 @@ If `VERIFY_STATUS != 0`: print `"ERROR: hall-of-automata not found in org $ORG â
 
 **Persist org to global config:**
 
-```python
+```bash
+python3 -c "
 import json, os
-path = os.path.expanduser("~/.hall/.config.json")
+path = os.path.expanduser('~/.hall/.config.json')
 d = json.load(open(path)) if os.path.exists(path) else {}
-d["org"] = ORG
-json.dump(d, open(path, "w"))
-print(f"Org persisted: {ORG}")
+d['org'] = '$ORG'
+json.dump(d, open(path, 'w'))
+print('Org persisted: $ORG')
+"
 ```
 
 ## Step D: Repo picker
@@ -88,13 +90,15 @@ REPO_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(s
 
 **Write `target_repo` and export `REPO`:**
 
-```python
+```bash
+python3 -c "
 import json, os
-path = os.path.expanduser("~/.hall/session/config.json")
+path = os.path.expanduser('~/.hall/session/config.json')
 d = json.load(open(path)) if os.path.exists(path) else {}
-d["target_repo"] = f"{ORG}/{REPO_NAME}"
-json.dump(d, open(path, "w"))
-print(f"Target repo: {ORG}/{REPO_NAME}")
+d['target_repo'] = '$ORG/$REPO_NAME'
+json.dump(d, open(path, 'w'))
+print('Target repo: $ORG/$REPO_NAME')
+"
 ```
 
 ```bash
