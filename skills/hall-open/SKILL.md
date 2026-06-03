@@ -26,7 +26,11 @@ set -euo pipefail
 
 # Hard stops
 gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; }
-REPO=$(git remote get-url origin 2>/dev/null | sed 's|.*github.com[:/]||;s|\.git$||')
+ORIGIN=$(git remote get-url origin 2>/dev/null || echo "")
+STANDALONE=$([ -z "$ORIGIN" ] && echo true || echo false)
+if [ "$STANDALONE" = "false" ]; then
+  REPO=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||')
+fi
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
@@ -66,10 +70,12 @@ LOCAL_MODE=$(python3 -c "import json; print(json.load(open('.hall-cache/session/
   2>/dev/null || echo "missing")
 
 echo "$CURRENT_SHA" > .hall-cache/session/.current-sha
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
+echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f .hall-cache/session/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
+
+If `STANDALONE=true`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, and `REPO` are set for subsequent steps.
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 
@@ -106,74 +112,13 @@ CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.
 
 ### Step 3: Setup — methodology, overlays, stack, watcher
 
-```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
-```
-
-**Cron restart (resume with in-flight tasks):**
-
-```bash
-python3 << 'PYEOF'
-import json, glob, sys
-found = any(
-    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob('.hall-cache/plans/*/plan.json')
-)
-sys.exit(0 if found else 1)
-PYEOF
-&& INFLIGHT=true || INFLIGHT=false
-CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
-echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
-```
-
-If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Then write the returned cron ID:
-
-```python
-import json
-from datetime import datetime, timezone
-cron_id = "<returned cron ID>"
-json.dump(
-    {"cron_id": cron_id, "created_at": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')},
-    open('.hall-cache/session/cron.json', 'w')
-)
-print('Cron restarted (in-flight tasks detected).')
-```
-
-**Board context:** Read `board_project_number` from `.hall-cache/session/config.json`. If absent, skip silently.
-
-```bash
-BOARD_NUM=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('board_project_number',''))" 2>/dev/null || echo "")
-OWNER=$(echo "$REPO" | cut -d/ -f1)
-```
-
-If `BOARD_NUM` is non-empty: call `read_board` MCP with `owner=$OWNER` and `project_number=$BOARD_NUM` (integer). On success, format `board-context.md`:
-
-```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/format-board-context.py"
-```
-
-On error from `read_board`: print `"Board context unavailable (board not provisioned)."` and continue.
-
-```bash
-# Ensure board-context.md always exists for CLAUDE-stack @-import
-[ -f .hall-cache/session/board-context.md ] \
-  || printf '# Board Context\nNot provisioned.\n' > .hall-cache/session/board-context.md
-```
-
-```bash
-# Watcher
-WPID=$(cat .hall-cache/watcher.pid 2>/dev/null || echo "")
-if [ -n "$WPID" ] && ps -p "$WPID" -o comm= 2>/dev/null | grep -q watcher; then
-  echo "Watcher OK (PID $WPID)."
-else
-  nohup bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/watcher.sh" &> .hall-cache/watcher.log &
-  echo "Watcher started."
-fi
-```
+Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the session setup procedure exactly as specified.
 
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
 Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `.hall-cache/session/context.md`. If no README: `Project context: not available.`
+
+**Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 
 ### Step 5: Context injection
 

@@ -15,7 +15,11 @@ Use `AskUserQuestion` with one question:
 **If "Yes":** run verification:
 
 ```bash
-ORG=$(echo "$REPO" | cut -d/ -f1)
+if [ "${STANDALONE:-false}" = "true" ]; then
+  ORG=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.hall/.config.json')))['org'])" 2>/dev/null || echo "")
+else
+  ORG=$(echo "$REPO" | cut -d/ -f1)
+fi
 ```
 
 Call `get_me` MCP → `ME` = returned `login` field.
