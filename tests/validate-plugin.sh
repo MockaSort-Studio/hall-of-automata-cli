@@ -73,8 +73,5 @@ check "hooks/scripts/watcher.sh exists"        "test -f hooks/scripts/watcher.sh
 check "guard-writes.sh is executable"          "test -x hooks/scripts/guard-writes.sh"
 check "watcher.sh is executable"               "test -x hooks/scripts/watcher.sh"
 
-# .gitignore
-check ".hall-cache/ in .gitignore"             "grep -q '\.hall-cache' .gitignore"
-
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

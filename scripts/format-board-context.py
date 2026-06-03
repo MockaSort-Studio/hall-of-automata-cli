@@ -1,7 +1,8 @@
-import json, re
+import json, os, re
 from datetime import datetime, timezone
 
-b = json.load(open('.hall-cache/session/board.json'))
+root = os.path.expanduser('~/.hall')
+b = json.load(open(f'{root}/session/board.json'))
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 items = b.get('items', [])
 
@@ -44,5 +45,5 @@ else:
             lines.append(f"- #{i['issue_number']}: {i['title'][:60]} [{fmt_status(i)}]")
     out = '\n'.join(lines)
 
-open('.hall-cache/session/board-context.md', 'w').write(out + '\n')
+open(f'{root}/session/board-context.md', 'w').write(out + '\n')
 print('Board context written.')
