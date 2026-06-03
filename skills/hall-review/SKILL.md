@@ -42,7 +42,7 @@ PYEOF
 
 #### 0c. Run inline review
 
-Treat `review_cycle` as 1 if absent. Load `.hall-cache/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block.
+Treat `review_cycle` as 1 if absent. Load `~/.hall/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block.
 
 #### 0d. Submit GitHub review
 
@@ -77,7 +77,7 @@ Read the `VERDICT:` line from the returned block:
 
 #### 0f. SETTLE
 
-Read `automation_level` from `.hall-cache/session/config.json`.
+Read `automation_level` from `~/.hall/session/config.json`.
 
 | Verdict | Level | Action |
 |---------|-------|--------|

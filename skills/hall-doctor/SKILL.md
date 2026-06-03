@@ -49,7 +49,7 @@ Checks the org installations list. Requires a token with `admin:org` scope to co
 python3 - << 'PYEOF'
 import json
 try:
-    d = json.load(open('.hall-cache/invoker.json'))
+    d = json.load(open('~/.hall/invoker.json'))
     mode = d['mode']
     print(f"mode={mode} verified_at={d.get('verified_at','?')[:10]}")
 except (FileNotFoundError, json.JSONDecodeError, KeyError):
@@ -61,18 +61,18 @@ PYEOF
 - `mode=local` → ⚠ WARN: local mode active — dispatch blocked, plan creation works
 - `unchecked` (file missing or unreadable) → ⚠ WARN: invoker status not yet verified — run `/hall:open` first
 
-### 5. .hall-cache/ in .gitignore (⚠ if missing, fix with --fix)
+### 5. ~/.hall/ in .gitignore (⚠ if missing, fix with --fix)
 
 ```bash
 grep -q "\.hall-cache" .gitignore 2>/dev/null && echo "present" || echo "missing"
 ```
 
-If `--fix` passed, append `.hall-cache/` to `.gitignore`.
+If `--fix` passed, append `~/.hall/` to `.gitignore`.
 
 ### 6. Persona cache freshness (⚠ if stale or missing)
 
 ```bash
-cat .hall-cache/personas/.fetched_at 2>/dev/null || echo "not cached"
+cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "not cached"
 ```
 
 Warn if the timestamp is >24h ago or the file doesn't exist.

@@ -18,7 +18,7 @@ Execute each step in order. Hard-stop on any error; warn-and-continue on non-cri
 ### Step 1: Preflight + diagnostics
 
 **Flag pre-processing:**
-- If `--verify` was passed: `rm -f .hall-cache/invoker.json`
+- If `--verify` was passed: `rm -f ~/.hall/invoker.json`
 - If `--refresh` was passed: treat `NEED_FETCH=true` regardless of the block output below.
 
 ```bash
@@ -34,20 +34,16 @@ fi
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
-# Gitignore
-grep -q "\.hall-cache" .gitignore 2>/dev/null \
-  || { echo ".hall-cache/" >> .gitignore; echo "Added .hall-cache/ to .gitignore"; }
-
 # Cache state
-mkdir -p .hall-cache/personas .hall-cache/session .hall-cache/plans
+mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans
 ```
 
 Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
 ```bash
-CACHED_SHA=$(cat .hall-cache/personas/.agents-yml-sha 2>/dev/null || echo "")
-FETCHED_AT=$(cat .hall-cache/personas/.fetched_at 2>/dev/null || echo "")
+CACHED_SHA=$(cat ~/.hall/personas/.agents-yml-sha 2>/dev/null || echo "")
+FETCHED_AT=$(cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "")
 NOW=$(date +%s)
 FETCHED_TS=$([ -n "$FETCHED_AT" ] && date -d "$FETCHED_AT" +%s 2>/dev/null || echo "0")
 
@@ -55,23 +51,23 @@ NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
 [ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
 [ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json; d=json.load(open('.hall-cache/personas/.advisory-roster.json')); assert isinstance(d,list)" 2>/dev/null \
+python3 -c "import json; d=json.load(open('~/.hall/personas/.advisory-roster.json')); assert isinstance(d,list)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
-for d in .hall-cache/plans/*/; do
+for d in ~/.hall/plans/*/; do
   f="${d}plan.md"; [ -f "$f" ] || continue
   grep -qm1 "Status:.*DONE" "$f" 2>/dev/null || { ACTIVE_PLAN=true; break; }
 done
 
-AUTO_LEVEL=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('automation_level','missing'))" \
+AUTO_LEVEL=$(python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('local_mode','missing'))" \
+LOCAL_MODE=$(python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
-echo "$CURRENT_SHA" > .hall-cache/session/.current-sha
+echo "$CURRENT_SHA" > ~/.hall/session/.current-sha
 echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
-echo "CONTEXT_EXISTS=$([ -f .hall-cache/session/context.md ] && echo true || echo false)"
+echo "CONTEXT_EXISTS=$([ -f ~/.hall/session/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
@@ -79,28 +75,28 @@ If `STANDALONE=true`: read `skills/hall-open/standalone-flow.md` (resolve agains
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 
-Read `CURRENT_SHA` from `.hall-cache/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
+Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) as a JSON array to `.hall-cache/personas/.advisory-roster.json`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > .hall-cache/personas/.advisory-roster.json`
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) as a JSON array to `~/.hall/personas/.advisory-roster.json`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > ~/.hall/personas/.advisory-roster.json`
 
 ```bash
-python3 -c "import json,sys; d=json.load(open('.hall-cache/personas/.advisory-roster.json')); assert isinstance(d,list), f'API error: {d}'" \
+python3 -c "import json,sys; d=json.load(open('~/.hall/personas/.advisory-roster.json')); assert isinstance(d,list), f'API error: {d}'" \
   || exit 1
 ```
 
 Fetch and write persona files via Bash (the Write tool fails on new files; gh api writes directly):
 
 ```bash
-SPECS=$(python3 -c "import json; print(' '.join(json.load(open('.hall-cache/personas/.advisory-roster.json'))))")
+SPECS=$(python3 -c "import json; print(' '.join(json.load(open('~/.hall/personas/.advisory-roster.json'))))")
 gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/automaton_base.md
+  --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
 gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
-  --jq '.content' | base64 -d > .hall-cache/personas/old-major.md
+  --jq '.content' | base64 -d > ~/.hall/personas/old-major.md
 for name in $SPECS; do
   gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${name}.md" \
-    --jq '.content' | base64 -d > ".hall-cache/personas/${name}.md"
+    --jq '.content' | base64 -d > "~/.hall/personas/${name}.md"
 done
 ```
 
@@ -116,13 +112,13 @@ Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`)
 
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
-Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `.hall-cache/session/context.md`. If no README: `Project context: not available.`
+Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `~/.hall/session/context.md`. If no README: `Project context: not available.`
 
 **Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 
 ### Step 5: Context injection
 
-Read `.hall-cache/session/CLAUDE-stack.md` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via CLAUDE.md @-imports. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
+Read `~/.hall/session/CLAUDE-stack.md` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via CLAUDE.md @-imports. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
 
 ### Step 6: Invoker detection gate (only if LOCAL_MODE=missing)
 
@@ -131,7 +127,7 @@ Read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) 
 ### Step 7: Plans + invite
 
 ```bash
-ls .hall-cache/plans/ 2>/dev/null || true
+ls ~/.hall/plans/ 2>/dev/null || true
 ```
 
 List existing plans with status. Ask whether to resume or start fresh. Then ask what the invoker wants to build — one sentence, in character as Old Major.

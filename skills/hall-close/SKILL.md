@@ -13,7 +13,7 @@ Exit Hall session mode. Cleans up session files; leaves plans and persona cache 
 ### Step 1: Remove CLAUDE.md (or import line)
 
 ```bash
-IMPORT_LINE="@.hall-cache/session/CLAUDE-stack.md"
+IMPORT_LINE="@~/.hall/session/CLAUDE-stack.md"
 
 if [ -f CLAUDE.md ]; then
   content=$(cat CLAUDE.md)
@@ -33,8 +33,8 @@ fi
 
 ```bash
 CRON_ID=""
-if [ -f .hall-cache/session/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])")
+if [ -f ~/.hall/session/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('~/.hall/session/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
@@ -42,26 +42,26 @@ fi
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
 
 ```bash
-rm -f .hall-cache/session/cron.json
+rm -f ~/.hall/session/cron.json
 echo "Autonomous cron cancelled."
 ```
 
 ### Step 2: Kill watcher daemon
 
 ```bash
-if [ -f .hall-cache/watcher.pid ]; then
-  PID=$(cat .hall-cache/watcher.pid)
+if [ -f ~/.hall/watcher.pid ]; then
+  PID=$(cat ~/.hall/watcher.pid)
   kill "$PID" 2>/dev/null && echo "Stopped watcher (PID $PID)." || echo "Watcher was not running."
-  rm .hall-cache/watcher.pid
+  rm ~/.hall/watcher.pid
 fi
 ```
 
 ### Step 3: Remove session files
 
 ```bash
-rm -f .hall-cache/session/CLAUDE-stack.md
-rm -f .hall-cache/session/.open_mode
-rm -rf .hall-cache/session/claude-agents/
+rm -f ~/.hall/session/CLAUDE-stack.md
+rm -f ~/.hall/session/.open_mode
+rm -rf ~/.hall/session/claude-agents/
 echo "Session files cleaned up."
 ```
 

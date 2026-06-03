@@ -12,10 +12,10 @@ Resync the local plan with GitHub's current state. Runs automatically before any
 
 ### Step 0: Drain watcher events
 
-If `.hall-cache/watcher-events.jsonl` exists and is non-empty:
+If `~/.hall/watcher-events.jsonl` exists and is non-empty:
 - Read all lines; parse each JSON object.
 - Group by issue number and surface as a summary: `"Watcher detected N events since last reconcile: [list]"`
-- Truncate the file to zero bytes: `> .hall-cache/watcher-events.jsonl`
+- Truncate the file to zero bytes: `> ~/.hall/watcher-events.jsonl`
 - Use these events as early-warning signals — the reconcile pass below queries GitHub authoritatively.
 
 If absent or empty, skip silently.
@@ -23,12 +23,12 @@ If absent or empty, skip silently.
 Find the active plan. For each task with a `github_issue` number:
 
 ```bash
-PLAN_DIR=$(ls -d .hall-cache/plans/*/ | sort | tail -1)
+PLAN_DIR=$(ls -d ~/.hall/plans/*/ | sort | tail -1)
 ```
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('.hall-cache/session/config.json')).get('board_project_number','')))"\ 2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('~/.hall/session/config.json')).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -83,7 +83,7 @@ If `HEAD_SHA` differs from `task["last_reviewed_sha"]` (and `last_reviewed_sha` 
 
 **Newly REVIEWING:** Determine which tasks newly transitioned into REVIEWING — status was not REVIEWING on the prior reconcile pass, is now REVIEWING. For each such task:
 
-1. Read `automation_level` from `.hall-cache/session/config.json`. If the file is absent, treat as 0.
+1. Read `automation_level` from `~/.hall/session/config.json`. If the file is absent, treat as 0.
 2. If `automation_level >= 1`, set `needs_review: true` on that task in `plan.json`.
 3. If `automation_level` is 0 or the file is absent, do not write `needs_review` (or write `false`).
 
@@ -93,7 +93,7 @@ Reconcile must not clear `needs_review` — only dispatch clears it after filing
 AUTOMATION_LEVEL=$(python3 -c "
 import json, sys
 try:
-    cfg = json.load(open('.hall-cache/session/config.json'))
+    cfg = json.load(open('~/.hall/session/config.json'))
     print(cfg.get('automation_level', 0))
 except FileNotFoundError:
     print(0)
@@ -107,22 +107,22 @@ After writing `plan.json`, check if all tasks across all plans have reached a te
 ```bash
 ALL_DONE=$(python3 -c "
 import json, glob
-all_tasks = [t for f in glob.glob('.hall-cache/plans/*/plan.json') for t in json.load(open(f)).get('tasks', [])]
+all_tasks = [t for f in glob.glob('~/.hall/plans/*/plan.json') for t in json.load(open(f)).get('tasks', [])]
 terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
 print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) else 'false')
 ")
 ```
 
-If `ALL_DONE=true` and `.hall-cache/session/cron.json` exists:
+If `ALL_DONE=true` and `~/.hall/session/cron.json` exists:
 
 ```bash
-CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])" 2>/dev/null || echo "")
+CRON_ID=$(python3 -c "import json; print(json.load(open('~/.hall/session/cron.json'))['cron_id'])" 2>/dev/null || echo "")
 ```
 
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`. Then:
 
 ```bash
-rm -f .hall-cache/session/cron.json
+rm -f ~/.hall/session/cron.json
 echo "All tasks terminal — autonomous cron cancelled."
 ```
 

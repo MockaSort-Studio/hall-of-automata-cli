@@ -28,13 +28,13 @@ Cost: just continued conversation.
 
 ## Tier 2 — Subagent
 
-Spawn a one-shot subagent using the Agent tool. Before spawning, Read `.hall-cache/personas/automaton_base.md` and `.hall-cache/personas/<specialist>.md` directly. Inline both files' full content into the Agent prompt description alongside the analysis question. Do not rely on the overlay file's @-import lines — they are not resolved when content is passed as an Agent prompt.
+Spawn a one-shot subagent using the Agent tool. Before spawning, Read `~/.hall/personas/automaton_base.md` and `~/.hall/personas/<specialist>.md` directly. Inline both files' full content into the Agent prompt description alongside the analysis question. Do not rely on the overlay file's @-import lines — they are not resolved when content is passed as an Agent prompt.
 
 Triggers: substantive design analysis (architecture tradeoffs, data model review, performance analysis) that is private to this conversation and doesn't need to be committed anywhere.
 
 **Iteration cap:** after 2 meaningful exchanges on the same topic with the same specialist, propose escalating to Tier 3. Subagents don't have task memory across invocations; a Hall issue thread handles sustained analysis properly.
 
-After a substantive Tier 2 consultation, propose saving the output. Default: `.hall-cache/plans/<plan>/consultations/`. If the output should become a committed artifact (ADR, design note), accept a user-supplied path.
+After a substantive Tier 2 consultation, propose saving the output. Default: `~/.hall/plans/<plan>/consultations/`. If the output should become a committed artifact (ADR, design note), accept a user-supplied path.
 
 ## Tier 3 — Hall issue
 

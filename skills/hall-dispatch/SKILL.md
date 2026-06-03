@@ -22,7 +22,7 @@ Read config before any GitHub API call:
 LOCAL_MODE=$(python3 -c "
 import json
 try:
-    print(json.load(open('.hall-cache/session/config.json')).get('local_mode', False))
+    print(json.load(open('~/.hall/session/config.json')).get('local_mode', False))
 except FileNotFoundError:
     print(False)
 " 2>/dev/null || echo "False")
@@ -167,7 +167,7 @@ Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueN
 
 On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
 
-**Board write:** Skip if `board_project_number` is absent from `.hall-cache/session/config.json`, or if `.hall-cache/session/board.json` is absent. Find the item in `board.json` where `issue_number` equals the filed issue number; if absent, log and skip. Resolve `field_id` and option ID for "In Progress" from `board-meta.json["fields"]["Status"]`. Call `update_item_field`: `project_id` from `board.json`, `item_id` = matched item `id`, resolved `field_id`, `value = {"singleSelectOptionId": <In Progress option ID>}`, `invoker_login` from `mcp__github__get_me` (`# On rate_limit/secondary-rate-limit error: gh api user --jq '.login'`). Log any error; do not abort dispatch.
+**Board write:** Skip if `board_project_number` is absent from `~/.hall/session/config.json`, or if `~/.hall/session/board.json` is absent. Find the item in `board.json` where `issue_number` equals the filed issue number; if absent, log and skip. Resolve `field_id` and option ID for "In Progress" from `board-meta.json["fields"]["Status"]`. Call `update_item_field`: `project_id` from `board.json`, `item_id` = matched item `id`, resolved `field_id`, `value = {"singleSelectOptionId": <In Progress option ID>}`, `invoker_login` from `mcp__github__get_me` (`# On rate_limit/secondary-rate-limit error: gh api user --jq '.login'`). Log any error; do not abort dispatch.
 
 ### Step 6: Report
 
@@ -184,15 +184,15 @@ M tasks remain blocked on: [dependency list]
 ### Step 7: Schedule autonomous advancement cron (first dispatch only)
 
 ```bash
-CRON_EXISTS=$([ -f .hall-cache/session/cron.json ] && echo true || echo false)
-INFLIGHT=$(python3 -c "import json,glob; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob('.hall-cache/plans/*/plan.json')) else 'false'" 2>/dev/null || echo "false")
+CRON_EXISTS=$([ -f ~/.hall/session/cron.json ] && echo true || echo false)
+INFLIGHT=$(python3 -c "import json,glob; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob('~/.hall/plans/*/plan.json')) else 'false'" 2>/dev/null || echo "false")
 ```
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:
 - Schedule: `*/15 * * * *`
-- Prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to .hall-cache/cron-log.md."`
+- Prompt: `"Autonomous plan advancement (cron): drain ~/.hall/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."`
 
-Store the returned ID in `.hall-cache/session/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
+Store the returned ID in `~/.hall/session/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
 
 If `CRON_EXISTS=false` and `INFLIGHT=false`: print `No in-flight tasks found — skipping cron creation.`
 
