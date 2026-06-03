@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Background GitHub polling daemon for in-flight Hall tasks.
-# Writes .hall-cache/watcher.pid on start.
+# Writes $HOME/.hall/watcher.pid on start.
 # Polls every POLL_INTERVAL seconds (default 120).
 # Pass --once to run a single check and exit.
 
@@ -10,7 +10,7 @@ POLL_INTERVAL="${POLL_INTERVAL:-120}"
 ONCE=false
 [[ "${1:-}" == "--once" ]] && ONCE=true
 
-CACHE=".hall-cache"
+CACHE="$HOME/.hall"
 PID_FILE="$CACHE/watcher.pid"
 
 echo $$ > "$PID_FILE"
@@ -21,7 +21,7 @@ check_once() {
 import json, subprocess, glob, os, re
 from datetime import datetime, timezone
 
-CACHE = '.hall-cache'
+CACHE = os.path.expanduser('~/.hall')
 EVENTS_FILE = f'{CACHE}/watcher-events.jsonl'
 STATE_FILE  = f'{CACHE}/watcher-state.json'
 

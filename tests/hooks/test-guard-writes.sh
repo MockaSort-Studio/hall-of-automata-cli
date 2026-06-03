@@ -24,21 +24,27 @@ run_hook "blocks write to src/main.py" \
 run_hook "blocks edit to README.md" \
   '{"tool":"Edit","tool_input":{"file_path":"README.md","old_string":"a","new_string":"b"}}' 1
 
-# Should ALLOW writes inside .hall-cache/plans/*/plan.md
-run_hook "allows write to plan.md" \
-  '{"tool":"Write","tool_input":{"file_path":".hall-cache/plans/2026-05-14-test/plan.md","content":"# Plan"}}' 0
+# Should ALLOW writes inside ~/.hall/ (absolute-path check fires before normalization)
+run_hook "allows write to ~/.hall/plans/" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/plans/2026-05-14-test/plan.md","content":"# Plan"}}' 0
 
-# Should ALLOW writes to .hall-cache/session/
-run_hook "allows write to session stack" \
-  '{"tool":"Write","tool_input":{"file_path":".hall-cache/session/CLAUDE-stack.md","content":"stack"}}' 0
+run_hook "allows write to ~/.hall/session/" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/session/CLAUDE-stack.md","content":"stack"}}' 0
 
-# Should ALLOW writes to .hall-cache/personas/
-run_hook "allows write to persona cache" \
-  '{"tool":"Write","tool_input":{"file_path":".hall-cache/personas/old-major.md","content":"persona"}}' 0
+run_hook "allows write to ~/.hall/personas/" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/personas/old-major.md","content":"persona"}}' 0
+
+# Explicit test: absolute path that would normalise to ../../.hall/... must still be allowed
+run_hook "allows absolute ~/.hall/ path (pre-normalization check)" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$(realpath -m "$HOME/.hall/session/config.json")"'","content":"cfg"}}' 0
 
 # Should ALLOW writes to .gitignore (initial setup)
 run_hook "allows write to .gitignore" \
   '{"tool":"Write","tool_input":{"file_path":".gitignore","content":".hall-cache/"}}' 0
+
+# Migration fallback: .hall-cache/* still permitted
+run_hook "allows write to .hall-cache/ (migration fallback)" \
+  '{"tool":"Write","tool_input":{"file_path":".hall-cache/session/CLAUDE-stack.md","content":"stack"}}' 0
 
 # Should BLOCK path traversal attempts
 run_hook "blocks path traversal via .hall-cache/../src" \

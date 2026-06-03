@@ -38,7 +38,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "if [ -f .hall-cache/watcher.pid ]; then kill $(cat .hall-cache/watcher.pid) 2>/dev/null; rm -f .hall-cache/watcher.pid; fi",
+          "command": "if [ -f ~/.hall/watcher.pid ]; then kill $(cat ~/.hall/watcher.pid) 2>/dev/null; rm -f ~/.hall/watcher.pid; fi",
           "timeout": 5
         }
       ]

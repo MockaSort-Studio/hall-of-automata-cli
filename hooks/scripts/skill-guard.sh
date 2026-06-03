@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PreToolUse guard: block non-Hall skills when a Hall session is open
 
-OPEN_MODE_FILE=".hall-cache/session/.open_mode"
+OPEN_MODE_FILE="$HOME/.hall/session/.open_mode"
 
 # No session active — allow
 if [ ! -f "$OPEN_MODE_FILE" ]; then

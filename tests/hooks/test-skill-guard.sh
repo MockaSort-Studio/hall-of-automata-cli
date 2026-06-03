@@ -12,7 +12,7 @@ run_test() {
   local desc="$1"; local expect_exit="$2"; shift 2
   local actual_exit=0
   local actual
-  actual=$(cd "$WORK_DIR" && env "$@" bash "$SCRIPT" 2>&1) || actual_exit=$?
+  actual=$(cd "$WORK_DIR" && env HOME="$WORK_DIR" "$@" bash "$SCRIPT" 2>&1) || actual_exit=$?
   if [ "$actual_exit" -eq "$expect_exit" ]; then
     echo "  PASS: $desc"; PASS=$((PASS + 1))
   else
@@ -31,8 +31,8 @@ run_test "passes through when no skill field and .open_mode absent" 0 \
   CLAUDE_TOOL_INPUT='{"other":"value"}'
 
 # Activate session by writing .open_mode
-mkdir -p "$WORK_DIR/.hall-cache/session"
-echo "first_open" > "$WORK_DIR/.hall-cache/session/.open_mode"
+mkdir -p "$WORK_DIR/.hall/session"
+echo "first_open" > "$WORK_DIR/.hall/session/.open_mode"
 
 # (a) Session active — non-Hall skill is blocked
 run_test "blocks non-Hall skill when .open_mode exists" 1 \
