@@ -26,7 +26,11 @@ set -euo pipefail
 
 # Hard stops
 gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; }
-REPO=$(git remote get-url origin 2>/dev/null | sed 's|.*github.com[:/]||;s|\.git$||')
+ORIGIN=$(git remote get-url origin 2>/dev/null || echo "")
+STANDALONE=$([ -z "$ORIGIN" ] && echo true || echo false)
+if [ "$STANDALONE" = "false" ]; then
+  REPO=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||')
+fi
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
@@ -70,6 +74,8 @@ echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL
 echo "CONTEXT_EXISTS=$([ -f .hall-cache/session/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
+
+If `STANDALONE=true`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, and `REPO` are set for subsequent steps.
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 
@@ -174,6 +180,8 @@ fi
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
 Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `.hall-cache/session/context.md`. If no README: `Project context: not available.`
+
+**Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 
 ### Step 5: Context injection
 
