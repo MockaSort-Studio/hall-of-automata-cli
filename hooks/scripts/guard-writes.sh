@@ -10,7 +10,7 @@ read -r TOOL FILE_PATH <<< "$(printf '%s' "$INPUT" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 ti = d.get('tool_input', {})
-print(d.get('tool', ''), ti.get('file_path', ti.get('file_name', '')))")" "
+print(d.get('tool', ''), ti.get('file_path', ti.get('file_name', '')))")" 
 
 # Only intercept write-type tools
 case "$TOOL" in
