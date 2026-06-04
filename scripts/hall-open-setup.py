@@ -1,4 +1,4 @@
-import json, os, shutil, glob, subprocess
+import json, os, re, shutil, glob, subprocess
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
@@ -9,6 +9,36 @@ try:
     standalone = False
 except subprocess.CalledProcessError:
     standalone = True
+
+# Slug derivation
+slug = ''
+if not standalone:
+    try:
+        origin = subprocess.run(
+            ['git', 'remote', 'get-url', 'origin'], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        cleaned = re.sub(r'.*github\.com[:/]', '', origin)
+        cleaned = re.sub(r'\.git$', '', cleaned)
+        parts = cleaned.split('/')
+        slug = parts[1] if len(parts) >= 2 else ''
+    except Exception:
+        slug = ''
+else:
+    try:
+        cfg_data = json.load(open(os.path.expanduser('~/.hall/.config.json')))
+        target_repo = cfg_data.get('target_repo', '')
+        slug = target_repo.split('/')[-1] if target_repo else ''
+    except Exception:
+        slug = ''
+
+if slug:
+    project_root = f'{root}/projects/{slug}'
+    os.makedirs(project_root, exist_ok=True)
+    open(f'{root}/session/.repo-slug', 'w').write(slug)
+    if not os.path.exists(f'{project_root}/config.json'):
+        open(f'{project_root}/config.json', 'w').write('{}')
+else:
+    project_root = f'{root}/session'
 
 os.makedirs(f'{root}/methodology', exist_ok=True)
 for f in glob.glob(f'{pr}/methodology/*.md'):
@@ -28,7 +58,8 @@ for name in specs:
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 open(f'{root}/session/CLAUDE-stack.md', 'w').write(
     open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
-    .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root).replace('{{ASSEMBLED_AT}}', at))
+    .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
+    .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))
 open(f'{root}/session/session-guard.md', 'w').write(
     open(f'{pr}/templates/session-guard.md.tpl').read()
     .replace('{{CACHE_ROOT}}', root))

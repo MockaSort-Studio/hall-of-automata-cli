@@ -23,9 +23,10 @@ fi
 ### Step 1.5: Cancel autonomous reconcile cron
 
 ```bash
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 CRON_ID=""
-if [ -f ~/.hall/session/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/session/cron.json'))['cron_id'])")
+if [ -n "$SLUG" ] && [ -f ~/.hall/projects/$SLUG/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/projects/$SLUG/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
@@ -33,7 +34,7 @@ fi
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
 
 ```bash
-rm -f ~/.hall/session/cron.json
+rm -f ~/.hall/projects/$SLUG/cron.json
 echo "Autonomous cron cancelled."
 ```
 
@@ -52,6 +53,7 @@ fi
 ```bash
 rm -f ~/.hall/session/CLAUDE-stack.md
 rm -f ~/.hall/session/.open_mode
+rm -f ~/.hall/session/.repo-slug
 rm -rf ~/.hall/session/claude-agents/
 echo "Session files cleaned up."
 ```

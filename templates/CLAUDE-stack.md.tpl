@@ -6,7 +6,7 @@
 
 @{{CACHE_ROOT}}/session/session-guard.md
 
-@{{CACHE_ROOT}}/session/context.md
+@{{PROJECT_ROOT}}/context.md
 
 @{{CACHE_ROOT}}/personas/automaton_base.md
 
@@ -16,4 +16,4 @@
 
 @{{CACHE_ROOT}}/session/roster-index.md
 
-@{{CACHE_ROOT}}/session/board-context.md
+@{{PROJECT_ROOT}}/board-context.md

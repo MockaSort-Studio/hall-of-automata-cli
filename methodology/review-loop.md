@@ -60,7 +60,7 @@ NEXT: <merge | address-and-resubmit | escalate-to-invoker>
 
 ## 5. Automation level behavior at SETTLE
 
-Automation level is set once at `/hall:open` and stored in `~/.hall/session/config.json`. See §13.1 of `docs/design.md` for how the level is configured.
+Automation level is set once at `/hall:open` and stored in `~/.hall/projects/<slug>/config.json` (where `<slug>` is the per-repo identifier from `~/.hall/session/.repo-slug`). See §13.1 of `docs/design.md` for how the level is configured.
 
 | Level | Name | At SETTLE with LGTM | At SETTLE with non-LGTM |
 |-------|------|---------------------|-------------------------|

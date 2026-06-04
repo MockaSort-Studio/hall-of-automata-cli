@@ -2,7 +2,9 @@ import json, os, re
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
-b = json.load(open(f'{root}/session/board.json'))
+slug = open(f'{root}/session/.repo-slug').read().strip()
+proj = f'{root}/projects/{slug}'
+b = json.load(open(f'{proj}/board.json'))
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 items = b.get('items', [])
 
@@ -45,5 +47,5 @@ else:
             lines.append(f"- #{i['issue_number']}: {i['title'][:60]} [{fmt_status(i)}]")
     out = '\n'.join(lines)
 
-open(f'{root}/session/board-context.md', 'w').write(out + '\n')
+open(f'{proj}/board-context.md', 'w').write(out + '\n')
 print('Board context written.')

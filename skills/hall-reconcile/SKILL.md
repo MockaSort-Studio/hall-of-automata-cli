@@ -12,10 +12,14 @@ Resync the local plan with GitHub's current state. Runs automatically before any
 
 ### Step 0: Drain watcher events
 
-If `~/.hall/watcher-events.jsonl` exists and is non-empty:
+```bash
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+```
+
+If `~/.hall/projects/$SLUG/watcher-events.jsonl` exists and is non-empty:
 - Read all lines; parse each JSON object.
 - Group by issue number and surface as a summary: `"Watcher detected N events since last reconcile: [list]"`
-- Truncate the file to zero bytes: `> ~/.hall/watcher-events.jsonl`
+- Truncate the file to zero bytes: `> ~/.hall/projects/$SLUG/watcher-events.jsonl`
 - Use these events as early-warning signals — the reconcile pass below queries GitHub authoritatively.
 
 If absent or empty, skip silently.
@@ -28,7 +32,7 @@ PLAN_DIR=$(ls -d ~/.hall/plans/*/ | sort | tail -1)
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json, os; print(bool(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json, os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -92,8 +96,9 @@ Reconcile must not clear `needs_review` — only dispatch clears it after filing
 ```bash
 AUTOMATION_LEVEL=$(python3 -c "
 import json, sys, os
+slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip() if os.path.exists(os.path.expanduser('~/.hall/session/.repo-slug')) else ''
 try:
-    cfg = json.load(open(os.path.expanduser('~/.hall/session/config.json')))
+    cfg = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json')))
     print(cfg.get('automation_level', 0))
 except FileNotFoundError:
     print(0)
@@ -113,16 +118,16 @@ print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) el
 ")
 ```
 
-If `ALL_DONE=true` and `~/.hall/session/cron.json` exists:
+If `ALL_DONE=true` and `~/.hall/projects/$SLUG/cron.json` exists:
 
 ```bash
-CRON_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/cron.json')))['cron_id'])" 2>/dev/null || echo "")
+CRON_ID=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/cron.json')))['cron_id'])" 2>/dev/null || echo "")
 ```
 
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`. Then:
 
 ```bash
-rm -f ~/.hall/session/cron.json
+rm -f ~/.hall/projects/$SLUG/cron.json
 echo "All tasks terminal — autonomous cron cancelled."
 ```
 
@@ -140,9 +145,9 @@ INVOKER_LOGIN=$(gh api /user --jq '.login')
 
 For each task whose status **newly** transitioned to MERGED or DONE during this pass:
 
-1. Find item in `board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
+1. Find item in `~/.hall/projects/$SLUG/board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
 
-2. Resolve the "Done" option ID from `board-meta.json["fields"]["Status"]["options"]` (entry with name `"Done"`).
+2. Resolve the "Done" option ID from `~/.hall/projects/$SLUG/board-meta.json["fields"]["Status"]["options"]` (entry with name `"Done"`).
 
 3. Call `update_item_field`:
    - `project_id` = `board.json["project_id"]`

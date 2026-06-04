@@ -93,10 +93,21 @@ REPO_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(s
 ```bash
 python3 -c "
 import json, os
-path = os.path.expanduser('~/.hall/session/config.json')
-d = json.load(open(path)) if os.path.exists(path) else {}
+slug = '$REPO_NAME'
+# persist to global config for future slug derivation
+gcfg = os.path.expanduser('~/.hall/.config.json')
+gd = json.load(open(gcfg)) if os.path.exists(gcfg) else {}
+gd['target_repo'] = '$ORG/$REPO_NAME'
+json.dump(gd, open(gcfg, 'w'))
+# write to per-project config
+proj = os.path.expanduser(f'~/.hall/projects/{slug}')
+os.makedirs(proj, exist_ok=True)
+pcfg = f'{proj}/config.json'
+d = json.load(open(pcfg)) if os.path.exists(pcfg) else {}
 d['target_repo'] = '$ORG/$REPO_NAME'
-json.dump(d, open(path, 'w'))
+json.dump(d, open(pcfg, 'w'))
+# write slug for other processes
+open(os.path.expanduser('~/.hall/session/.repo-slug'), 'w').write(slug)
 print('Target repo: $ORG/$REPO_NAME')
 "
 ```
