@@ -10,10 +10,10 @@ Render the current plan board on demand.
 
 ## Execution
 
-Find the active plan (most recent in `.hall-cache/plans/` by directory name):
+Find the active plan (most recent in `~/.hall/plans/` by directory name):
 
 ```bash
-ls -d .hall-cache/plans/*/ 2>/dev/null | sort | tail -1
+ls -d ~/.hall/plans/*/ 2>/dev/null | sort | tail -1
 ```
 
 Read `plan.json` and render a board grouped by status:

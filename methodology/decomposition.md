@@ -41,7 +41,7 @@ Theme is a tiebreaker at most — never the primary criterion for bundling.
 
 Before mapping dependencies, check whether any proposed tasks overlap with active work from other invokers.
 
-**When to run:** Only if `.hall-cache/session/board-context.md` is present and contains active items from invokers other than the current session's. If absent, or if all active items belong to the current invoker, skip this phase silently — it is a no-op on solo sessions.
+**When to run:** Only if `~/.hall/session/board-context.md` is present and contains active items from invokers other than the current session's. If absent, or if all active items belong to the current invoker, skip this phase silently — it is a no-op on solo sessions.
 
 **How to run:** For each proposed task, apply these overlap heuristics against active board items:
 

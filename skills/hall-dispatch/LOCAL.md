@@ -10,11 +10,11 @@ Entered from `hall-dispatch/SKILL.md` when `LOCAL_MODE=True`. Do not open GitHub
 
 ## Step L1: Load specialist persona
 
-Identify the specialist for the task. Read `.hall-cache/personas/<specialist>.md`. If absent, fetch first:
+Identify the specialist for the task. Read `~/.hall/personas/<specialist>.md`. If absent, fetch first:
 
 ```bash
 gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/<specialist>.md" \
-  --jq '.content' | base64 -d > ".hall-cache/personas/<specialist>.md"
+  --jq '.content' | base64 -d > "~/.hall/personas/<specialist>.md"
 ```
 
 ## Step L2: Planning discipline
@@ -43,7 +43,7 @@ Co-authored-by: Old Major <hall-of-automata[bot]@users.noreply.github.com>"
 
 ## Step L5: Write result artifact
 
-Write `.hall-cache/plans/<plan-slug>/local-runs/<task-id>/result.md`:
+Write `~/.hall/plans/<plan-slug>/local-runs/<task-id>/result.md`:
 
 ```
 # Local Run: <task-id>

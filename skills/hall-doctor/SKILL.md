@@ -7,7 +7,7 @@ allowed-tools: [Bash, Read, mcp__github__*]
 
 # /hall:doctor
 
-Run a full preflight diagnostic of the Hall of Automata environment. Use `--fix` to automatically repair issues that can be fixed (missing gitignore entry, stale cache).
+Run a full preflight diagnostic of the Hall of Automata environment. Use `--fix` to automatically repair stale cache.
 
 ## Checks to run
 
@@ -49,7 +49,7 @@ Checks the org installations list. Requires a token with `admin:org` scope to co
 python3 - << 'PYEOF'
 import json
 try:
-    d = json.load(open('.hall-cache/invoker.json'))
+    d = json.load(open('~/.hall/invoker.json'))
     mode = d['mode']
     print(f"mode={mode} verified_at={d.get('verified_at','?')[:10]}")
 except (FileNotFoundError, json.JSONDecodeError, KeyError):
@@ -61,27 +61,19 @@ PYEOF
 - `mode=local` → ⚠ WARN: local mode active — dispatch blocked, plan creation works
 - `unchecked` (file missing or unreadable) → ⚠ WARN: invoker status not yet verified — run `/hall:open` first
 
-### 5. .hall-cache/ in .gitignore (⚠ if missing, fix with --fix)
+### 5. Persona cache freshness (⚠ if stale or missing)
 
 ```bash
-grep -q "\.hall-cache" .gitignore 2>/dev/null && echo "present" || echo "missing"
-```
-
-If `--fix` passed, append `.hall-cache/` to `.gitignore`.
-
-### 6. Persona cache freshness (⚠ if stale or missing)
-
-```bash
-cat .hall-cache/personas/.fetched_at 2>/dev/null || echo "not cached"
+cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "not cached"
 ```
 
 Warn if the timestamp is >24h ago or the file doesn't exist.
 
-### 7. MCP connectivity (⚠ for each failed server)
+### 6. MCP connectivity (⚠ for each failed server)
 
 Run `claude mcp list` and check for ✓ Connected status on `sequential-thinking`, `fetch`, `github`, and `google-drive`.
 
-### 8. Hall quota (informational)
+### 7. Hall quota (informational)
 
 ```bash
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
@@ -98,7 +90,7 @@ Split `REPO` into `ORG` (before `/`) and `REPO_NAME` (after `/`). Call `list_iss
 Display as a two-column table: check name and result. End with a summary line:
 
 ```
-✓ 6/8 checks passed  ⚠ 2 warnings  ✗ 0 blockers
+✓ 6/7 checks passed  ⚠ 1 warning  ✗ 0 blockers
 
 Ready to /hall:open.
 ```
@@ -106,7 +98,7 @@ Ready to /hall:open.
 or
 
 ```
-✓ 5/8 checks passed  ⚠ 1 warning  ✗ 2 blockers
+✓ 4/7 checks passed  ⚠ 1 warning  ✗ 2 blockers
 
 Cannot start session: gh authentication required, Hall App not installed.
 ```

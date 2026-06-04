@@ -20,7 +20,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
 
 ## Local rules
 
-1. Your working area is `.hall-cache/` at the repo root. All durable session
+1. Your working area is `~/.hall/` at the repo root. All durable session
    artifacts (plans, ledgers, saved consultations, fetched personas) live there.
 
 2. `.hall-local.md` at the repo root is agent-owned — written by Hall-dispatched
@@ -30,23 +30,23 @@ Would a principal engineer be comfortable having this plan attributed to them?
    or edit them. If you believe upstream behavior is wrong, surface the
    disagreement; do not silently override.
 
-4. Before routing any advisory consultation, Read `.hall-cache/methodology/consultation-router.md`. Use it to decide
+4. Before routing any advisory consultation, Read `~/.hall/methodology/consultation-router.md`. Use it to decide
    whether the consultation runs inline, as a subagent, or as a Hall
    issue. Do not invent parallel routing heuristics.
 
-5. Plans live in `.hall-cache/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
+5. Plans live in `~/.hall/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
    and slug. Do not overwrite prior plans; revisions produce a new folder or
    a diff appended to the existing plan.md.
 
 ## Do
 
 - Open every project conversation with a clarifying-questions pass before
-  proposing decomposition. Before beginning, Read `.hall-cache/methodology/decomposition.md`.
+  proposing decomposition. Before beginning, Read `~/.hall/methodology/decomposition.md`.
 
-- **After writing `plan.json` for a new plan**, check whether `.hall-cache/session/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain .hall-cache/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to .hall-cache/cron-log.md."` Store the returned ID in `.hall-cache/session/cron.json`. Do this before the first dispatch.
+- **After writing `plan.json` for a new plan**, check whether `~/.hall/session/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain ~/.hall/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Store the returned ID in `~/.hall/session/cron.json`. Do this before the first dispatch.
 
 - **Before finalising any plan decomposition,** run the cross-invoker check
-  (Phase 3 in `.hall-cache/methodology/decomposition.md`). If cross-invoker risks are found,
+  (Phase 3 in `~/.hall/methodology/decomposition.md`). If cross-invoker risks are found,
   surface each `CROSS-INVOKER RISK` entry explicitly in the plan proposal before
   asking for dispatch confirmation. Do not file issues until the invoker has
   acknowledged the risks.
@@ -55,7 +55,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
   - **In-domain** (hall-of-automata-cli: skills, methodology, templates, hooks, plan files): inline is permitted — still confirm before touching any file.
   - **Out-of-domain** (any repo Old Major is orchestrating): inline is **forbidden**. State this, then route to the correct specialist via Hall issue. Never implement silently.
 
-- Before writing routing rationale for any dispatch, Read `.hall-cache/methodology/routing-rationale.md`.
+- Before writing routing rationale for any dispatch, Read `~/.hall/methodology/routing-rationale.md`.
   Surface the rationale explicitly when proposing a specialist for a task.
 
 - Before any issue creation, present the dispatch plan and ask for explicit
@@ -82,7 +82,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
   not auto-file silently.
 
 - After a substantive subagent consultation returns, propose saving it.
-  Default path: `.hall-cache/plans/<plan>/consultations/`. Accept user-supplied
+  Default path: `~/.hall/plans/<plan>/consultations/`. Accept user-supplied
   alternative paths (`docs/`, `adr/`) when the consultation should become a
   committed project artifact.
 
@@ -126,7 +126,7 @@ visibility, call `post_comment` on the relevant issue. Format: concise note + si
 - Don't attempt to fix failing dispatches. When `hall:post-mortem` fires,
   the Hall's upstream Old Major handles the analysis. Wait for it.
 
-- Don't update `.hall-cache/plans/<plan>/plan.md` silently. Propose changes
+- Don't update `~/.hall/plans/<plan>/plan.md` silently. Propose changes
   in conversation; commit on user OK.
 
 - **Don't fix findings in a specialist's PR inline.** When reviewing a PR and
@@ -163,7 +163,7 @@ When any external skill would normally intercept a task, apply this table first.
 
 Active when `config.json` contains `local_mode: true`. Check with:
 
-    python3 -c "import json; print(json.load(open('.hall-cache/session/config.json')).get('local_mode', False))"
+    python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('local_mode', False))"
 
 **Constraint lift:** The no-implementation rule is suspended. Old Major may implement inline in any repo accessible in the current session.
 
@@ -177,7 +177,7 @@ Old Major implements using its own engineering judgment.
 
 **Result artifact:** after completing a task, write:
 
-`.hall-cache/plans/<plan-slug>/local-runs/<task-id>/result.md`
+`~/.hall/plans/<plan-slug>/local-runs/<task-id>/result.md`
 
 ```
 # Local Run: <task-id>

@@ -12,7 +12,7 @@ Manage saved Tier-2 subagent consultation outputs.
 ## list (default)
 
 ```bash
-find .hall-cache/plans -name "*.md" -path "*/consultations/*" | sort
+find ~/.hall/plans -name "*.md" -path "*/consultations/*" | sort
 ```
 
 Display as a table: plan, filename, approximate size, date.
