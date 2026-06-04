@@ -1,2 +1,2 @@
 .claude/
-.hall-cache/
+**/__pycache__
