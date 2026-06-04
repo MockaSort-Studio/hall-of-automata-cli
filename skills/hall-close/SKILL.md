@@ -10,22 +10,13 @@ Exit Hall session mode. Cleans up session files; leaves plans and persona cache 
 
 ## Execution sequence
 
-### Step 1: Remove CLAUDE.md (or import line)
+### Step 1: Strip legacy CLAUDE.md import (migration)
 
 ```bash
-IMPORT_LINE="@~/.hall/session/CLAUDE-stack.md"
-
-if [ -f CLAUDE.md ]; then
-  content=$(cat CLAUDE.md)
-  if [ "$content" = "$IMPORT_LINE" ]; then
-    # File was created by /hall:open — remove it entirely
-    rm CLAUDE.md
-    echo "Removed session CLAUDE.md."
-  else
-    # File has pre-existing content — remove only the import line
-    grep -v "$IMPORT_LINE" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
-    echo "Removed Hall stack import line from CLAUDE.md."
-  fi
+LEGACY="@.hall-cache/session/CLAUDE-stack.md"
+if [ -f CLAUDE.md ] && grep -qF "$LEGACY" CLAUDE.md; then
+  grep -vF "$LEGACY" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
+  echo "Stripped legacy Hall stack import from CLAUDE.md."
 fi
 ```
 
@@ -34,7 +25,7 @@ fi
 ```bash
 CRON_ID=""
 if [ -f ~/.hall/session/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('~/.hall/session/cron.json'))['cron_id'])")
+  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/session/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
