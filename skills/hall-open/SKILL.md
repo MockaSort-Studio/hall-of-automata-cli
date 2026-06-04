@@ -35,7 +35,7 @@ fi
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
 # Cache state
-mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans
+mkdir -p ~/.hall/personas ~/.hall/session
 
 # Slug derivation
 if [ "$STANDALONE" = "false" ]; then
@@ -49,7 +49,7 @@ except Exception:
     print('')
 " 2>/dev/null || echo "")
 fi
-[ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG
+[ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
@@ -70,10 +70,15 @@ python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/person
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
-for d in ~/.hall/plans/*/; do
-  f="${d}plan.md"; [ -f "$f" ] || continue
-  grep -qm1 "Status:.*DONE" "$f" 2>/dev/null || { ACTIVE_PLAN=true; break; }
-done
+HALL_SLUG="$SLUG" python3 -c "
+import json, glob, os, sys
+slug = os.environ.get('HALL_SLUG', '')
+found = any(
+    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
+    for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))
+)
+sys.exit(0 if found else 1)
+" 2>/dev/null && ACTIVE_PLAN=true || true
 
 AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
@@ -142,7 +147,8 @@ Read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) 
 ### Step 7: Plans + invite
 
 ```bash
-ls ~/.hall/plans/ 2>/dev/null || true
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+ls ~/.hall/projects/$SLUG/plans/ 2>/dev/null || true
 ```
 
 List existing plans with status. Ask whether to resume or start fresh. Then ask what the invoker wants to build — one sentence, in character as Old Major.

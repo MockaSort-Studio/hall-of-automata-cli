@@ -35,13 +35,13 @@ Exit immediately after. Do not proceed to `--plans` or `--cache` logic.
 
 ## --plans <days>
 
-List plan directories older than N days. Show sizes. Ask for confirmation before removing.
+List plan directories older than N days across all project namespaces. Show sizes. Ask for confirmation before removing.
 
 ```bash
-find ~/.hall/plans -maxdepth 1 -type d -mtime +<N> | sort
+find ~/.hall/projects/*/plans -maxdepth 1 -type d -mtime +<N> | sort
 ```
 
-Never prune the most recent plan regardless of age.
+Never prune the most recent plan per project regardless of age.
 
 `~/.hall/invoker.json` is not touched by this step.
 

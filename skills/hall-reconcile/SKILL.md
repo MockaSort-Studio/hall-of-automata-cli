@@ -27,7 +27,7 @@ If absent or empty, skip silently.
 Find the active plan. For each task with a `github_issue` number:
 
 ```bash
-PLAN_DIR=$(ls -d ~/.hall/plans/*/ | sort | tail -1)
+PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
 ```
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
@@ -110,9 +110,10 @@ Write the updated `plan.json`.
 After writing `plan.json`, check if all tasks across all plans have reached a terminal state:
 
 ```bash
-ALL_DONE=$(python3 -c "
+ALL_DONE=$(HALL_SLUG="$SLUG" python3 -c "
 import json, glob, os
-all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
+slug = os.environ.get('HALL_SLUG', '')
+all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
 terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
 print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) else 'false')
 ")

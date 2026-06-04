@@ -34,7 +34,7 @@ Triggers: substantive design analysis (architecture tradeoffs, data model review
 
 **Iteration cap:** after 2 meaningful exchanges on the same topic with the same specialist, propose escalating to Tier 3. Subagents don't have task memory across invocations; a Hall issue thread handles sustained analysis properly.
 
-After a substantive Tier 2 consultation, propose saving the output. Default: `~/.hall/plans/<plan>/consultations/`. If the output should become a committed artifact (ADR, design note), accept a user-supplied path.
+After a substantive Tier 2 consultation, propose saving the output. Default: `~/.hall/projects/<slug>/plans/<plan>/consultations/`. If the output should become a committed artifact (ADR, design note), accept a user-supplied path.
 
 ## Tier 3 — Hall issue
 

@@ -10,10 +10,11 @@ Render the current plan board on demand.
 
 ## Execution
 
-Find the active plan (most recent in `~/.hall/plans/` by directory name):
+Find the active plan (most recent for this repo by directory name):
 
 ```bash
-ls -d ~/.hall/plans/*/ 2>/dev/null | sort | tail -1
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+ls -d ~/.hall/projects/$SLUG/plans/*/ 2>/dev/null | sort | tail -1
 ```
 
 Read `plan.json` and render a board grouped by status:
