@@ -10,22 +10,13 @@ Exit Hall session mode. Cleans up session files; leaves plans and persona cache 
 
 ## Execution sequence
 
-### Step 1: Remove CLAUDE.md (or import line)
+### Step 1: Strip legacy CLAUDE.md import (migration)
 
 ```bash
-IMPORT_LINE="@.hall-cache/session/CLAUDE-stack.md"
-
-if [ -f CLAUDE.md ]; then
-  content=$(cat CLAUDE.md)
-  if [ "$content" = "$IMPORT_LINE" ]; then
-    # File was created by /hall:open — remove it entirely
-    rm CLAUDE.md
-    echo "Removed session CLAUDE.md."
-  else
-    # File has pre-existing content — remove only the import line
-    grep -v "$IMPORT_LINE" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
-    echo "Removed Hall stack import line from CLAUDE.md."
-  fi
+LEGACY="@.hall-cache/session/CLAUDE-stack.md"
+if [ -f CLAUDE.md ] && grep -qF "$LEGACY" CLAUDE.md; then
+  grep -vF "$LEGACY" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
+  echo "Stripped legacy Hall stack import from CLAUDE.md."
 fi
 ```
 
@@ -33,8 +24,8 @@ fi
 
 ```bash
 CRON_ID=""
-if [ -f .hall-cache/session/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('.hall-cache/session/cron.json'))['cron_id'])")
+if [ -f ~/.hall/session/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/session/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
@@ -42,26 +33,26 @@ fi
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
 
 ```bash
-rm -f .hall-cache/session/cron.json
+rm -f ~/.hall/session/cron.json
 echo "Autonomous cron cancelled."
 ```
 
 ### Step 2: Kill watcher daemon
 
 ```bash
-if [ -f .hall-cache/watcher.pid ]; then
-  PID=$(cat .hall-cache/watcher.pid)
+if [ -f ~/.hall/watcher.pid ]; then
+  PID=$(cat ~/.hall/watcher.pid)
   kill "$PID" 2>/dev/null && echo "Stopped watcher (PID $PID)." || echo "Watcher was not running."
-  rm .hall-cache/watcher.pid
+  rm ~/.hall/watcher.pid
 fi
 ```
 
 ### Step 3: Remove session files
 
 ```bash
-rm -f .hall-cache/session/CLAUDE-stack.md
-rm -f .hall-cache/session/.open_mode
-rm -rf .hall-cache/session/claude-agents/
+rm -f ~/.hall/session/CLAUDE-stack.md
+rm -f ~/.hall/session/.open_mode
+rm -rf ~/.hall/session/claude-agents/
 echo "Session files cleaned up."
 ```
 
