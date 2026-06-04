@@ -15,11 +15,12 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-python3 << 'PYEOF'
+HALL_SLUG="$SLUG" python3 << 'PYEOF'
 import json, glob, os, sys
+slug = os.environ.get('HALL_SLUG', '')
 found = any(
     any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob(os.path.expanduser('~/.hall/plans/*/plan.json'))
+    for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))
 )
 sys.exit(0 if found else 1)
 PYEOF

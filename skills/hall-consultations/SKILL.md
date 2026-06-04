@@ -12,7 +12,8 @@ Manage saved Tier-2 subagent consultation outputs.
 ## list (default)
 
 ```bash
-find ~/.hall/plans -name "*.md" -path "*/consultations/*" | sort
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+find ~/.hall/projects/$SLUG/plans -name "*.md" -path "*/consultations/*" | sort
 ```
 
 Display as a table: plan, filename, approximate size, date.

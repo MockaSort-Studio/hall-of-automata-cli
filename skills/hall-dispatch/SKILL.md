@@ -47,7 +47,8 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 ### Step 3: Check quota
 
 ```bash
-Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open(PLAN_DIR+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
+PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
+Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open('$PLAN_DIR'+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
 ```
 Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.  
 `# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:in-progress" --json number | jq length`
@@ -83,7 +84,7 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.  
+Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.
 `# On rate_limit/secondary-rate-limit error: gh issue create --repo <ORG/REPO> --title "<task title>" --label "hall:<specialist>" --body "<issue body>"`
 
 Issue body — select by `task_type` (default `"pr"`):
@@ -161,7 +162,7 @@ After filing, update task status in `plan.json` to DISPATCHED and record `github
 
 **Board parent append:** If the task's `board_parent` is a non-null integer:
 
-Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueNumber: <board_parent>`. Append `- [ ] #<new_issue_number> [automaton] <task title>` as a new line to the body. Call `mcp__github__issue_write` with `method: update`, `issue_number: <board_parent>`, `body: <updated_body>`.  
+Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueNumber: <board_parent>`. Append `- [ ] #<new_issue_number> [automaton] <task title>` as a new line to the body. Call `mcp__github__issue_write` with `method: update`, `issue_number: <board_parent>`, `body: <updated_body>`.
 `# On rate_limit/secondary-rate-limit error: BODY=$(gh issue view <board_parent> --repo <REPO> --json body --jq '.body'); gh issue edit <board_parent> --repo <REPO> --body "$BODY"$'\n''- [ ] #<new_issue_number> [automaton] <task title>'`
 
 On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
@@ -184,7 +185,7 @@ M tasks remain blocked on: [dependency list]
 
 ```bash
 CRON_EXISTS=$([ -f ~/.hall/projects/$SLUG/cron.json ] && echo true || echo false)
-INFLIGHT=$(python3 -c "import json,glob,os; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob(os.path.expanduser('~/.hall/plans/*/plan.json'))) else 'false'" 2>/dev/null || echo "false")
+INFLIGHT=$(HALL_SLUG="$SLUG" python3 -c "import json,glob,os; slug=os.environ.get('HALL_SLUG',''); print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))) else 'false'" 2>/dev/null || echo "false")
 ```
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:

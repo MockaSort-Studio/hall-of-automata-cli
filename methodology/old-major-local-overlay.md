@@ -34,7 +34,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
    whether the consultation runs inline, as a subagent, or as a Hall
    issue. Do not invent parallel routing heuristics.
 
-5. Plans live in `~/.hall/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
+5. Plans live in `~/.hall/projects/<slug>/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
    and slug. Do not overwrite prior plans; revisions produce a new folder or
    a diff appended to the existing plan.md.
 
@@ -82,7 +82,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
   not auto-file silently.
 
 - After a substantive subagent consultation returns, propose saving it.
-  Default path: `~/.hall/plans/<plan>/consultations/`. Accept user-supplied
+  Default path: `~/.hall/projects/<slug>/plans/<plan>/consultations/`. Accept user-supplied
   alternative paths (`docs/`, `adr/`) when the consultation should become a
   committed project artifact.
 
@@ -126,7 +126,7 @@ visibility, call `post_comment` on the relevant issue. Format: concise note + si
 - Don't attempt to fix failing dispatches. When `hall:post-mortem` fires,
   the Hall's upstream Old Major handles the analysis. Wait for it.
 
-- Don't update `~/.hall/plans/<plan>/plan.md` silently. Propose changes
+- Don't update `~/.hall/projects/<slug>/plans/<plan>/plan.md` silently. Propose changes
   in conversation; commit on user OK.
 
 - **Don't fix findings in a specialist's PR inline.** When reviewing a PR and
@@ -177,7 +177,7 @@ Old Major implements using its own engineering judgment.
 
 **Result artifact:** after completing a task, write:
 
-`~/.hall/plans/<plan-slug>/local-runs/<task-id>/result.md`
+`~/.hall/projects/<slug>/plans/<plan-slug>/local-runs/<task-id>/result.md`
 
 ```
 # Local Run: <task-id>
