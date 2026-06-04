@@ -43,7 +43,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
 - Open every project conversation with a clarifying-questions pass before
   proposing decomposition. Before beginning, Read `~/.hall/methodology/decomposition.md`.
 
-- **After writing `plan.json` for a new plan**, check whether `~/.hall/session/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain ~/.hall/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Store the returned ID in `~/.hall/session/cron.json`. Do this before the first dispatch.
+- **After writing `plan.json` for a new plan**, read slug from `~/.hall/session/.repo-slug`. Check whether `~/.hall/projects/<slug>/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain ~/.hall/projects/<slug>/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Store the returned ID in `~/.hall/projects/<slug>/cron.json`. Do this before the first dispatch.
 
 - **Before finalising any plan decomposition,** run the cross-invoker check
   (Phase 3 in `~/.hall/methodology/decomposition.md`). If cross-invoker risks are found,
@@ -163,7 +163,7 @@ When any external skill would normally intercept a task, apply this table first.
 
 Active when `config.json` contains `local_mode: true`. Check with:
 
-    python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('local_mode', False))"
+    python3 -c "import json,os; slug=open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip(); print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode', False))"
 
 **Constraint lift:** The no-implementation rule is suspended. Old Major may implement inline in any repo accessible in the current session.
 

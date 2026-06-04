@@ -36,6 +36,21 @@ fi
 
 # Cache state
 mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans
+
+# Slug derivation
+if [ "$STANDALONE" = "false" ]; then
+  SLUG=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||' | cut -d/ -f2)
+else
+  SLUG=$(python3 -c "
+import json, os
+try:
+    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo','').split('/')[-1])
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+fi
+[ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG
+[ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
 Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`.
@@ -60,14 +75,14 @@ for d in ~/.hall/plans/*/; do
   grep -qm1 "Status:.*DONE" "$f" 2>/dev/null || { ACTIVE_PLAN=true; break; }
 done
 
-AUTO_LEVEL=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('automation_level','missing'))" \
+AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('local_mode','missing'))" \
+LOCAL_MODE=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
 echo "$CURRENT_SHA" > ~/.hall/session/.current-sha
 echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
-echo "CONTEXT_EXISTS=$([ -f ~/.hall/session/context.md ] && echo true || echo false)"
+echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
@@ -112,7 +127,7 @@ Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`)
 
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
-Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `~/.hall/session/context.md`. If no README: `Project context: not available.`
+Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `~/.hall/projects/$SLUG/context.md`. If no README: `Project context: not available.`
 
 **Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 

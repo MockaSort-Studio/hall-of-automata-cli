@@ -13,7 +13,9 @@ check() {
   else echo "  FAIL: $desc"; FAIL=$((FAIL + 1)); fi
 }
 
-mkdir -p "$TMP/.hall"
+TEST_SLUG="test-repo"
+mkdir -p "$TMP/.hall/session" "$TMP/.hall/projects/$TEST_SLUG/plans"
+echo -n "$TEST_SLUG" > "$TMP/.hall/session/.repo-slug"
 (cd "$TMP" && HOME="$TMP" POLL_INTERVAL=1 bash "$SCRIPT" --once &)
 sleep 2
 check "watcher creates PID file" "test -f $TMP/.hall/watcher.pid"
@@ -23,7 +25,8 @@ check "watcher PID was a real process" "[ '$PID' -gt 0 ]"
 
 # A12: stale PID pointing to a non-watcher process must not suppress watcher start
 TMP2=$(mktemp -d)
-mkdir -p "$TMP2/.hall"
+mkdir -p "$TMP2/.hall/session" "$TMP2/.hall/projects/$TEST_SLUG/plans"
+echo -n "$TEST_SLUG" > "$TMP2/.hall/session/.repo-slug"
 # Write a PID that belongs to a real but non-watcher process (sleep)
 sleep 60 &
 FAKE_PID=$!

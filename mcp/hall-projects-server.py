@@ -17,7 +17,12 @@ if not _token:
 
 mcp = FastMCP("hall-projects")
 
-_CACHE = os.path.expanduser("~/.hall/session")
+_slug_file = os.path.expanduser("~/.hall/session/.repo-slug")
+if os.path.exists(_slug_file):
+    _slug = open(_slug_file).read().strip()
+    _CACHE = os.path.expanduser(f"~/.hall/projects/{_slug}")
+else:
+    _CACHE = os.path.expanduser("~/.hall/session")
 _BOARD_META = f"{_CACHE}/board-meta.json"
 _BOARD = f"{_CACHE}/board.json"
 

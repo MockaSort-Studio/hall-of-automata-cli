@@ -16,14 +16,22 @@ PID_FILE="$CACHE/watcher.pid"
 echo $$ > "$PID_FILE"
 $ONCE || trap 'rm -f "$PID_FILE"' EXIT
 
+SLUG=$(cat "$HOME/.hall/session/.repo-slug" 2>/dev/null || echo "")
+if [ -z "$SLUG" ]; then
+  echo "watcher: no active session (.repo-slug absent)" >&2
+  rm -f "$PID_FILE"
+  exit 1
+fi
+
 check_once() {
-  python3 << 'PYEOF'
+  python3 << PYEOF
 import json, subprocess, glob, os, re
 from datetime import datetime, timezone
 
 CACHE = os.path.expanduser('~/.hall')
-EVENTS_FILE = f'{CACHE}/watcher-events.jsonl'
-STATE_FILE  = f'{CACHE}/watcher-state.json'
+SLUG = '$SLUG'
+EVENTS_FILE = os.path.expanduser(f'~/.hall/projects/{SLUG}/watcher-events.jsonl')
+STATE_FILE  = os.path.expanduser(f'~/.hall/projects/{SLUG}/watcher-state.json')
 
 def ts():
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -45,7 +53,7 @@ def emit(obj):
         f.write(json.dumps(obj) + '\n')
 
 # Plan discovery — fallback chain: plan.json -> plan.md -> give up
-plan_dirs = sorted(glob.glob(f'{CACHE}/plans/*/'))
+plan_dirs = sorted(glob.glob(os.path.expanduser(f'~/.hall/projects/{SLUG}/plans/*/')))
 if not plan_dirs:
     exit(0)
 plan_dir = plan_dirs[-1]

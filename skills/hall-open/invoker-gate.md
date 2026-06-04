@@ -10,7 +10,7 @@ Use `AskUserQuestion` with one question:
 - **Question:** `"Are you a Hall invoker? An invoker is a member of the automata-invokers team on GitHub — you have dispatch access and can send tasks to Hall specialists. Non-invokers get local orchestration mode: Old Major plans and implements inline. See: https://mockasort-studio.github.io/hall-codex/how-to-invoke/"`
 - **Options:** `"Yes, I'm an invoker"` / `"No, use local mode"`
 
-**If "No":** write `~/.hall/invoker.json` as `{"mode":"local","verified_at":"<ISO>","checks":{}}`. Set `local_mode: true` and `automation_level: 0` in `config.json`. Skip automation Q&A.
+**If "No":** write `~/.hall/invoker.json` as `{"mode":"local","verified_at":"<ISO>","checks":{}}`. Set `local_mode: true` and `automation_level: 0` in `~/.hall/projects/<slug>/config.json` (read slug from `~/.hall/session/.repo-slug`). Skip automation Q&A.
 
 **If "Yes":** run verification:
 
@@ -52,4 +52,15 @@ Decision:
 
 Only write `~/.hall/invoker.json` after the final decision — do not cache a partial result.
 
-**Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `local_mode` and `automation_level` to `~/.hall/session/config.json`.
+**Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `local_mode` and `automation_level` to `~/.hall/projects/<slug>/config.json` (read slug from `~/.hall/session/.repo-slug`).
+
+For all decision paths, write the config keys using:
+```python
+import json, os
+slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+cfg_path = os.path.expanduser(f'~/.hall/projects/{slug}/config.json')
+cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+cfg['local_mode'] = ...
+cfg['automation_level'] = ...
+json.dump(cfg, open(cfg_path, 'w'), indent=2)
+```
