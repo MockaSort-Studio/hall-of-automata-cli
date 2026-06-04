@@ -17,7 +17,7 @@ if not _token:
 
 mcp = FastMCP("hall-projects")
 
-_CACHE = ".hall-cache/session"
+_CACHE = os.path.expanduser("~/.hall/session")
 _BOARD_META = f"{_CACHE}/board-meta.json"
 _BOARD = f"{_CACHE}/board.json"
 
