@@ -24,7 +24,7 @@ The revision migrates session state to a global location (`~/.hall/`), introduce
 | 2 | All session state in `.hall-cache/` (repo-local, gitignored) — breaks cross-repo workflows and leaves state orphaned on clone | **Migrate all paths to `~/.hall/` (global, home-directory-relative)** | ✅ PR #138 |
 | 3 | Skill and methodology files hard-code `.hall-cache/` path strings | **Global path substitution across all skill and methodology files** | ✅ PR #141 |
 | 4 | `hall-close` and `hall-prune` still reference `.hall-cache/` in cleanup logic | **Update cleanup paths to `~/.hall/`** | ✅ PR #142 |
-| 5 | `docs/design.md`, `README.md` still describe `.hall-cache/` as session cache root | **Documentation reconciliation pass** | ✅ PR #145 |
+| 5 | `docs/design.md`, `README.md` still describe `.hall-cache/` as session cache root | **Documentation reconciliation pass** | ✅ PR #146 |
 
 ---
 
