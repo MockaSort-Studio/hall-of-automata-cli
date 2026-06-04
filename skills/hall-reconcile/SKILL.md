@@ -28,7 +28,7 @@ PLAN_DIR=$(ls -d ~/.hall/plans/*/ | sort | tail -1)
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json; print(bool(json.load(open('~/.hall/session/config.json')).get('board_project_number','')))"\ 2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json, os; print(bool(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -91,9 +91,9 @@ Reconcile must not clear `needs_review` — only dispatch clears it after filing
 
 ```bash
 AUTOMATION_LEVEL=$(python3 -c "
-import json, sys
+import json, sys, os
 try:
-    cfg = json.load(open('~/.hall/session/config.json'))
+    cfg = json.load(open(os.path.expanduser('~/.hall/session/config.json')))
     print(cfg.get('automation_level', 0))
 except FileNotFoundError:
     print(0)
@@ -106,8 +106,8 @@ After writing `plan.json`, check if all tasks across all plans have reached a te
 
 ```bash
 ALL_DONE=$(python3 -c "
-import json, glob
-all_tasks = [t for f in glob.glob('~/.hall/plans/*/plan.json') for t in json.load(open(f)).get('tasks', [])]
+import json, glob, os
+all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
 terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
 print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) else 'false')
 ")
@@ -116,7 +116,7 @@ print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) el
 If `ALL_DONE=true` and `~/.hall/session/cron.json` exists:
 
 ```bash
-CRON_ID=$(python3 -c "import json; print(json.load(open('~/.hall/session/cron.json'))['cron_id'])" 2>/dev/null || echo "")
+CRON_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/cron.json')))['cron_id'])" 2>/dev/null || echo "")
 ```
 
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`. Then:

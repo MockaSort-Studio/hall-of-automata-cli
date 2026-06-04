@@ -20,9 +20,9 @@ Read config before any GitHub API call:
 
 ```bash
 LOCAL_MODE=$(python3 -c "
-import json
+import json, os
 try:
-    print(json.load(open('~/.hall/session/config.json')).get('local_mode', False))
+    print(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('local_mode', False))
 except FileNotFoundError:
     print(False)
 " 2>/dev/null || echo "False")
@@ -185,7 +185,7 @@ M tasks remain blocked on: [dependency list]
 
 ```bash
 CRON_EXISTS=$([ -f ~/.hall/session/cron.json ] && echo true || echo false)
-INFLIGHT=$(python3 -c "import json,glob; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob('~/.hall/plans/*/plan.json')) else 'false'" 2>/dev/null || echo "false")
+INFLIGHT=$(python3 -c "import json,glob,os; print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob(os.path.expanduser('~/.hall/plans/*/plan.json'))) else 'false'" 2>/dev/null || echo "false")
 ```
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:

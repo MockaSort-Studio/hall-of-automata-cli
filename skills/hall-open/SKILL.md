@@ -51,7 +51,7 @@ NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
 [ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
 [ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json; d=json.load(open('~/.hall/personas/.advisory-roster.json')); assert isinstance(d,list)" 2>/dev/null \
+python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'))); assert isinstance(d,list)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
@@ -60,9 +60,9 @@ for d in ~/.hall/plans/*/; do
   grep -qm1 "Status:.*DONE" "$f" 2>/dev/null || { ACTIVE_PLAN=true; break; }
 done
 
-AUTO_LEVEL=$(python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('automation_level','missing'))" \
+AUTO_LEVEL=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "import json; print(json.load(open('~/.hall/session/config.json')).get('local_mode','missing'))" \
+LOCAL_MODE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/config.json'))).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
 echo "$CURRENT_SHA" > ~/.hall/session/.current-sha
@@ -82,14 +82,14 @@ Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`,
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > ~/.hall/personas/.advisory-roster.json`
 
 ```bash
-python3 -c "import json,sys; d=json.load(open('~/.hall/personas/.advisory-roster.json')); assert isinstance(d,list), f'API error: {d}'" \
+python3 -c "import json,sys, os; d=json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'))); assert isinstance(d,list), f'API error: {d}'" \
   || exit 1
 ```
 
 Fetch and write persona files via Bash (the Write tool fails on new files; gh api writes directly):
 
 ```bash
-SPECS=$(python3 -c "import json; print(' '.join(json.load(open('~/.hall/personas/.advisory-roster.json'))))")
+SPECS=$(python3 -c "import json, os; print(' '.join(json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json')))))")
 gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
   --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
 gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
