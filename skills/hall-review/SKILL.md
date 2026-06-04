@@ -15,6 +15,16 @@ Call `mcp__github__list_pull_requests` with `query: "repo:<ORG/REPO> closes #<IS
 
 Empty result: print `Task <id> has needs_review but no open PR — skipping.` and move to next task.
 
+**Check for existing human review:**
+
+```bash
+gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
+  --jq '[.[] | select(.state != "PENDING" and .user.type != "Bot" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | length' \
+  2>/dev/null || echo "0"
+```
+
+If the count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — skipping autonomous review."` Clear `needs_review` on the task in `plan.json` and move to the next task. Do not proceed to 0b.
+
 #### 0b. Render the reviewer overlay
 
 ```bash
@@ -45,6 +55,15 @@ PYEOF
 Treat `review_cycle` as 1 if absent. Load `~/.hall/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block.
 
 #### 0d. Submit GitHub review
+
+**Pre-check — clear stale pending review from a prior partial run:**
+
+```bash
+gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
+  --jq '[.[] | select(.state == "PENDING")] | length' 2>/dev/null || echo "0"
+```
+
+If the count is `> 0`: call `mcp__github__pull_request_review_write` with `method: "delete_pending"`, `owner: <ORG>`, `repo: <REPO_NAME>`, `pullNumber: <PR_NUMBER>`. Log `"Deleted stale pending review."`. On error: log and continue.
 
 Submit a single GitHub PR review. The review body is the only communication to the specialist — do not post a separate issue or PR comment before or after.
 

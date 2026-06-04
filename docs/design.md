@@ -537,16 +537,6 @@ At SETTLE: LGTM at automation level 2 triggers a PR merge; otherwise the invoker
 
 ---
 
-## 15. Future Work
-
-| Feature | Notes |
-|---|---|
-| Complex git workflow support | Currently assumes merge = main. Opt-in via explicit context. |
-| Plugin release process | Document how to tag, package, and publish a new CLI plugin version. |
-| Repoless / HQ mode | Run Old Major without a target repo — pure planning and coordination, no dispatch. Useful as a command-and-conquer HQ for orchestrating across many repos simultaneously. |
-
----
-
 ## 16. Reference Architecture
 
 ```
