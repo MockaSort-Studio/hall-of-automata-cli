@@ -1,7 +1,7 @@
 # Hall CLI — Standalone Mode (Revision 2)
 
 **Date:** 2026-06-03  
-**Status:** IN PROGRESS — PRs 1–4 merged; PR 5 (docs) dispatched (#144); follow-up #143 open
+**Status:** ✅ COMPLETE — All PRs merged; Revision 2b complete (per-repo project dirs #151, #152); minor cleanup #155 open
 
 ---
 
@@ -31,7 +31,7 @@ Hall CLI requires a local repo checkout to operate. Users must have the target r
 | # | Decision | Choice | Rationale |
 |---|----------|--------|-----------|
 | 1 | Cache location | `~/.hall/` — user home, flat structure | OS-aware via `os.path.expanduser` / `$HOME`; no per-project subdirectory needed; no Claude internal path dependency |
-| 2 | Per-project isolation | None — single flat root | `personas/` and `methodology/` are Hall-wide; `session/` is one active session; `plans/` are date-slug named and already disambiguate |
+| 2 | Per-project isolation | **Revised (see Revision 2b below)** — `~/.hall/projects/<slug>/` | Original flat-root decision created silent state collisions across repos; see §Revision 2b |
 | 3 | Runtime path resolution | Fixed constant — no pointer file, no slug | Flat root means no runtime lookup; every script and hook uses the same literal path |
 | 4 | Hook compatibility | Absolute-path check in `guard-writes.sh` before normalization | `realpath -m --relative-to=.` turns `~/.hall/...` into `../../.hall/...`; naive constant replace would silently block all global cache writes |
 | 5 | CLAUDE.md passive loading | Dropped | Relative path no longer resolves; absolute @-import support unverified; `hall-open` Step 5 active injection already covers both modes |
@@ -81,7 +81,62 @@ All targets in `hall-of-automata-cli` (in-domain). Dispatch to Snowball.
 
 PR 3 and PR 4 were dispatched in parallel after PR 2 merged. Both merged. Documentation PR dispatched after both merged.
 
-**Open follow-up:** [#143](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/143) — Python `open('~/.hall/...')` calls in bash `-c "..."` strings silently fail because `~` is not expanded inside double-quoted bash strings. Hot paths have `2>/dev/null` fallbacks so sessions degrade gracefully. Fix: replace with `os.path.expanduser('~/.hall/...')`. Assigned to Snowball.
+**Resolved follow-up:** [#143](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/143) — Python `open('~/.hall/...')` calls in bash `-c "..."` strings silently fail because `~` is not expanded inside double-quoted bash strings. Fixed with `os.path.expanduser`. Merged.
+
+---
+
+## Revision 2b — Per-Repo Project Directory
+
+**Date:** 2026-06-04  
+**Status:** IN PROGRESS — issues dispatched; dependency chain: #147 → #151 → #152
+
+### Problem
+
+The flat `~/.hall/` root introduced in Revision 2 created silent state collisions: `session/config.json`, `session/context.md`, `session/board-context.md`, `plans/`, `watcher-state.json`, and `watcher-events.jsonl` are all overwritten when a second session opens — regardless of which repo it's for. Automation level, board project number, and plans are not remembered per-repo.
+
+Decision #2 from Revision 2 ("no per-project isolation needed") was incorrect. The original `.hall-cache/` design had isolation by virtue of living inside the repo. The migration to `~/.hall/` lost it without a replacement.
+
+### Design
+
+**Slug:** last path segment of the git remote (`git remote get-url origin | cut -d/ -f2`). No owner prefix needed — slugs are unique enough at the invoker level. In standalone mode: last segment of `target_repo` from `~/.hall/.config.json`.
+
+**New per-project root:** `~/.hall/projects/<slug>/`
+
+**Session marker:** `~/.hall/session/.repo-slug` — written at `hall-open`, deleted at `hall-close`. Read by watcher, cron prompt, and any skill needing the current project path at runtime.
+
+**What moves to `~/.hall/projects/<slug>/`:**
+
+| Artifact | Previous path |
+|----------|--------------|
+| `config.json` | `~/.hall/session/config.json` |
+| `context.md` | `~/.hall/session/context.md` |
+| `board-context.md` | `~/.hall/session/board-context.md` |
+| `board.json` | `~/.hall/session/board.json` |
+| `board-meta.json` | `~/.hall/session/board-meta.json` |
+| `cron.json` | `~/.hall/session/cron.json` |
+| `watcher-state.json` | `~/.hall/watcher-state.json` |
+| `watcher-events.jsonl` | `~/.hall/watcher-events.jsonl` |
+| `plans/` | `~/.hall/plans/` |
+
+**What stays global:** `personas/`, `methodology/`, `invoker.json`, `.config.json`, `watcher.pid`, `watcher.log`, all ephemeral `session/` files (CLAUDE-stack, session-guard, claude-agents, roster-index, `.open_mode`, `.current-sha`).
+
+### Implementation Plan
+
+| Issue | Title | Depends on | Status |
+|-------|-------|------------|--------|
+| [#147](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/147) | fix(mcp): hall-projects path + stale cache | — | ✅ MERGED (PR #149) |
+| [#148](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/148) | fix(setup): config.json not created on first_open | — | ✅ MERGED (PR #150) |
+| [#151](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/151) | feat(cache): per-repo foundation + session artifacts + watcher | #147 | ✅ MERGED (PR #153) |
+| [#152](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/152) | feat(cache): per-repo plans directory | #151 | ✅ MERGED (PR #154) |
+| [#155](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/155) | chore(cleanup): two stale session/config.json refs | — | OPEN |
+
+### Files touched — Issue #151 (17 files)
+
+`scripts/hall-open-setup.py`, `scripts/format-board-context.py`, `mcp/hall-projects-server.py`, `templates/CLAUDE-stack.md.tpl`, `skills/hall-open/SKILL.md`, `skills/hall-open/session-setup.md`, `skills/hall-open/invoker-gate.md`, `skills/hall-open/standalone-flow.md`, `skills/hall-init-board/SKILL.md`, `skills/hall-reconcile/SKILL.md`, `skills/hall-dispatch/SKILL.md`, `skills/hall-review/SKILL.md`, `skills/hall-close/SKILL.md`, `methodology/old-major-local-overlay.md`, `methodology/review-loop.md`, `hooks/scripts/watcher.sh`, `tests/hooks/test-watcher.sh`
+
+### Files touched — Issue #152 (11 files)
+
+`skills/hall-open/SKILL.md`, `skills/hall-open/session-setup.md`, `skills/hall-dispatch/SKILL.md`, `skills/hall-dispatch/LOCAL.md`, `skills/hall-reconcile/SKILL.md`, `skills/hall-prune/SKILL.md`, `skills/hall-status/SKILL.md`, `skills/hall-consultations/SKILL.md`, `methodology/old-major-local-overlay.md`, `methodology/consultation-router.md`, `tests/hooks/test-guard-writes.sh`
 
 ---
 
