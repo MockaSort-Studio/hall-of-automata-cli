@@ -47,9 +47,9 @@ Checks the org installations list. Requires a token with `admin:org` scope to co
 
 ```bash
 python3 - << 'PYEOF'
-import json
+import json, os
 try:
-    d = json.load(open('~/.hall/invoker.json'))
+    d = json.load(open(os.path.expanduser('~/.hall/invoker.json')))
     mode = d['mode']
     print(f"mode={mode} verified_at={d.get('verified_at','?')[:10]}")
 except (FileNotFoundError, json.JSONDecodeError, KeyError):
