@@ -37,7 +37,7 @@ The Hall's persona files (`automaton_base.md`, `old-major.md`, specialist person
 
 ### Session mode via CLAUDE.md injection
 
-Claude Code resolves `@`-import directives in CLAUDE.md at session load. `/hall:open` assembles the full persona + methodology stack into `.hall-cache/session/CLAUDE-stack.md` and writes (or appends to) a workspace-root `CLAUDE.md` containing one import line pointing to it. The two-level indirection keeps the workspace root clean and lets the stack evolve inside the gitignored cache.
+Claude Code resolves `@`-import directives in CLAUDE.md at session load. `/hall:open` assembles the full persona + methodology stack into `~/.hall/session/CLAUDE-stack.md` and writes (or appends to) a workspace-root `CLAUDE.md` containing one import line pointing to it. The two-level indirection keeps the workspace root clean and lets the stack evolve inside the global session cache (`~/.hall/` lives in the user's home directory, outside any repo).
 
 Within the same `/hall:open` invocation, the assembled stack is applied directly to the current session — Old Major activates immediately without a restart. The CLAUDE.md injection ensures he loads automatically on future session starts.
 
@@ -47,7 +47,7 @@ The Hall's normal entry path uses `hall:dispatch-automaton` for upstream triage.
 
 ### Dependency tracking is local
 
-The Hall has no native notion of inter-task dependencies. The dependency graph lives in `.hall-cache/plans/<plan>/plan.json`. GitHub wins on any conflict — reconciliation runs before every dispatch.
+The Hall has no native notion of inter-task dependencies. The dependency graph lives in `~/.hall/plans/<plan>/plan.json`. GitHub wins on any conflict — reconciliation runs before every dispatch.
 
 ### Parallel dispatch is the default
 
@@ -128,7 +128,7 @@ hall-of-automata-cli/
 ├── hooks/
 │   ├── hooks.json
 │   └── scripts/
-│       ├── guard-writes.sh          # PreToolUse: block writes outside .hall-cache/
+│       ├── guard-writes.sh          # PreToolUse: block writes outside ~/.hall/
 │       ├── session-start.sh         # SessionStart: detect interrupted sessions
 │       ├── watcher.sh               # background GitHub polling daemon
 │       └── skill-guard.sh           # PreToolUse: suppress non-Hall skills during sessions
@@ -142,20 +142,20 @@ hall-of-automata-cli/
 
 ### `/hall:open` sequence
 
-1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `.hall-cache/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
-2. **Gitignore** — add `.hall-cache/` if missing.
-3. **Synthesise project context** — read first 30 lines of `README.md`; write 2–4 sentence brief to `.hall-cache/session/context.md`. Skipped if `context.md` already exists.
+1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `~/.hall/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
+2. **Directory init** — `mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans` (idempotent; `~/.hall/` lives in the home directory and cannot be accidentally committed).
+3. **Synthesise project context** — read first 30 lines of `README.md`; write 2–4 sentence brief to `~/.hall/session/context.md`. Skipped if `context.md` already exists.
 4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
-5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `.hall-cache/personas/` with 24 h TTL, **or** force re-fetch if `agents.yml` SHA differs from `.hall-cache/personas/.agents-yml-sha` (whichever condition triggers first).
-6. **Methodology copy** — copy `methodology/` tree to `.hall-cache/methodology/`.
-7. **Subagent generation** — render per-specialist overlays into `.hall-cache/session/claude-agents/`.
-8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `.hall-cache/session/CLAUDE-stack.md`.
+5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `~/.hall/personas/` with 24 h TTL, **or** force re-fetch if `agents.yml` SHA differs from `~/.hall/personas/.agents-yml-sha` (whichever condition triggers first).
+6. **Methodology copy** — copy `methodology/` tree to `~/.hall/methodology/`.
+7. **Subagent generation** — render per-specialist overlays into `~/.hall/session/claude-agents/`.
+8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `~/.hall/session/CLAUDE-stack.md`.
 9. **CLAUDE.md injection** — write or append Hall stack import to workspace `CLAUDE.md`.
-10. **Watcher start** — launch `watcher.sh` as background daemon; log to `.hall-cache/watcher.log`.
+10. **Watcher start** — launch `watcher.sh` as background daemon; log to `~/.hall/watcher.log`.
 11. **Autonomous cron (resume path)** — if any task has status DISPATCHED or IN_PROGRESS and no `cron.json` is present, restart the cron (every 15 min). On a fresh session, `/hall:dispatch` Step 7 creates the cron after the first batch of issues is filed.
 12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
-13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `.hall-cache/invoker.json`; set `local_mode` in `config.json`. Invoker path also prompts automation Q&A and writes `automation_level`. See [Invoker Detection](#invoker-detection).
-14. **Plan check** — offer to resume if plans exist in `.hall-cache/plans/`.
+13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `~/.hall/invoker.json`; set `local_mode` in `config.json`. Invoker path also prompts automation Q&A and writes `automation_level`. See [Invoker Detection](#invoker-detection).
+14. **Plan check** — offer to resume if plans exist in `~/.hall/plans/`.
 15. **Banner** — Old Major introduces himself.
 
 ### `/hall:close` sequence
@@ -163,11 +163,11 @@ hall-of-automata-cli/
 1. Remove workspace-root `CLAUDE.md` or just the import line if the file had pre-existing content.
 2. Cancel autonomous reconcile cron (if `cron.json` exists).
 3. Kill the watcher daemon if running.
-4. Delete `.hall-cache/session/CLAUDE-stack.md` and `.hall-cache/session/claude-agents/`.
+4. Delete `~/.hall/session/CLAUDE-stack.md` and `~/.hall/session/claude-agents/`.
 
 ### Invoker Detection
 
-Runs at Step 13 of `/hall:open` when `.hall-cache/invoker.json` is absent (or removed by `--verify` / `hall:prune --invoker`).
+Runs at Step 13 of `/hall:open` when `~/.hall/invoker.json` is absent (or removed by `--verify` / `hall:prune --invoker`).
 
 **Verification:** two checks against the authenticated user's org:
 
@@ -198,7 +198,7 @@ Decision logic:
 
 `team_member` is `"unknown"` when the token lacks `read:org` scope; in that case the outcome is `invoker` with a warning (see decision table above).
 
-Cached at `.hall-cache/invoker.json`. Reset with `hall:prune --invoker` (removes the file) or pass `--verify` to `/hall:open` (same effect inline).
+Cached at `~/.hall/invoker.json`. Reset with `hall:prune --invoker` (removes the file) or pass `--verify` to `/hall:open` (same effect inline).
 
 **Session effect:**
 - `invoker` → automation Q&A proceeds; writes `local_mode: false` to `config.json`
@@ -208,11 +208,11 @@ Cached at `.hall-cache/invoker.json`. Reset with `hall:prune --invoker` (removes
 
 Active when `config.json` contains `local_mode: true`. Old Major implements tasks inline in the current Claude Code session, without filing GitHub Issues. Assigned automatically to users whose verification returned `local`.
 
-**Persona load path:** `.hall-cache/personas/<specialist>.md` — fetched from Hall on demand if absent.
+**Persona load path:** `~/.hall/personas/<specialist>.md` — fetched from Hall on demand if absent.
 
 **Branch naming:** `local/<task-slug>` — e.g., `local/invoker-dispatch-gate`.
 
-**Result artifact:** `.hall-cache/plans/<plan>/local-runs/<task-id>/result.md`
+**Result artifact:** `~/.hall/plans/<plan>/local-runs/<task-id>/result.md`
 
 ```
 # Local Run: <task-id>
@@ -257,10 +257,10 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 
 ---
 
-## 8. Data: `.hall-cache/` Layout
+## 8. Data: `~/.hall/` Layout
 
 ```
-.hall-cache/
+~/.hall/
 ├── personas/                       # 24 h TTL
 │   ├── automaton_base.md
 │   ├── old-major.md
@@ -314,7 +314,7 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 
 | Hook | Script | Purpose |
 |---|---|---|
-| `PreToolUse: Write\|Edit\|MultiEdit` | `guard-writes.sh` | Block writes anywhere except `.hall-cache/` |
+| `PreToolUse: Write\|Edit\|MultiEdit` | `guard-writes.sh` | Block writes anywhere except `~/.hall/` |
 | `SessionStart` | `session-start.sh` | Detect interrupted sessions; verify gitignore |
 | `Stop` | inline in hooks.json | Kill watcher daemon on session end |
 
@@ -334,9 +334,9 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 | `PR_CLOSED_NO_MERGE` | PR `state=closed` and `mergedAt` is null |
 | `REFINE_READY` | New commit on PR branch while task is REVIEWING with `review_cycle=1` |
 
-Events are emitted only on transition (compared to `.hall-cache/watcher-state.json`). Two output channels:
-- **Stdout** → captured to `.hall-cache/watcher.log` via `nohup`
-- **JSONL append** → `.hall-cache/watcher-events.jsonl` (drained by `/hall:reconcile` Step 0)
+Events are emitted only on transition (compared to `~/.hall/watcher-state.json`). Two output channels:
+- **Stdout** → captured to `~/.hall/watcher.log` via `nohup`
+- **JSONL append** → `~/.hall/watcher-events.jsonl` (drained by `/hall:reconcile` Step 0)
 
 **Autonomous loop:**
 
@@ -379,7 +379,6 @@ Declared in `.mcp.json`. Portable — no project-specific configuration required
 | Persona cache goes stale | 24 h TTL; `/hall:doctor` shows cache age; `--refresh` forces re-fetch |
 | User not an authorized Hall invoker | Preflight check; plan-only mode if not authorized |
 | User's project already has a `CLAUDE.md` | Detected at first `/hall:open`; user prompted to append or warned; never silently overwritten |
-| `.hall-cache/` accidentally committed | `SessionStart` hook verifies gitignore and re-adds if missing |
 | Target org doesn't have Hall App installed | Preflight check; refuse to start session mode |
 
 ---
@@ -410,13 +409,13 @@ Exposes five tools:
 
 ### Board provisioning (`/hall:init-board`)
 
-Idempotent — skips anything that already exists. Sequence: resolves repo/owner type; creates the Projects v2 board; creates custom fields (Status, ItemType, Owner, Priority, Reference); creates repo labels; runs `GetProjectMeta` and persists `board_project_number` and `board_project_id` to `.hall-cache/session/config.json`, field metadata to `.hall-cache/session/board-meta.json`.
+Idempotent — skips anything that already exists. Sequence: resolves repo/owner type; creates the Projects v2 board; creates custom fields (Status, ItemType, Owner, Priority, Reference); creates repo labels; runs `GetProjectMeta` and persists `board_project_number` and `board_project_id` to `~/.hall/session/config.json`, field metadata to `~/.hall/session/board-meta.json`.
 
 ### Board context injection (`scripts/fetch-board-context.sh`)
 
 Called non-fatally at `hall:open` Step 3. Resolves the project node ID in priority order: `config.json → board-meta.json → GetProjectMeta` GraphQL call. Paginates `ListItems` (max 2 pages / 200 items).
 
-Writes `.hall-cache/session/board-context.md`: active-item table (number, title, status, owner, type, priority, reference), done-item count, and a cross-invoker note when items from other invokers are present.
+Writes `~/.hall/session/board-context.md`: active-item table (number, title, status, owner, type, priority, reference), done-item count, and a cross-invoker note when items from other invokers are present.
 
 `templates/CLAUDE-stack.md.tpl` `@`-imports `board-context.md` as its last entry. The import is a no-op when the file is absent (board not provisioned, or fetch failed silently).
 
@@ -457,7 +456,7 @@ Each hit produces a `CROSS-INVOKER RISK` entry with a recommended action (`coord
 | `/hall:reconcile` | Resync local plan from GitHub. Runs implicitly before any dispatch. |
 | `/hall:review` | Run the inline review loop — assess open PRs for `needs_review` tasks and settle or escalate. |
 | `/hall:consultations [list\|view <id>\|prune]` | Manage saved Tier-2 consultation outputs. |
-| `/hall:prune [--invoker] [--plans <days>] [--cache]` | Clean old plans, stale cache, or invoker status. `--invoker` clears `.hall-cache/invoker.json` and prompts re-verification on next `/hall:open`. |
+| `/hall:prune [--invoker] [--plans <days>] [--cache]` | Clean old plans, stale cache, or invoker status. `--invoker` clears `~/.hall/invoker.json` and prompts re-verification on next `/hall:open`. |
 
 ---
 
@@ -467,7 +466,7 @@ Keeps non-technical invokers out of the merge loop. When active, Old Major dispa
 
 ### 14.1 Automation configuration
 
-Asked once at `hall:open` when the config entry is absent from `.hall-cache/session/config.json`. Two binary questions:
+Asked once at `hall:open` when the config entry is absent from `~/.hall/session/config.json`. Two binary questions:
 
 1. **Auto-review?** — Should Old Major automatically dispatch a review after each specialist PR?
 2. **Auto-merge?** — If the review verdict is LGTM, should Old Major merge without invoker action?
@@ -480,7 +479,7 @@ Resulting levels:
 | 1 — Assisted | Yes | No | Review agent posts verdict; invoker merges |
 | 2 — Auto-merge | Yes | Yes | Review agent posts verdict; LGTM auto-merges |
 
-Config is stored in `.hall-cache/session/config.json` and re-used across commands within the session.
+Config is stored in `~/.hall/session/config.json` and re-used across commands within the session.
 
 ### 14.2 Review loop — Act → Assess → Settle
 
@@ -529,7 +528,7 @@ The reviewer is the same specialist who implemented the task — domain knowledg
 `/hall:review` handles each `needs_review` task:
 
 1. Locate the open PR for the task's issue.
-2. Render the reviewer overlay into `.hall-cache/session/claude-agents/<specialist>-reviewer.md`.
+2. Render the reviewer overlay into `~/.hall/session/claude-agents/<specialist>-reviewer.md`.
 3. Load the overlay via the Read tool; run `gh pr diff` and `gh issue view` inline. Old Major applies the verdict taxonomy directly — no subagent is spawned.
 4. Submit a GitHub PR review: `APPROVE` for LGTM, `REQUEST_CHANGES` for MINOR/MAJOR/BLOCKED. The review body carries the structured verdict block.
 5. Route by verdict: LGTM → SETTLE; MINOR at `review_cycle == 1` → REFINE (set `review_cycle: 2`, requeue REVIEWING); any ASSESS-2, MAJOR, or BLOCKED → SETTLE.
@@ -555,7 +554,7 @@ At SETTLE: LGTM at automation level 2 triggers a PR merge; otherwise the invoker
 │            Developer's laptop           │
 │                                         │
 │  Claude Code session = Old Major        │
-│    reads/writes .hall-cache/            │
+│    reads/writes ~/.hall/            │
 │    spawns Tier-2 advisory subagents     │
 │    uses: sequential-thinking            │
 │           fetch · github · google-drive │
@@ -582,7 +581,7 @@ At SETTLE: LGTM at automation level 2 triggers a PR merge; otherwise the invoker
 
 **Three invariants:**
 1. The plugin's only connection to the Hall is via GitHub.
-2. Personas flow one way: upstream repo → `.hall-cache/` → session context. Never back.
+2. Personas flow one way: upstream repo → `~/.hall/` → session context. Never back.
 3. The Hall's infrastructure is unchanged; the plugin uses the [documented direct dispatch path](https://mockasort-studio.github.io/hall-codex/how-to-invoke/#use-case-4-direct-agent-dispatch-power-users).
 
 ---

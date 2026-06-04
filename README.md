@@ -150,7 +150,7 @@ Hall is built around a **session** — an active working context that you open a
 
 ## Security
 
-A `guard-writes` hook runs before every file write during a session. AI agents are restricted to writing inside `.hall-cache/` and modifying `.gitignore`. Any attempt to write to your project's source tree is blocked before it executes.
+A `guard-writes` hook runs before every file write during a session. AI agents are restricted to writing inside `~/.hall/` — a global directory outside your repository. Any attempt to write to your project's source tree is blocked before it executes.
 
 ---
 

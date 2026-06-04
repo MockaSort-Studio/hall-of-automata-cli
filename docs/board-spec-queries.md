@@ -64,13 +64,13 @@ query GetProjectMeta($owner: String!, $number: Int!) {
 
 Variables: `{ "owner": "MockaSort-Studio", "number": 1 }`
 
-Persist response to `.hall-cache/session/board-meta.json` as described in board-spec.md §5.
+Persist response to `~/.hall/session/board-meta.json` as described in board-spec.md §5.
 
 ---
 
 ## 2. ListItems (paginated)
 
-Fetches all items with current field values. Page through until `pageInfo.hasNextPage` is false. Persist full result to `.hall-cache/session/board.json`.
+Fetches all items with current field values. Page through until `pageInfo.hasNextPage` is false. Persist full result to `~/.hall/session/board.json`.
 
 ```graphql
 query ListItems($projectId: ID!, $cursor: String) {
@@ -195,7 +195,7 @@ For cross-invoker messages, `body` must include the `hall-board-msg` fenced bloc
 | HTTP / GraphQL error | Action |
 |---|---|
 | `RATE_LIMITED` | Back off 60 s; retry once; then set outcome `quota_exceeded` |
-| `NOT_FOUND` on project | Abort; log to `.hall-cache/session/board-errors.log`; post issue comment naming the missing resource |
+| `NOT_FOUND` on project | Abort; log to `~/.hall/session/board-errors.log`; post issue comment naming the missing resource |
 | `FORBIDDEN` on field write | Item is owned by another invoker; fall back to `AddComment` |
 | `UNPROCESSABLE` on option ID | `board-meta.json` is stale; re-run `GetProjectMeta` and retry once |
 | Network timeout | Retry once after 10 s; on second failure, skip board write and log |
