@@ -68,11 +68,14 @@ if not standalone:
             pass
     snippet = json.load(open(snippet_path))
     key = 'hall-projects'
-    if key not in mcp_cfg:
-        entry = list(snippet.values())[0]
-        entry['args'] = [a.replace('HALL_CLI_PLUGIN_ROOT', pr) for a in entry['args']]
+    entry = list(snippet.values())[0]
+    entry['args'] = [a.replace('HALL_CLI_PLUGIN_ROOT', pr) for a in entry['args']]
+    is_new = key not in mcp_cfg
+    if is_new:
         mcp_cfg[key] = entry
-        json.dump(mcp_cfg, open(mcp_path, 'w'), indent=2)
-        print('Added hall-projects MCP server to .mcp.json.')
+    else:
+        mcp_cfg[key]['args'] = entry['args']
+    json.dump(mcp_cfg, open(mcp_path, 'w'), indent=2)
+    print(f"{'Added' if is_new else 'Updated'} hall-projects MCP server in .mcp.json.")
 
 print(f'Setup complete (mode={mode}).')
