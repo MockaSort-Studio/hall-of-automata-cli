@@ -66,9 +66,6 @@ open(f'{root}/session/session-guard.md', 'w').write(
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 
-config_path = f'{root}/session/config.json'
-if not os.path.exists(config_path):
-    json.dump({'automation_level': None, 'local_mode': None}, open(config_path, 'w'), indent=2)
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
