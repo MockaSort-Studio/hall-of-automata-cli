@@ -28,6 +28,7 @@ if [ ! -f "$STACK" ]; then
 fi
 
 # 5. Parse @-imports and concatenate file contents.
+NL=$'\n'
 CONTENT=""
 while IFS= read -r line; do
   if [[ "$line" == @* ]]; then
@@ -35,8 +36,7 @@ while IFS= read -r line; do
     if [ -f "$target" ]; then
       file_content=$(cat "$target")
       if [ -n "$CONTENT" ]; then
-        CONTENT="${CONTENT}"
-"${file_content}"
+        CONTENT="${CONTENT}${NL}${file_content}"
       else
         CONTENT="$file_content"
       fi
