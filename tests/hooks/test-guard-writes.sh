@@ -28,8 +28,8 @@ run_hook "blocks edit to README.md" \
 run_hook "allows write to ~/.hall/projects/test-repo/plans/" \
   '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/projects/test-repo/plans/2026-05-14-test/plan.md","content":"# Plan"}}' 0
 
-run_hook "allows write to ~/.hall/session/" \
-  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/session/CLAUDE-stack.md","content":"stack"}}' 0
+run_hook "allows write to ~/.hall/projects/test-project/session/" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/projects/test-project/session/CLAUDE-stack.md","content":"stack"}}' 0
 
 run_hook "allows write to ~/.hall/personas/" \
   '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/personas/old-major.md","content":"persona"}}' 0

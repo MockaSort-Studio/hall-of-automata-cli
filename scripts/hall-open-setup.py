@@ -37,8 +37,11 @@ if slug:
     open(f'{root}/session/.repo-slug', 'w').write(slug)
     if not os.path.exists(f'{project_root}/config.json'):
         open(f'{project_root}/config.json', 'w').write('{}')
+    stack_dir = f'{project_root}/session'
+    os.makedirs(stack_dir, exist_ok=True)
 else:
     project_root = f'{root}/session'
+    stack_dir = f'{root}/session'
 
 os.makedirs(f'{root}/methodology', exist_ok=True)
 for f in glob.glob(f'{pr}/methodology/*.md'):
@@ -56,7 +59,7 @@ for name in specs:
            .replace('{{CACHE_ROOT}}', root))
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-open(f'{root}/session/CLAUDE-stack.md', 'w').write(
+open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))

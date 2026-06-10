@@ -51,7 +51,11 @@ fi
 ### Step 3: Remove session files
 
 ```bash
-rm -f ~/.hall/session/CLAUDE-stack.md
+if [ -n "$SLUG" ]; then
+  rm -f ~/.hall/projects/$SLUG/session/CLAUDE-stack.md
+else
+  rm -f ~/.hall/session/CLAUDE-stack.md
+fi
 rm -f ~/.hall/session/.open_mode
 rm -f ~/.hall/session/.repo-slug
 rm -rf ~/.hall/session/claude-agents/

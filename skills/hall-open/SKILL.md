@@ -138,7 +138,16 @@ Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `~/.h
 
 ### Step 5: Context injection
 
-Read `~/.hall/session/CLAUDE-stack.md` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via CLAUDE.md @-imports. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
+```bash
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+if [ -n "$SLUG" ]; then
+  STACK_PATH=~/.hall/projects/$SLUG/session/CLAUDE-stack.md
+else
+  STACK_PATH=~/.hall/session/CLAUDE-stack.md
+fi
+```
+
+Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via CLAUDE.md @-imports. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
 
 ### Step 6: Invoker detection gate (only if LOCAL_MODE=missing)
 
