@@ -24,9 +24,8 @@ run_hook "silent when no active session" "$NO_SESSION" "^$"
 
 # Active session detected — hook should print resume prompt
 WITH_SESSION="$TMP/with-session"
-mkdir -p "$WITH_SESSION/.hall/session" "$WITH_SESSION/.hall/projects/test-project/session"
-echo -n "test-project" > "$WITH_SESSION/.hall/session/.repo-slug"
-touch "$WITH_SESSION/.hall/projects/test-project/session/CLAUDE-stack.md"
+mkdir -p "$WITH_SESSION/.hall/session"
+touch "$WITH_SESSION/.hall/session/CLAUDE-stack.md"
 run_hook "resume prompt when session stack exists" "$WITH_SESSION" "interrupted Old Major session"
 
 rm -rf "$TMP"
