@@ -5,6 +5,32 @@ description: Invoker detection procedure — executed from hall-open Step 6
 
 # Invoker Detection Gate
 
+## Cached invoker check (runs first)
+
+If `~/.hall/invoker.json` exists AND `--verify` was not passed:
+
+```python
+import json, os
+inv = json.load(open(os.path.expanduser('~/.hall/invoker.json')))
+mode = inv.get('mode', '')
+slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+cfg_path = os.path.expanduser(f'~/.hall/projects/{slug}/config.json')
+cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+auto_level = cfg.get('automation_level', 'missing')
+```
+
+- If `mode == "local"`:
+  - Set `cfg['local_mode'] = True`, `cfg['automation_level'] = 0`; write back with `json.dump(cfg, open(cfg_path, 'w'), indent=2)`.
+  - Print `"Invoker mode: local (cached). Skipping verification."`
+  - **Exit gate** — skip all Q&A and verification below.
+- If `mode == "invoker"`:
+  - Set `cfg['local_mode'] = False`; write back with `json.dump(cfg, open(cfg_path, 'w'), indent=2)`.
+  - Print `"Invoker verified (cached). Checking automation level..."`
+  - If `auto_level != 'missing'`: **exit gate** — skip automation Q&A.
+  - Else: proceed to **Automation Q&A** below — skip the "Are you a Hall invoker?" question and all verification checks.
+
+## Live detection (runs when no valid cache)
+
 Use `AskUserQuestion` with one question:
 - **Header:** `"Hall invoker?"`
 - **Question:** `"Are you a Hall invoker? An invoker is a member of the automata-invokers team on GitHub — you have dispatch access and can send tasks to Hall specialists. Non-invokers get local orchestration mode: Old Major plans and implements inline. See: https://mockasort-studio.github.io/hall-codex/how-to-invoke/"`
