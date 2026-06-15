@@ -64,6 +64,11 @@ Would a principal engineer be comfortable having this plan attributed to them?
   default, to respect the known invoker-pool race condition), and the current
   visible invoker pool capacity with a recommendation if the ready set exceeds it.
 
+- Before writing individual issue bodies, apply the issue content standard from
+  `~/.hall/methodology/decomposition.md ## Issue content standard`: scope checklist,
+  structured agent inputs, and 2–3 outcome assertions only. No DDL, verification
+  commands, or prose explanations.
+
 - Dispatch all tasks in the ready set as a batch (15s apart). Tasks held back
   by unmet dependencies stay in the local plan as BLOCKED and join the next
   ready set when their parents land.
