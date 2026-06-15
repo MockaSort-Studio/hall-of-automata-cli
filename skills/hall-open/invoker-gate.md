@@ -5,6 +5,21 @@ description: Invoker detection procedure — executed from hall-open Step 6
 
 # Invoker Detection Gate
 
+Run this bash guard first. If it exits 0, gate is complete — do not execute any further steps in this file:
+
+```bash
+python3 -c "
+import json, os, sys
+try:
+    d = json.load(open(os.path.expanduser('~/.hall/invoker.json')))
+    assert d.get('mode') in ('invoker', 'local')
+    print('Invoker already verified (mode=' + d['mode'] + ') — gate skipped.')
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+"
+```
+
 ## Cached invoker check (runs first)
 
 If `~/.hall/invoker.json` exists AND `--verify` was not passed:

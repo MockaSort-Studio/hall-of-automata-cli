@@ -53,7 +53,7 @@ fi
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`.
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. Use the Write tool to write the extracted SHA verbatim to `~/.hall/session/.current-sha` before running the next bash block.
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
 ```bash
@@ -70,7 +70,7 @@ python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/person
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
-HALL_SLUG="$SLUG" python3 -c "
+if HALL_SLUG="$SLUG" python3 -c "
 import json, glob, os, sys
 slug = os.environ.get('HALL_SLUG', '')
 found = any(
@@ -78,14 +78,16 @@ found = any(
     for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))
 )
 sys.exit(0 if found else 1)
-" 2>/dev/null && ACTIVE_PLAN=true || true
+" 2>/dev/null; then
+  ACTIVE_PLAN=true
+fi
 
 AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
 LOCAL_MODE=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
-echo "$CURRENT_SHA" > ~/.hall/session/.current-sha
+CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
@@ -121,6 +123,7 @@ done
 ```
 
 ```bash
+CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
@@ -149,9 +152,9 @@ fi
 
 Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via SessionStart hook. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
 
-### Step 6: Invoker detection gate (only if LOCAL_MODE=missing)
+### Step 6: Invoker detection gate
 
-Read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
+Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR (b) `~/.hall/invoker.json` exists and contains a valid `mode` (`invoker` or `local`). If neither condition holds, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
 
 ### Step 7: Plans + invite
 
