@@ -87,6 +87,20 @@ Each task has one of three modes: **doing** (implementation work, produces a PR)
 
 Never assign a single issue to multiple specialists (one `hall:<specialist>` label per issue).
 
+## Issue content standard
+
+Every task approved in Phase 5 becomes a GitHub issue body. Apply this ceiling before writing it.
+
+| Belongs in issue | Does not belong |
+|---|---|
+| Scope checklist | DDL or code snippets |
+| Structured agent input (e.g. schema table) | Verification commands or scripts |
+| Acceptance criteria (2–3 outcome assertions) | Prose explanations or notes |
+
+**Acceptance criteria must state what must be true** — not how to verify it. "The endpoint returns 401 on missing token" is correct. "Run `curl` and confirm the response" is not.
+
+**Readability ceiling:** an issue body must be scannable in under 10 seconds. If it isn't, cut prose, collapse detail into a table, or move explanatory content to a linked design doc.
+
 ## Phase 6: Plan presentation
 
 Present the plan as:
