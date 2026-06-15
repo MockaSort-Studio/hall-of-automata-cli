@@ -15,7 +15,8 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-HALL_SLUG="$SLUG" python3 - << 'PYEOF'
+INFLIGHT=false
+if HALL_SLUG="$SLUG" python3 - << 'PYEOF'
 import json, glob, os, sys
 slug = os.environ.get('HALL_SLUG', '')
 found = any(
@@ -24,8 +25,9 @@ found = any(
 )
 sys.exit(0 if found else 1)
 PYEOF
-INFLIGHT_EXIT=$?
-INFLIGHT=$([ "$INFLIGHT_EXIT" = "0" ] && echo true || echo false)
+then
+  INFLIGHT=true
+fi
 CRON_EXISTS=$([ -f ~/.hall/projects/$SLUG/cron.json ] && echo true || echo false)
 echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
 ```
