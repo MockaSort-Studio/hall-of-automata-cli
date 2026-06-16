@@ -2,6 +2,23 @@
 
 To decompose a project into Hall-dispatchable tasks, follow this procedure in order.
 
+## Pre-check: atomic item gate
+
+Before running Phases 1–4, check whether the board item already satisfies all four conditions:
+
+- Single PR — the work is one coherent diff that merges independently
+- One specialist — the work falls entirely within one domain
+- Clear acceptance criteria — the item already states what must be true when done
+- No architecture decisions required from the specialist
+
+**If all four conditions hold:** skip Phases 1–4. Proceed directly to Phase 5, assign the specialist, and dispatch by labeling the item with `hall:<specialist>`. Do not create sub-issues.
+
+**If any condition fails:** proceed through Phases 1–6 in order.
+
+Sub-issues are only warranted when:
+- The item decomposes into work for multiple specialists, or
+- Sequential dispatches are required (one piece must land before the next can start)
+
 ## Phase 1: Clarifying questions
 
 Before proposing any decomposition, identify ambiguities that would force you to make assumptions that could invalidate task design. Ask only about ambiguities that actually affect how work gets structured — not completeness for its own sake.
