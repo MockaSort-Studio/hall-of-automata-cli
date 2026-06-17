@@ -29,7 +29,7 @@
       "run",
       "--with",
       "mcp",
-      "HALL_CLI_PLUGIN_ROOT/mcp/hall-projects-server.py"
+      "/home/mike/Workspace/hall-of-automata-cli/mcp/hall-projects-server.py"
     ]
   }
 }

@@ -48,6 +48,7 @@ for f in glob.glob(f'{pr}/methodology/*.md'):
     shutil.copy(f, f'{root}/methodology/')
 
 os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
+open(f'{root}/session/.plugin-root', 'w').write(pr)
 specs = json.load(open(f'{root}/personas/.advisory-roster.json'))
 tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
 for name in specs:
