@@ -36,6 +36,8 @@ fi
 
 # Cache state
 mkdir -p ~/.hall/personas ~/.hall/session
+CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
+[ -n "$CLAUDE_PLUGIN_ROOT" ] || echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."
 
 # Slug derivation
 if [ "$STANDALONE" = "false" ]; then
@@ -53,10 +55,14 @@ fi
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. Use the Write tool to write the extracted SHA verbatim to `~/.hall/session/.current-sha` before running the next bash block.
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
+```bash
+printf '%s' "<SHA>" > ~/.hall/session/.current-sha
+```
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
 ```bash
+CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CACHED_SHA=$(cat ~/.hall/personas/.agents-yml-sha 2>/dev/null || echo "")
 FETCHED_AT=$(cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "")
 NOW=$(date +%s)
@@ -87,7 +93,6 @@ AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.
 LOCAL_MODE=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
-CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
@@ -100,7 +105,11 @@ If `STANDALONE=true`: read `skills/hall-open/standalone-flow.md` (resolve agains
 Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) as a JSON array to `~/.hall/personas/.advisory-roster.json`.
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) using:
+```bash
+python3 -c "import json, os; open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'), 'w').write(json.dumps([...]))"
+```
+(substitute `[...]` with the filtered list of name strings from the MCP result, e.g. `['snowball', 'hamlet', 'pyrate']`)
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > ~/.hall/personas/.advisory-roster.json`
 
 ```bash
@@ -118,7 +127,7 @@ gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
   --jq '.content' | base64 -d > ~/.hall/personas/old-major.md
 for name in $SPECS; do
   gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${name}.md" \
-    --jq '.content' | base64 -d > "~/.hall/personas/${name}.md"
+    --jq '.content' | base64 -d > "$HOME/.hall/personas/${name}.md"
 done
 ```
 
@@ -135,7 +144,14 @@ Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`)
 
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
-Read the first 30 lines of `README.md` and write a 2–4 sentence brief to `~/.hall/projects/$SLUG/context.md`. If no README: `Project context: not available.`
+Read the first 30 lines of `README.md` and synthesise a 2–4 sentence brief. Write it to `~/.hall/projects/$SLUG/context.md` using Bash — the Write tool fails on new files. Use printf or a heredoc:
+```bash
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+cat > "$HOME/.hall/projects/$SLUG/context.md" << 'CTXEOF'
+<synthesised brief here>
+CTXEOF
+```
+If no README exists: write `Project context: not available.`
 
 **Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 
