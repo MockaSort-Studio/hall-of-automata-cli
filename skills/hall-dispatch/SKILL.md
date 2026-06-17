@@ -60,9 +60,7 @@ Default: the steward path (file up to capacity).
 
 ### Step 3b: Query prior context (per-task)
 
-For each task about to be dispatched, call `mcp__github__search_issues` on the target repo with `state: closed`. Retrieve the last 10 closed issues. Identify those relevant to the task being dispatched (same domain, same files, same feature area).
-
-Include in the issue body a **Prior context** section when relevant. Omit the section entirely if no relevant prior issues exist. Do not fabricate context.
+Read `skills/hall-dispatch/prior-context.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
 
 ### Step 4: Confirmation summary
 
@@ -197,17 +195,4 @@ M tasks remain blocked on: [dependency list]
 
 ### Step 7: Schedule autonomous advancement cron (first dispatch only)
 
-```bash
-CRON_EXISTS=$([ -f ~/.hall/projects/$SLUG/cron.json ] && echo true || echo false)
-INFLIGHT=$(HALL_SLUG="$SLUG" python3 -c "import json,glob,os; slug=os.environ.get('HALL_SLUG',''); print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))) else 'false'" 2>/dev/null || echo "false")
-```
-
-If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:
-- Schedule: `*/15 * * * *`
-- Prompt: `"Autonomous plan advancement (cron): drain ~/.hall/projects/$SLUG/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."`
-
-Store the returned ID in `~/.hall/projects/$SLUG/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
-
-If `CRON_EXISTS=false` and `INFLIGHT=false`: print `No in-flight tasks found — skipping cron creation.`
-
-If `CRON_EXISTS=true`: print `Cron already active — skipping.`
+Read `skills/hall-dispatch/cron-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
