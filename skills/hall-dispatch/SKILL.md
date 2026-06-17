@@ -58,6 +58,12 @@ If the ready set exceeds estimated available capacity, display:
 
 Default: the steward path (file up to capacity).
 
+### Step 3b: Query prior context (per-task)
+
+For each task about to be dispatched, call `mcp__github__search_issues` on the target repo with `state: closed`. Retrieve the last 10 closed issues. Identify those relevant to the task being dispatched (same domain, same files, same feature area).
+
+Include in the issue body a **Prior context** section when relevant. Omit the section entirely if no relevant prior issues exist. Do not fabricate context.
+
 ### Step 4: Confirmation summary
 
 Display before any filing:
@@ -109,6 +115,10 @@ All work for this task — branch, commits, and the final PR — must be created
 
 <relevant context the specialist needs — existing code references, design decisions, constraints>
 
+## Prior context
+
+<from Step 3b — omit section entirely if no relevant prior issues found>
+
 ## Routing
 
 Assigned to <Specialist>. Rationale: <routing_rationale text>
@@ -148,6 +158,10 @@ Post your findings as a comment on this issue. Do not open a branch or PR.
 ## Context
 
 <relevant context the specialist needs — existing code references, design decisions, constraints>
+
+## Prior context
+
+<from Step 3b — omit section entirely if no relevant prior issues found>
 
 ## Routing
 

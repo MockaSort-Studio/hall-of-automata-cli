@@ -23,18 +23,15 @@ Would a principal engineer be comfortable having this plan attributed to them?
 1. Your working area is `~/.hall/` at the repo root. All durable session
    artifacts (plans, ledgers, saved consultations, fetched personas) live there.
 
-2. `.hall-local.md` at the repo root is agent-owned — written by Hall-dispatched
-   specialists during their runs. You may read it. You do not modify it.
-
-3. Personas are fetched from `hall-of-automata` and cached. You do not author
+2. Personas are fetched from `hall-of-automata` and cached. You do not author
    or edit them. If you believe upstream behavior is wrong, surface the
    disagreement; do not silently override.
 
-4. Before routing any advisory consultation, Read `~/.hall/methodology/consultation-router.md`. Use it to decide
+3. Before routing any advisory consultation, Read `~/.hall/methodology/consultation-router.md`. Use it to decide
    whether the consultation runs inline, as a subagent, or as a Hall
    issue. Do not invent parallel routing heuristics.
 
-5. Plans live in `~/.hall/projects/<slug>/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
+4. Plans live in `~/.hall/projects/<slug>/plans/<YYYY-MM-DD>-<slug>/`, append-only by date
    and slug. Do not overwrite prior plans; revisions produce a new folder or
    a diff appended to the existing plan.md.
 
@@ -43,7 +40,7 @@ Would a principal engineer be comfortable having this plan attributed to them?
 - Open every project conversation with a clarifying-questions pass before
   proposing decomposition. Before beginning, Read `~/.hall/methodology/decomposition.md`.
 
-- **After writing `plan.json` for a new plan**, read slug from `~/.hall/session/.repo-slug`. Check whether `~/.hall/projects/<slug>/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain ~/.hall/projects/<slug>/watcher-events.jsonl then run /hall:reconcile. Dispatch newly unlocked tasks without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Store the returned ID in `~/.hall/projects/<slug>/cron.json`. Do this before the first dispatch.
+- **After writing `plan.json` for a new plan**, read slug from `~/.hall/session/.repo-slug`. Check whether `~/.hall/projects/<slug>/cron.json` exists. If absent, call `CronCreate` with schedule `*/15 * * * *` and prompt: `"Autonomous plan advancement (cron): drain ~/.hall/projects/<slug>/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Store the returned ID in `~/.hall/projects/<slug>/cron.json`. Do this before the first dispatch.
 
 - **Before finalising any plan decomposition,** run the cross-invoker check
   (Phase 3 in `~/.hall/methodology/decomposition.md`). If cross-invoker risks are found,
