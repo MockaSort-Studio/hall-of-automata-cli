@@ -10,7 +10,6 @@ try:
 except subprocess.CalledProcessError:
     standalone = True
 
-# Slug derivation
 slug = ''
 if not standalone:
     try:
@@ -43,33 +42,55 @@ else:
     project_root = f'{root}/session'
     stack_dir = f'{root}/session'
 
-os.makedirs(f'{root}/methodology', exist_ok=True)
-for f in glob.glob(f'{pr}/methodology/*.md'):
-    shutil.copy(f, f'{root}/methodology/')
-
-os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
-open(f'{root}/session/.plugin-root', 'w').write(pr)
-specs = json.load(open(f'{root}/personas/.advisory-roster.json'))
-tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
-for name in specs:
-    lines = [l.rstrip() for l in open(f'{root}/personas/{name}.md') if l.strip()]
-    desc = next((l.lstrip('# ') for l in lines if l.startswith('#')), name)
-    open(f'{root}/session/claude-agents/{name}.md', 'w').write(
-        tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
-           .replace('{{PERSONA_PATH}}', f'{root}/personas/{name}.md')
-           .replace('{{CACHE_ROOT}}', root))
-
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+# Phase 1 — invariant: persona, methodology, skills (once per session; gated by agents.yml SHA)
+phase1_marker = f'{root}/session/.invariant-built'
+current_sha = (open(f'{root}/session/.current-sha').read().strip()
+               if os.path.exists(f'{root}/session/.current-sha') else '')
+cached_sha = (open(phase1_marker).read().strip()
+              if os.path.exists(phase1_marker) else None)
+
+if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRESH_INVARIANT'):
+    os.makedirs(f'{root}/methodology', exist_ok=True)
+    for f in glob.glob(f'{pr}/methodology/*.md'):
+        shutil.copy(f, f'{root}/methodology/')
+
+    os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
+    open(f'{root}/session/.plugin-root', 'w').write(pr)
+    specs = json.load(open(f'{root}/personas/.advisory-roster.json'))
+    tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
+    for name in specs:
+        lines = [l.rstrip() for l in open(f'{root}/personas/{name}.md') if l.strip()]
+        desc = next((l.lstrip('# ') for l in lines if l.startswith('#')), name)
+        open(f'{root}/session/claude-agents/{name}.md', 'w').write(
+            tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
+               .replace('{{PERSONA_PATH}}', f'{root}/personas/{name}.md')
+               .replace('{{CACHE_ROOT}}', root))
+
+    open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(
+        open(f'{pr}/templates/CLAUDE-stack-invariant.md.tpl').read()
+        .replace('{{CACHE_ROOT}}', root).replace('{{ASSEMBLED_AT}}', at))
+    open(f'{root}/session/session-guard.md', 'w').write(
+        open(f'{pr}/templates/session-guard.md.tpl').read()
+        .replace('{{CACHE_ROOT}}', root))
+
+    open(phase1_marker, 'w').write(current_sha)
+    print('Phase 1 built (invariant layer).')
+else:
+    print('Phase 1 cached (invariant layer — skip).')
+
+# Phase 2 — project: context.md, board-context.md, plan state (per project, always rebuilt)
+open(f'{stack_dir}/CLAUDE-stack-project.md', 'w').write(
+    open(f'{pr}/templates/CLAUDE-stack-project.md.tpl').read()
+    .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))
+
 open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
-    .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))
-open(f'{root}/session/session-guard.md', 'w').write(
-    open(f'{pr}/templates/session-guard.md.tpl').read()
-    .replace('{{CACHE_ROOT}}', root))
+    .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
-
+print(f'Phase 2 built (project layer — {slug or "standalone"}).')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
@@ -78,6 +99,7 @@ if os.path.exists('CLAUDE.md'):
         cleaned = '\n'.join(l for l in content.splitlines() if l.strip() != LEGACY_IMPORT)
         open('CLAUDE.md', 'w').write(cleaned.lstrip('\n'))
 
+mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 open(f'{root}/session/.open_mode', 'w').write(mode)
 
 if not standalone:
