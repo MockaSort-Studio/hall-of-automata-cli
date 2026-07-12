@@ -102,32 +102,14 @@ echo "Created ${REPO_NAME} board #${PROJECT_NUM} (${PROJECT_ID})"
 
 ### Step 3.5: Scope default view to invoking repository
 
-Runs unconditionally — applies the repository filter whether the board was just created or already existed. Idempotent: setting the same filter on re-run is harmless.
+`updateProjectV2View` does not accept `filter` as an input — view filtering is not API-settable. Log the required filter for the manual step in Step 7.
 
 ```bash
 set -euo pipefail
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner'])")
 REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['repo'])")
 REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
-
-PROJECT_ID=$(python3 -c "
-import json, os
-s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
-cfg_path = os.path.expanduser('~/.hall/projects/$SLUG/config.json')
-cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
-print(s.get('project_id') or cfg.get('board_project_id',''))
-")
-
-DEFAULT_VIEW_ID=$(gh api graphql \
-  -f query='query($p:ID!){node(id:$p){...on ProjectV2{views(first:1){nodes{id}}}}}' \
-  -F p="$PROJECT_ID" --jq '.data.node.views.nodes[0].id')
-
-gh api graphql \
-  -f query='mutation($vid:ID!,$f:String!){updateProjectV2View(input:{viewId:$vid,filter:$f}){projectV2View{id}}}' \
-  -F vid="$DEFAULT_VIEW_ID" \
-  -F f="repo:${OWNER}/${REPO_NAME}" > /dev/null \
-  && echo "Default view scoped to repo:${OWNER}/${REPO_NAME}."
+echo "view-filter: repo:${OWNER}/${REPO_NAME}"
 ```
 
 ### Step 4: Create custom fields
@@ -265,13 +247,18 @@ meta = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.js
 cfg = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json')))
 state = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
 board_num = cfg.get('board_project_number', '?')
+owner = state['owner']
+repo = state['repo']
+url_seg = 'orgs' if state.get('owner_type', 'Organization') == 'Organization' else 'users'
 print(f"Hall Board #{board_num} ready — {len(meta.get('fields', {}))} fields resolved, labels provisioned.")
+print(f"\n⚠️  Manual steps required:")
 if state.get('board_was_created', False):
-    owner = state['owner']
-    repo = state['repo']
-    url_seg = 'orgs' if state.get('owner_type', 'Organization') == 'Organization' else 'users'
-    print(f"\n⚠  Manual step required: go to the board settings and set Default repository")
-    print(f"   to {repo}. This field is not settable via the GitHub API.")
-    print(f"   Board settings: https://github.com/{url_seg}/{owner}/projects/{board_num}/settings")
+    print(f"   1. Default repository → set to {repo}")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/settings")
+    print(f"   2. Default view filter → set to: repo:{owner}/{repo}")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/views/1")
+else:
+    print(f"   1. Default view filter → set to: repo:{owner}/{repo}")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/views/1")
 PYEOF
 ```
