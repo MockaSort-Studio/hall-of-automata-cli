@@ -50,6 +50,48 @@ Once the gate passes:
 4. Add all to the project board; set ItemType and Priority fields
 5. Report what landed — issue numbers, board item IDs, blocked KRs noted
 
+---
+
+## KR → Item decomposition gate
+
+**This gate runs before any dispatch.** KRs are outcome targets, not dispatchable units. Items (sub-issues of a KR) are what get specialist labels and produce PRs. A KR may have one Item or many — the check determines which.
+
+### When to run
+
+Every time a KR enters the ready set. No exceptions — even KRs that appear trivially atomic must pass through this gate. Speed is not a reason to skip it; a KR dispatched directly is a KR whose scope was never challenged.
+
+### Atomicity test
+
+For each ready KR, ask:
+
+1. **Single PR?** Can the full scope land as one coherent diff that merges independently?
+2. **Single specialist?** Does all the work fall within one domain?
+3. **No architecture decisions deferred?** Could a specialist start without needing to make structural choices that should be resolved first?
+4. **Acceptance criteria already clear?** Does the KR body already state what must be true when done, specifically enough that a specialist could verify it without asking?
+
+**If all four hold:** one Item is sufficient. Create it, wire it as a sub-issue of the KR, and dispatch the Item.
+
+**If any fail:** decompose. Each Item should satisfy all four conditions independently. Read `skills/hall-decompose/SKILL.md` for the full decomposition procedure.
+
+### Item format
+
+```
+Title: [Item] <what this PR delivers>
+Body:
+- Scope: <what the specialist builds>
+- Acceptance criteria: <2–3 outcome assertions>
+- Routing: <specialist> — <one-line rationale>
+```
+
+Wire as native sub-issue of the KR. Add to board with ItemType=Item. Do not dispatch the KR — dispatch the Item.
+
+### Before presenting to the invoker
+
+State explicitly for each KR in the ready set:
+- Atomicity verdict: atomic (1 Item) or decomposed (N Items)
+- If decomposed: list the Items and their split rationale
+- Wait for confirmation before filing Items or dispatching
+
 ## What OKRs are for
 
 OKRs in this system are a sync mechanism between the invoker and the specialist pool — a structured contract for what agents are building toward. They are not a performance tool or a cadence ritual. If they feel like overhead, the structure is wrong: cut the KR without a measurable outcome and rewrite it.

@@ -49,6 +49,8 @@ When OKRs are required: read `skills/hall-okr/SKILL.md` and follow its disciplin
 
 **Hierarchy is inviolable:** OKR → KR → Item. Sub-issues wire KRs to OKRs and Items to KRs via native GitHub relationship. Text references in bodies are not a substitute.
 
+**Items are the dispatchable unit.** KRs never receive specialist labels directly. Before any KR enters dispatch, run the KR → Item decomposition gate from `skills/hall-okr/SKILL.md`. A KR may produce one Item or many — the gate determines which. Skipping it is not a speed gain; it is unchallenged scope.
+
 ---
 
 ## Consultation routing
