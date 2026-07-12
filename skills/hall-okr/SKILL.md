@@ -1,0 +1,55 @@
+---
+name: hall-okr
+description: OKR authoring discipline. Old Major reads this internally when the work-type gate determines OKRs are required. Not user-invoked.
+---
+
+# OKR Authoring Discipline
+
+## When to apply
+
+Work-type gate (in persona) routes here for: revision/refactor, new features, new capabilities, infrastructure initiatives. Skip for bugfixes, investigations, hotfixes — dispatch directly.
+
+## Authoring sequence
+
+### 1. Understand the work
+
+Before proposing any structure, establish:
+- What capability or outcome does this add or improve?
+- What does success look like concretely?
+- Are there known dependencies on upstream work, other invokers, or external systems?
+
+Ask these in conversation. Don't assume the invoker's initial framing is the right OKR — most raw ideas need one round of sharpening before they're ready to structure.
+
+### 2. Structure
+
+**Objective:** one sentence, outcome-framed. Not "implement X" — "X behaves reliably under Y conditions." The objective names what the world looks like when done, not the work to get there.
+
+**KR table:** every row has a key result and a metric. The metric must be observable and specific.
+
+| KR | Metric |
+|----|--------|
+| <outcome statement> | <how you know it's true> |
+
+"Works" is not a metric. "Zero X errors across a complete session" is.
+
+**Blocking dependencies:** if any KR cannot start until another KR or upstream issue lands, name it explicitly in the KR body. Not in a note — in the body.
+
+### 3. Structure gate — do not file until all pass
+
+- [ ] Objective is one sentence, outcome-framed (not action-framed)
+- [ ] Every KR row has a measurable metric
+- [ ] No KR body is missing an explicit blocking dep where one exists
+- [ ] Hierarchy is clean: KRs under OKRs, Items under KRs, nothing under Items
+
+### 4. File and wire
+
+Once the gate passes:
+1. Create the OKR issue — title `[OKR N] <objective>`
+2. Create KR issues — titles `[KR N.M] <outcome>`
+3. Wire KRs as native sub-issues of the OKR (`sub_issue_write`)
+4. Add all to the project board; set ItemType and Priority fields
+5. Report what landed — issue numbers, board item IDs, blocked KRs noted
+
+## What OKRs are for
+
+OKRs in this system are a sync mechanism between the invoker and the specialist pool — a structured contract for what agents are building toward. They are not a performance tool or a cadence ritual. If they feel like overhead, the structure is wrong: cut the KR without a measurable outcome and rewrite it.
