@@ -69,9 +69,7 @@ done
 check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks.json"
 check "hooks/scripts/guard-writes.sh exists"   "test -f hooks/scripts/guard-writes.sh"
 check "hooks/scripts/session-start.sh exists"  "test -f hooks/scripts/session-start.sh"
-check "hooks/scripts/watcher.sh exists"        "test -f hooks/scripts/watcher.sh"
 check "guard-writes.sh is executable"          "test -x hooks/scripts/guard-writes.sh"
-check "watcher.sh is executable"               "test -x hooks/scripts/watcher.sh"
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
