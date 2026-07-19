@@ -12,11 +12,7 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 - `--single <task_id>`: dispatch one specific task regardless of ready-set state
 - `--dry-run`: preview the issues that would be created without filing them
 
-## Execution
-
-### Local mode branch
-
-Read config before any GitHub API call:
+### Local mode branch — read config before any GitHub API call:
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
@@ -40,9 +36,7 @@ Run the reconcile procedure from `/hall:reconcile` before proceeding.
 
 ### Step 2: Determine the ready set
 
-Tasks with status READY (deferred) or PLANNED whose `depends_on` entries are all MERGED.
-
-If `--single` is specified, use only that task (verify it's in a dispatchable state).
+Tasks with status READY (deferred) or PLANNED whose `depends_on` entries are all MERGED. If `--single`, use only that task (verify it's dispatchable).
 
 ### Step 3: Check quota
 
@@ -59,7 +53,6 @@ If the ready set exceeds estimated available capacity, display:
 Default: the steward path (file up to capacity).
 
 ### Step 3b: Query prior context (per-task)
-
 Read `skills/hall-dispatch/prior-context.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
 
 ### Step 4: Confirmation summary
@@ -80,14 +73,11 @@ Estimated turn budget: ~40 turns per task.
 Proceed? [y/N]
 ```
 
-Label: `[doing]` when `task_type: "pr"` (or absent); `[reporting]` when `task_type: "report"`.
-
-If `--dry-run`, show the confirmation summary and the issue bodies that would be created, then stop.
+Label: `[doing]` when `task_type: "pr"` (or absent); `[reporting]` when `task_type: "report"`. If `--dry-run`, show the summary and issue bodies, then stop.
 
 ### Step 5: File issues
 
 For each task in dispatch order, spaced 15 seconds apart:
-
 **Pre-check — pre-filed issue:**
 
 ```bash
