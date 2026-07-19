@@ -53,7 +53,7 @@ done
 check "templates/CLAUDE-stack.md.tpl exists"        "test -f templates/CLAUDE-stack.md.tpl"
 check "templates/subagent-overlay.md.tpl exists"    "test -f templates/subagent-overlay.md.tpl"
 check "templates/plan.json.schema exists"            "test -f templates/plan.json.schema"
-check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-index.md' templates/CLAUDE-stack.md.tpl"
+check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-index.md' templates/CLAUDE-stack-invariant.md.tpl"
 check "CLAUDE-stack does not import decomposition.md"       "! grep -q 'decomposition.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consultation-router.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
