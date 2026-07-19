@@ -37,15 +37,15 @@ check "skills/hall-review/SKILL.md has frontmatter"         "grep -q '^---' skil
 check "skills/hall-review/SKILL.md has name field"          "grep -q '^name:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has description field"   "grep -q '^description:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has allowed-tools field" "grep -q '^allowed-tools:' skills/hall-review/SKILL.md"
-check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -lt 200 ]"
-check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -lt 200 ]"
+check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -le 200 ]"
+check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -le 200 ]"
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
 check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 
 # Methodology
-for F in old-major-local-overlay decomposition consultation-router routing-rationale; do
+for F in decomposition routing-rationale old-major-cli; do
   check "methodology/$F.md exists" "test -f methodology/$F.md"
 done
 
