@@ -37,7 +37,12 @@ fi
 # Cache state
 mkdir -p ~/.hall/personas ~/.hall/session
 CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
-[ -n "$CLAUDE_PLUGIN_ROOT" ] || echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."
+if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
+  export CLAUDE_PLUGIN_ROOT
+  printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
+else
+  echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."
+fi
 
 # Slug derivation
 if [ "$STANDALONE" = "false" ]; then
@@ -120,7 +125,7 @@ python3 -c "import json,sys, os; d=json.load(open(os.path.expanduser('~/.hall/pe
 Fetch and write persona files via Bash (the Write tool fails on new files; gh api writes directly):
 
 ```bash
-SPECS=$(python3 -c "import json, os; print(' '.join(json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json')))))")
+SPECS=$(python3 -c "import json, os; print(' '.join(json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json')))))") 
 gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
   --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
 gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \

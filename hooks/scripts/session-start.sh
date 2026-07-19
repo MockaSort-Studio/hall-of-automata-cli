@@ -3,6 +3,7 @@
 set -euo pipefail
 
 HALL="$HOME/.hall"
+CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat "$HALL/session/.plugin-root" 2>/dev/null || echo "")}
 
 # 1. No active session — exit silently.
 if [ ! -f "$HALL/session/.open_mode" ]; then
@@ -47,7 +48,7 @@ while IFS= read -r line; do
 done < "$STACK"
 
 # 6 & 7. JSON-escape and emit hookSpecificOutput.
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+if [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -z "${COPILOT_CLI:-}" ]; then
   escaped="${CONTENT//\\/\\\\}"
   escaped="${escaped//\"/\\\"}"
   escaped="${escaped//$'\n'/\\n}"
