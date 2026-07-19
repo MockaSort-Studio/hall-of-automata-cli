@@ -136,4 +136,36 @@ if not standalone:
     json.dump(mcp_cfg, open(mcp_path, 'w'), indent=2)
     print(f"{'Added' if is_new else 'Updated'} hall-projects MCP server in .mcp.json.")
 
+# Post-stack token measurement (KR 2.6)
+def _tok(path):
+    try:
+        return len(open(path).read()) // 4
+    except OSError:
+        return 0
+
+t_persona = _tok(f'{root}/methodology/old-major-cli.md')
+t_methodology = _tok(f'{root}/session/roster-index.md')
+t_context = _tok(f'{project_root}/context.md')
+t_board = _tok(f'{project_root}/board-context.md')
+t_total = t_persona + t_methodology + t_context + t_board
+
+breakdown = {'persona': t_persona, 'methodology': t_methodology, 'context': t_context, 'board': t_board}
+log_line = (
+    f'[hall-open] session stack: {t_total} tokens'
+    f' (persona: {t_persona}, methodology: {t_methodology}, context: {t_context}, board: {t_board})'
+)
+print(log_line)
+
+os.makedirs(f'{root}/session', exist_ok=True)
+with open(f'{root}/session/token-count.log', 'w') as _lf:
+    _lf.write(log_line + '\n')
+    _lf.write('# Method: len(text) // 4 (approximation; tiktoken cl100k_base unavailable)\n')
+
+if t_total > 4000:
+    top = max(breakdown, key=breakdown.get)
+    print(
+        f'[hall-open] WARNING: session stack {t_total} tokens exceeds 4,000 budget.'
+        f' Largest contributor: {top} ({breakdown[top]} tokens). KR 2.6 left open.'
+    )
+
 print(f'Setup complete (mode={mode}).')
