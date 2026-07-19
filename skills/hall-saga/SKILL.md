@@ -122,9 +122,3 @@ git -C /tmp/wiki add . && git -C /tmp/wiki commit -m "Add saga: <description>" &
 Return the wiki page URL. This URL is the saga reference for dispatch context.
 
 If the wiki is not enabled for the target repository, name the blocker and ask the invoker to enable it before proceeding.
-
----
-
-## Code quality
-
-Files written or modified in any target repository during this skill must be ≤ 200 lines.
