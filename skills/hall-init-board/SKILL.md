@@ -80,6 +80,11 @@ RESULT=$(gh api graphql \
   -F o="$OWNER_ID" -F t="$REPO_NAME")
 PROJECT_ID=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.id')
 PROJECT_NUM=$(echo "$RESULT" | jq -r '.data.createProjectV2.projectV2.number')
+if [ "$PROJECT_ID" = "null" ] || [ -z "$PROJECT_ID" ]; then
+  echo "ERROR: createProjectV2 returned null — check permissions (needs project:write on org)"
+  echo "$RESULT" | jq -r '.errors[]?.message' 2>/dev/null || true
+  exit 1
+fi
 
 REPO_ID=$(gh api graphql \
   -f query='query($o:String!,$r:String!){repository(owner:$o,name:$r){id}}' \
@@ -93,7 +98,7 @@ python3 -c "
 import json, os
 s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
 s['project_id'] = '${PROJECT_ID}'
-s['project_num'] = ${PROJECT_NUM}
+s['project_num'] = int('${PROJECT_NUM}')
 s['board_was_created'] = True
 json.dump(s, open(os.path.expanduser('~/.hall/session/.board-init-state.json'),'w'), indent=2)
 "
@@ -231,10 +236,13 @@ PYEOF
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 PROJECT_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/projects/$SLUG/board-meta.json')))['project_id'])")
 EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on ProjectV2{views(first:20){nodes{name}}}}}" --jq '[.data.node.views.nodes[].name]|index("Roadmap")' 2>/dev/null || echo "null")
-[ "$EXISTS" != "null" ] && { echo "skip: Roadmap view already exists"; } || \
+if [ "$EXISTS" != "null" ]; then
+  echo "skip: Roadmap view already exists"
+else
   gh api graphql -f query="mutation{createProjectV2View(input:{projectId:\"${PROJECT_ID}\",name:\"Roadmap\",layout:ROADMAP_LAYOUT}){projectV2View{name}}}" \
     --jq '.data.createProjectV2View.projectV2View.name' 2>/dev/null \
     && echo "created: Roadmap view" || echo "WARN: Roadmap layout unavailable — continuing"
+fi
 ```
 
 ### Step 7: Confirm
