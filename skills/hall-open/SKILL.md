@@ -84,7 +84,7 @@ NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
 [ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
 [ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'))); assert isinstance(d,list)" 2>/dev/null \
+python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/roster-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
@@ -112,38 +112,43 @@ echo "SHA=${CURRENT_SHA:0:8}"
 
 If `STANDALONE=true` OR `SLUG_STATUS=empty`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
-### Step 2: Persona fetch (skip if NEED_FETCH=false)
+### Step 2: Roster index build (skip if NEED_FETCH=false)
 
 Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/`. From the returned array, keep entries where type=`file`, name ends in `.md`, name ≠ `old-major.md` and ≠ `README.md`. Write the names (without `.md`) using:
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.content' | base64 -d > ~/.hall/personas/.agents-yml`
+
 ```bash
-python3 -c "import json, os; open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'), 'w').write(json.dumps([...]))"
+printf '%s' "<base64-content>" | base64 -d > ~/.hall/personas/.agents-yml
 ```
-(substitute `[...]` with the filtered list of name strings from the MCP result, e.g. `['snowball', 'hamlet', 'pyrate']`)
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/roster --jq '[.[] | select(.type=="file" and (.name|endswith(".md")) and .name!="old-major.md" and .name!="README.md") | .name[:-3]]' > ~/.hall/personas/.advisory-roster.json`
-
 ```bash
-python3 -c "import json,sys, os; d=json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json'))); assert isinstance(d,list), f'API error: {d}'" \
-  || exit 1
+python3 << 'PYEOF'
+import yaml, json, os
+with open(os.path.expanduser('~/.hall/personas/.agents-yml')) as f:
+    agents_yml = f.read()
+catalog = yaml.safe_load(agents_yml).get('agents', {})
+roster = {}
+for slug, data in catalog.items():
+    if slug == 'old-major':
+        continue
+    c = data.get('catalog', {})
+    roster[slug] = {
+        'display_name': data.get('display_name', slug),
+        'roles': c.get('roles', []),
+        'domains': c.get('domains', []),
+        'scope_summary': c.get('scope_summary', '').strip(),
+        'model': data.get('model', ''),
+    }
+json.dump(roster, open(os.path.expanduser('~/.hall/personas/roster-index.json'), 'w'), indent=2)
+print(f'Roster index: {len(roster)} specialists.')
+PYEOF
 ```
 
-Fetch and write persona files via Bash (the Write tool fails on new files; gh api writes directly):
-
 ```bash
-SPECS=$(python3 -c "import json, os; print(' '.join(json.load(open(os.path.expanduser('~/.hall/personas/.advisory-roster.json')))))") 
 gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
   --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
-gh api repos/MockaSort-Studio/hall-of-automata/contents/roster/old-major.md \
-  --jq '.content' | base64 -d > ~/.hall/personas/old-major.md
-for name in $SPECS; do
-  gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${name}.md" \
-    --jq '.content' | base64 -d > "$HOME/.hall/personas/${name}.md"
-done
-```
-
-```bash
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```

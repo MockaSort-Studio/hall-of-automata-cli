@@ -28,12 +28,20 @@ If the count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — sk
 #### 0b. Render the reviewer overlay
 
 ```bash
+specialist='<SPECIALIST>'  # substitute task['specialist']
+mkdir -p ~/.hall/session/claude-agents
+gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${specialist}.md" \
+  --jq '.content' | base64 -d \
+  > ~/.hall/session/claude-agents/${specialist}-persona.md 2>/dev/null
+```
+
+```bash
 python3 << 'PYEOF'
-import json, os
+import os
 plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT') or open(os.path.expanduser('~/.hall/session/.plugin-root')).read().strip()
 cache_root = os.path.expanduser('~/.hall')
 specialist = '<SPECIALIST>'  # substitute task['specialist']
-persona_path = f'{cache_root}/personas/{specialist}.md'
+persona_path = f'{cache_root}/session/claude-agents/{specialist}-persona.md'
 with open(f'{plugin_root}/templates/reviewer-overlay.md.tpl') as f:
     template = f.read()
 with open(persona_path) as f:
@@ -44,7 +52,6 @@ content = (template
     .replace('{{SPECIALIST_DESCRIPTION}}', description)
     .replace('{{PERSONA_PATH}}', persona_path)
     .replace('{{CACHE_ROOT}}', cache_root))
-os.makedirs(f'{cache_root}/session/claude-agents', exist_ok=True)
 with open(f'{cache_root}/session/claude-agents/{specialist}-reviewer.md', 'w') as f:
     f.write(content)
 PYEOF

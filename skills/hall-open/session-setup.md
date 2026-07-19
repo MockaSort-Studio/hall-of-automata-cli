@@ -11,6 +11,21 @@ Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight ta
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
 ```
 
+```bash
+python3 << 'PYEOF'
+import json, os
+roster = json.load(open(os.path.expanduser('~/.hall/personas/roster-index.json')))
+lines = ['# Specialist Roster\n']
+for slug, data in roster.items():
+    lines.append(f"## {data['display_name']} (`{slug}`)")
+    lines.append(f"**Domains:** {', '.join(data['domains'])}")
+    lines.append(f"**Roles:** {', '.join(data['roles'])}")
+    lines.append(data['scope_summary'])
+    lines.append('')
+open(os.path.expanduser('~/.hall/session/roster-index.md'), 'w').write('\n'.join(lines))
+PYEOF
+```
+
 **Cron restart (resume with in-flight tasks):**
 
 ```bash
