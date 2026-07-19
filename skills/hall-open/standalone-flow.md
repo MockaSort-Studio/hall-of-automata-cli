@@ -1,12 +1,12 @@
 ---
 name: hall-open-standalone
-description: Org and repo resolution for standalone mode — no git remote; executed from hall-open Step 1 when STANDALONE=true
+description: Org and repo resolution for standalone mode and empty-slug fallback — executed from hall-open Step 1 when STANDALONE=true or SLUG_STATUS=empty
 ---
 
 # Standalone Mode — Org and Repo Resolution
 
-Execute only when `STANDALONE=true`. Resolves the target org and repo, persists the org,
-and sets `ORG`, `REPO_NAME`, and `REPO` for subsequent `hall-open` steps.
+Execute when `STANDALONE=true` OR `SLUG_STATUS=empty`. Resolves the target org and repo,
+persists the org, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequent `hall-open` steps.
 
 Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
 
@@ -34,14 +34,14 @@ fi
 
 If `ORG` is non-empty: skip to [Step D: Repo picker](#step-d-repo-picker).
 
-## Step C: Org selection and verification
+## Step C: Org selection via invoker team membership
 
 ```bash
-ORGS_JSON=$(gh api /user/orgs --jq '[.[].login]' 2>/dev/null || echo "[]")
+ORGS_JSON=$(gh api user/teams --jq '[.[].organization.login] | unique' 2>/dev/null || echo "[]")
 ORG_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(sys.argv[1]))))" "$ORGS_JSON")
 ```
 
-- **Zero orgs:** print `"ERROR: no GitHub orgs found — cannot proceed in standalone mode."` and halt.
+- **Zero orgs:** print `"ERROR: no GitHub orgs found via team membership — cannot proceed in standalone mode."` and halt.
 - **One org:** `ORG=$(python3 -c "import json, sys; sys.stdout.write(json.loads(sys.argv[1])[0])" "$ORGS_JSON")`
 - **Multiple orgs:** Use `AskUserQuestion`:
   - Header: `"Which org?"`
@@ -114,8 +114,9 @@ print('Target repo: $ORG/$REPO_NAME')
 
 ```bash
 REPO="$ORG/$REPO_NAME"
+SLUG="$REPO_NAME"
 ```
 
-After this file completes, `ORG`, `REPO_NAME`, and `REPO` are set for the remainder of `hall-open`.
+After this file completes, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set for the remainder of `hall-open`.
 
-// Snowball 🐷 — standalone context is now a first-class citizen, not an afterthought
+// Snowball 🐷 — standalone-flow now covers the git-failure path too; no slug goes unresolved

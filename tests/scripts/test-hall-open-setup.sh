@@ -41,13 +41,13 @@ make_hall_home "$GIT_HOME"
 run_test "fresh git: slug from remote" "$GIT_DIR" "$GIT_HOME" "" \
   "project layer — my-project" 0
 
-# Scenario 2: repoless + no config — empty input exits 1 with error message
+# Scenario 2: repoless + no config — empty input exits 1
 BARE_DIR="$TMP/bare-dir"
 mkdir -p "$BARE_DIR"
 BARE_HOME="$TMP/home-bare"
 make_hall_home "$BARE_HOME"
-run_test "repoless: no git, no config — error and exit 1" "$BARE_DIR" "$BARE_HOME" "" \
-  "Could not resolve project slug" 1
+run_test "repoless: no git, no config — empty input exits 1" "$BARE_DIR" "$BARE_HOME" "" \
+  "No project selected" 1
 
 # Scenario 3: slug from config — prints config-origin message
 NO_GIT_DIR="$TMP/no-git"
@@ -73,6 +73,15 @@ if grep -q "new-project" "$DIFF_HOME/.hall/session/.repo-slug" 2>/dev/null; then
 else
   echo "  FAIL: .repo-slug not updated"; FAIL=$((FAIL+1))
 fi
+
+# Scenario 5: local project exists — interactive picker selects by number
+LOCAL_DIR="$TMP/local-dir"
+mkdir -p "$LOCAL_DIR"
+LOCAL_HOME="$TMP/home-local"
+make_hall_home "$LOCAL_HOME"
+mkdir -p "$LOCAL_HOME/.hall/projects/existing-project"
+run_test "local project listed: select [1]" "$LOCAL_DIR" "$LOCAL_HOME" "1" \
+  "project layer — existing-project" 0
 
 echo
 echo "Results: $PASS passed, $FAIL failed"

@@ -10,8 +10,67 @@ try:
 except subprocess.CalledProcessError:
     standalone = True
 
+
+def resolve_slug_interactive(root):
+    local = sorted(
+        os.path.basename(p) for p in glob.glob(f'{root}/projects/*')
+        if os.path.isdir(p)
+    )
+    orgs, org = [], None
+    try:
+        r = subprocess.run(
+            ['gh', 'api', 'user/teams', '--jq', '[.[].organization.login] | unique'],
+            capture_output=True, text=True, timeout=10
+        )
+        if r.returncode == 0:
+            orgs = json.loads(r.stdout.strip())
+    except Exception:
+        pass
+    if len(orgs) == 1:
+        org = orgs[0]
+    elif len(orgs) > 1:
+        print(f'Multiple orgs: {", ".join(orgs)}')
+        print('Which org contains your Hall project? ', end='', flush=True)
+        try:
+            org = input().strip()
+        except EOFError:
+            org = ''
+    remote = []
+    if org:
+        try:
+            r = subprocess.run(
+                ['gh', 'api', f'/orgs/{org}/repos', '--jq', '[.[].name]'],
+                capture_output=True, text=True, timeout=10
+            )
+            if r.returncode == 0:
+                remote = json.loads(r.stdout.strip())
+        except Exception:
+            pass
+    options = list(dict.fromkeys(local + remote))
+    if not options:
+        print('Enter project slug: ', end='', flush=True)
+        try:
+            return input().strip()
+        except EOFError:
+            return ''
+    print('On which project are you working?')
+    for i, name in enumerate(options, 1):
+        print(f'  [{i}] {name}')
+    print('  [0] Enter manually')
+    print('Select [1-N or 0]: ', end='', flush=True)
+    try:
+        choice = input().strip()
+        if choice.isdigit() and 0 < int(choice) <= len(options):
+            return options[int(choice) - 1]
+        elif choice == '0':
+            print('Slug: ', end='', flush=True)
+            return input().strip()
+        return choice
+    except EOFError:
+        return ''
+
+
 slug = ''
-slug_failure = ''
 if not standalone:
     try:
         origin = subprocess.run(
@@ -21,11 +80,10 @@ if not standalone:
         cleaned = re.sub(r'\.git$', '', cleaned)
         parts = cleaned.split('/')
         slug = parts[1] if len(parts) >= 2 else ''
-        if not slug:
-            slug_failure = f'could not parse slug from origin: {origin}'
-    except Exception as e:
-        slug_failure = f'git remote get-url failed: {e}'
-else:
+    except Exception:
+        pass
+
+if not slug:
     cfg_path = os.path.expanduser('~/.hall/.config.json')
     try:
         cfg_data = json.load(open(cfg_path))
@@ -33,21 +91,13 @@ else:
         slug = target_repo.split('/')[-1] if target_repo else ''
         if slug:
             print(f'Using project from ~/.hall/.config.json: {slug}')
-        else:
-            slug_failure = 'target_repo not set in ~/.hall/.config.json'
-    except FileNotFoundError:
-        slug_failure = f'{cfg_path} not found'
-    except Exception as e:
-        slug_failure = f'failed to read {cfg_path}: {e}'
+    except Exception:
+        pass
 
 if not slug:
-    print(f'ERROR: Could not resolve project slug — {slug_failure}')
-    try:
-        slug = input('Enter project slug to continue: ').strip()
-    except EOFError:
-        slug = ''
+    slug = resolve_slug_interactive(root)
     if not slug:
-        print('ERROR: No slug entered. Aborting.', file=sys.stderr)
+        print('ERROR: No project selected. Aborting.', file=sys.stderr)
         sys.exit(1)
 
 project_root = f'{root}/projects/{slug}'
