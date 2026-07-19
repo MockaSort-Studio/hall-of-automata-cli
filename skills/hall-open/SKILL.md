@@ -64,6 +64,7 @@ except Exception:
 fi
 [ -n "$SLUG" ] && echo "SLUG_STATUS=ok" || echo "SLUG_STATUS=empty"
 [ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
+[ -n "$SLUG" ] && bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
