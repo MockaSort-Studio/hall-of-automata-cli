@@ -36,8 +36,13 @@
       "RemoteTrigger",
       "mcp__github__*",
       "mcp__plugin_hall-of-automata_github__*",
+      "mcp__plugin_hall-of-automata-cli_github__*",
       "mcp__fetch__fetch",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__plugin_hall-of-automata-cli_fetch__fetch",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__plugin_hall-of-automata-cli_sequential-thinking__sequentialthinking",
+      "mcp__hall-projects__*",
+      "mcp__plugin_hall-of-automata-cli_hall-projects__*"
     ],
     "deny": []
   },
