@@ -136,21 +136,24 @@ INVOKER_LOGIN=$(gh api /user --jq '.login')
 
 For each task whose status **newly** transitioned to MERGED or DONE during this pass:
 
-1. Find item in `~/.hall/projects/$SLUG/board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip.
+1. Find item in `~/.hall/projects/$SLUG/board.json` where `issue_number` matches `task["github_issue"]`; if absent, log `Board item not found for issue #N` and skip. Set `ITEM_ID` to the matched item's `id`.
 
-2. Resolve the "Done" option ID from `~/.hall/projects/$SLUG/board-meta.json["fields"]["Status"]["options"]` (entry with name `"Done"`).
+2. Resolve values before calling:
+   ```bash
+   PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])")
+   FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['id'])")
+   DONE_OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
+   ```
 
 3. Call `update_item_field`:
-   - `project_id` = `board.json["project_id"]`
-   - `item_id` = matched item `id`
-   - `field_id` = `board-meta.json["fields"]["Status"]["id"]`
-   - `value` = `{"singleSelectOptionId": <Done option ID>}`
+   - `project_id` = `$PROJ_ID`
+   - `item_id` = `$ITEM_ID`
+   - `field_id` = `$FIELD_ID`
+   - `value` = `{"singleSelectOptionId": $DONE_OPT}`
    - `invoker_login` = `$INVOKER_LOGIN`
 
-   On `rate_limit`/`secondary-rate-limit` error, resolve values and inline them in the query string:
+   On `rate_limit`/`secondary-rate-limit` error:
    ```bash
-   DONE_OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
-   PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])")
    gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${DONE_OPT}\"}}){projectV2Item{id}}}"
    ```
 
