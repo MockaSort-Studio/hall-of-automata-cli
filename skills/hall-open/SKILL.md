@@ -64,6 +64,13 @@ except Exception:
 fi
 [ -n "$SLUG" ] && echo "SLUG_STATUS=ok" || echo "SLUG_STATUS=empty"
 [ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
+OLD_SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+if [ -n "$OLD_SLUG" ] && [ -n "$SLUG" ] && [ "$OLD_SLUG" != "$SLUG" ]; then
+  echo "[hall-open] project switch detected: $OLD_SLUG → $SLUG"
+  echo -n "$OLD_SLUG" > ~/.hall/session/.old-slug
+else
+  rm -f ~/.hall/session/.old-slug
+fi
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
