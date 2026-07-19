@@ -90,6 +90,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
+| `hall-saga` | Invoker describes a new dev cycle (revision, feature, or new product) and no open saga exists for the current project |
 
 ---
 
