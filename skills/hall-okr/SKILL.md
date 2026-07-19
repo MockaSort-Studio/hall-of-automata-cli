@@ -1,97 +1,88 @@
 ---
 name: hall-okr
-description: OKR authoring discipline. Old Major reads this internally when the work-type gate determines OKRs are required. Not user-invoked.
+description: OKR formalization flow. Old Major reads this when an invoker describes new initiative work. Not user-invoked — triggered implicitly by work intake.
 ---
 
-# OKR Authoring Discipline
+# OKR Formalization Flow
 
-## When to apply
+A 5-phase conversation. Work through each phase in order. Do not propose structure until Phase 3.
 
-Work-type gate (in persona) routes here for: revision/refactor, new features, new capabilities, infrastructure initiatives. Skip for bugfixes, investigations, hotfixes — dispatch directly.
+---
 
-## Authoring sequence
+## Phase 1 — Listen
 
-### 1. Understand the work
+Receive the invoker's raw idea without shaping it. Do not ask how they want to structure it or what OKR hierarchy they have in mind.
 
-Before proposing any structure, establish:
-- What capability or outcome does this add or improve?
-- What does success look like concretely?
-- Are there known dependencies on upstream work, other invokers, or external systems?
+Identify work class:
+- **feature** — new user-facing behaviour
+- **capability** — new internal or platform capability
+- **initiative** — multi-KR effort spanning several specialists or weeks
+- **infrastructure** — foundational change (CI, tooling, schema, auth)
 
-Ask these in conversation. Don't assume the invoker's initial framing is the right OKR — most raw ideas need one round of sharpening before they're ready to structure.
+Work class is not a label — it shapes how many KRs to expect and whether sequencing constraints exist.
 
-### 2. Structure
+---
 
-**Objective:** one sentence, outcome-framed. Not "implement X" — "X behaves reliably under Y conditions." The objective names what the world looks like when done, not the work to get there.
+## Phase 2 — Sharpen
 
-**KR table:** every row has a key result and a metric. The metric must be observable and specific.
+Ask up to 3 questions. Questions must be about **observable outcomes**, not implementation approach.
+
+Good: *"What does a session look like after this is working — what can an invoker do that they can't do today?"*
+Bad: *"Should we implement this as a hook or a skill?"*
+
+Stop asking when the Objective can be stated as a single outcome-framed sentence. If it can be stated clearly from the initial description, skip to Phase 3.
+
+---
+
+## Phase 3 — Propose
+
+Draft the structure and present it before filing anything.
+
+**Objective:** one sentence, outcome-framed. Names the observable state of the world when done — not the work to get there.
+- Correct: *"X works reliably under Y conditions"*
+- Wrong: *"Implement X"* / *"Add support for X"*
+
+**KR table:**
 
 | KR | Metric |
 |----|--------|
-| <outcome statement> | <how you know it's true> |
+| `[KR N.M]` outcome statement | how you know it's true |
 
-"Works" is not a metric. "Zero X errors across a complete session" is.
+Every row needs a metric. "Works" is not a metric. "Zero X errors across a complete session" is.
 
-**Blocking dependencies:** if any KR cannot start until another KR or upstream issue lands, name it explicitly in the KR body. Not in a note — in the body.
+If any KR cannot start until another KR or upstream issue lands, name the blocking dependency explicitly in the KR body — not in a note.
 
-### 3. Structure gate — do not file until all pass
-
-- [ ] Objective is one sentence, outcome-framed (not action-framed)
-- [ ] Every KR row has a measurable metric
-- [ ] No KR body is missing an explicit blocking dep where one exists
-- [ ] Hierarchy is clean: KRs under OKRs, Items under KRs, nothing under Items
-
-### 4. File and wire
-
-Once the gate passes:
-1. Create the OKR issue — title `[OKR N] <objective>`
-2. Create KR issues — titles `[KR N.M] <outcome>`
-3. Wire KRs as native sub-issues of the OKR (`sub_issue_write`)
-4. Add all to the project board; set ItemType and Priority fields
-5. Report what landed — issue numbers, board item IDs, blocked KRs noted
+Wait for invoker confirmation or revision requests before proceeding to Phase 4.
 
 ---
 
-## KR → Item decomposition gate
+## Phase 4 — Gate
 
-**This gate runs before any dispatch.** KRs are outcome targets, not dispatchable units. Items (sub-issues of a KR) are what get specialist labels and produce PRs. A KR may have one Item or many — the check determines which.
+Run before filing. All 4 must pass:
 
-### When to run
+- [ ] Objective is outcome-framed (not action-framed)
+- [ ] Every KR has a measurable metric ("works" is not a metric)
+- [ ] Blocking dependencies are named explicitly in KR bodies where they exist
+- [ ] Hierarchy is clean: KRs under OKR, Items under KRs, nothing under Items
 
-Every time a KR enters the ready set. No exceptions — even KRs that appear trivially atomic must pass through this gate. Speed is not a reason to skip it; a KR dispatched directly is a KR whose scope was never challenged.
+If any fail: revise with the invoker and re-run. Do not file until all 4 pass.
 
-### Atomicity test
+---
 
-For each ready KR, ask:
+## Phase 5 — File + Wire
 
-1. **Single PR?** Can the full scope land as one coherent diff that merges independently?
-2. **Single specialist?** Does all the work fall within one domain?
-3. **No architecture decisions deferred?** Could a specialist start without needing to make structural choices that should be resolved first?
-4. **Acceptance criteria already clear?** Does the KR body already state what must be true when done, specifically enough that a specialist could verify it without asking?
+Once the gate passes:
 
-**If all four hold:** one Item is sufficient. Create it, wire it as a sub-issue of the KR, and dispatch the Item.
+1. Create the OKR issue — title `[OKR N] <objective>`
+2. Create KR issues — titles `[KR N.M] <outcome>`
+3. Wire KRs as sub-issues of the OKR via `sub_issue_write`
+4. For each KR, read `skills/hall-decompose/SKILL.md` and apply the atomicity test. Determine whether the KR dispatches as one Item or decomposes into multiple Items.
+5. Report: issue numbers, board item IDs, blocked KRs
 
-**If any fail:** decompose. Each Item should satisfy all four conditions independently. Read `skills/hall-decompose/SKILL.md` for the full decomposition procedure.
+**Items are the dispatchable unit.** KRs never receive specialist labels directly.
 
-### Item format
-
-```
-Title: [Item] <what this PR delivers>
-Body:
-- Scope: <what the specialist builds>
-- Acceptance criteria: <2–3 outcome assertions>
-- Routing: <specialist> — <one-line rationale>
-```
-
-Wire as native sub-issue of the KR. Add to board with ItemType=Item. Do not dispatch the KR — dispatch the Item.
-
-### Before presenting to the invoker
-
-State explicitly for each KR in the ready set:
-- Atomicity verdict: atomic (1 Item) or decomposed (N Items)
-- If decomposed: list the Items and their split rationale
-- Wait for confirmation before filing Items or dispatching
+---
 
 ## What OKRs are for
 
-OKRs in this system are a sync mechanism between the invoker and the specialist pool — a structured contract for what agents are building toward. They are not a performance tool or a cadence ritual. If they feel like overhead, the structure is wrong: cut the KR without a measurable outcome and rewrite it.
+A sync mechanism between the invoker and the specialist pool — a structured contract for what agents are building toward. Not a performance tool. If they feel like overhead, the structure is wrong: cut the KR without a measurable outcome and rewrite it.

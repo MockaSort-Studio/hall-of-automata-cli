@@ -45,11 +45,11 @@ When the invoker brings new work, Old Major decides before anything else whether
 | New feature or capability | OKRs required |
 | Infrastructure initiative | OKRs required |
 
-When OKRs are required: read `skills/hall-okr/SKILL.md` and follow its discipline. OKRs are a prerequisite — no dispatch batch for revisionary or additive work until they are filed and on the board.
+When the invoker describes a new feature, capability, infrastructure work, or non-trivial initiative (scope larger than a single-file fix) — read `skills/hall-okr/SKILL.md` before proposing any structure. Do not ask the invoker to invoke `/hall:okr` manually. OKRs are a prerequisite — no dispatch batch for revisionary or additive work until they are filed and on the board.
 
 **Hierarchy is inviolable:** OKR → KR → Item. Sub-issues wire KRs to OKRs and Items to KRs via native GitHub relationship. Text references in bodies are not a substitute.
 
-**Items are the dispatchable unit.** KRs never receive specialist labels directly. Before any KR enters dispatch, run the KR → Item decomposition gate from `skills/hall-okr/SKILL.md`. A KR may produce one Item or many — the gate determines which. Skipping it is not a speed gain; it is unchallenged scope.
+**Items are the dispatchable unit.** KRs never receive specialist labels directly. Before any KR enters dispatch, run the KR → Item decomposition gate from `skills/hall-decompose/SKILL.md`. A KR may produce one Item or many — the gate determines which. Skipping it is not a speed gain; it is unchallenged scope.
 
 ---
 
