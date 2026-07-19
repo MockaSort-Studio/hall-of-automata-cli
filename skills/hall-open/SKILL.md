@@ -45,8 +45,10 @@ else
 fi
 
 # Slug derivation
+SLUG_SOURCE=""
 if [ "$STANDALONE" = "false" ]; then
   SLUG=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||' | cut -d/ -f2)
+  [ -n "$SLUG" ] && SLUG_SOURCE="git" || echo "SLUG_FAILURE: could not parse slug from origin: $ORIGIN"
 else
   SLUG=$(python3 -c "
 import json, os
@@ -55,10 +57,15 @@ try:
 except Exception:
     print('')
 " 2>/dev/null || echo "")
+  [ -n "$SLUG" ] && SLUG_SOURCE="config" || echo "SLUG_FAILURE: no git remote and no target_repo in ~/.hall/.config.json"
 fi
+[ "$SLUG_SOURCE" = "config" ] && echo "Using project from ~/.hall/.config.json: $SLUG"
+[ -n "$SLUG" ] && echo "SLUG_STATUS=ok" || echo "SLUG_STATUS=empty"
 [ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
+
+**If `SLUG_STATUS=empty` was printed:** use `AskUserQuestion` with the failure reason from the `SLUG_FAILURE` line above — do not advance to the `get_file_contents` call until the invoker provides a non-empty slug. Once received, run `mkdir -p ~/.hall/projects/$SLUG/plans && echo -n "$SLUG" > ~/.hall/session/.repo-slug`.
 
 Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash

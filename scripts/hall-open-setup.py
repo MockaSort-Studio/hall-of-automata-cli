@@ -1,4 +1,4 @@
-import json, os, re, shutil, glob, subprocess
+import json, os, re, shutil, glob, subprocess, sys
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
@@ -11,6 +11,7 @@ except subprocess.CalledProcessError:
     standalone = True
 
 slug = ''
+slug_failure = ''
 if not standalone:
     try:
         origin = subprocess.run(
@@ -20,27 +21,42 @@ if not standalone:
         cleaned = re.sub(r'\.git$', '', cleaned)
         parts = cleaned.split('/')
         slug = parts[1] if len(parts) >= 2 else ''
-    except Exception:
-        slug = ''
+        if not slug:
+            slug_failure = f'could not parse slug from origin: {origin}'
+    except Exception as e:
+        slug_failure = f'git remote get-url failed: {e}'
 else:
+    cfg_path = os.path.expanduser('~/.hall/.config.json')
     try:
-        cfg_data = json.load(open(os.path.expanduser('~/.hall/.config.json')))
+        cfg_data = json.load(open(cfg_path))
         target_repo = cfg_data.get('target_repo', '')
         slug = target_repo.split('/')[-1] if target_repo else ''
-    except Exception:
-        slug = ''
+        if slug:
+            print(f'Using project from ~/.hall/.config.json: {slug}')
+        else:
+            slug_failure = 'target_repo not set in ~/.hall/.config.json'
+    except FileNotFoundError:
+        slug_failure = f'{cfg_path} not found'
+    except Exception as e:
+        slug_failure = f'failed to read {cfg_path}: {e}'
 
-if slug:
-    project_root = f'{root}/projects/{slug}'
-    os.makedirs(project_root, exist_ok=True)
-    open(f'{root}/session/.repo-slug', 'w').write(slug)
-    if not os.path.exists(f'{project_root}/config.json'):
-        open(f'{project_root}/config.json', 'w').write('{}')
-    stack_dir = f'{project_root}/session'
-    os.makedirs(stack_dir, exist_ok=True)
-else:
-    project_root = f'{root}/session'
-    stack_dir = f'{root}/session'
+if not slug:
+    print(f'ERROR: Could not resolve project slug — {slug_failure}')
+    try:
+        slug = input('Enter project slug to continue: ').strip()
+    except EOFError:
+        slug = ''
+    if not slug:
+        print('ERROR: No slug entered. Aborting.', file=sys.stderr)
+        sys.exit(1)
+
+project_root = f'{root}/projects/{slug}'
+os.makedirs(project_root, exist_ok=True)
+open(f'{root}/session/.repo-slug', 'w').write(slug)
+if not os.path.exists(f'{project_root}/config.json'):
+    open(f'{project_root}/config.json', 'w').write('{}')
+stack_dir = f'{project_root}/session'
+os.makedirs(stack_dir, exist_ok=True)
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -87,7 +103,7 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug or "standalone"}).')
+print(f'Phase 2 built (project layer — {slug}).')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
