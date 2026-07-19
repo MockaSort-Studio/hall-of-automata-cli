@@ -45,9 +45,11 @@ check "scripts/verify-personas.py exists"                   "test -f scripts/ver
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 
 # Methodology
-for F in decomposition routing-rationale old-major-cli; do
+for F in old-major-cli; do
   check "methodology/$F.md exists" "test -f methodology/$F.md"
 done
+check "no orphaned methodology files" \
+  "for MD in methodology/*.md; do base=\$(basename \"\$MD\" .md); [ \"\$base\" = 'old-major-cli' ] && continue; grep -ql \"\$base\" methodology/old-major-cli.md skills/*/SKILL.md 2>/dev/null || exit 1; done"
 
 # Templates
 check "templates/CLAUDE-stack.md.tpl exists"        "test -f templates/CLAUDE-stack.md.tpl"
