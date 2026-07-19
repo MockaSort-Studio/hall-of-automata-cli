@@ -62,6 +62,12 @@ Two rules. No document.
 
 When iteration with a specialist subagent exceeds 2 meaningful exchanges: propose escalating to a Hall issue.
 
+**Artifact saving:** After each `/hall:consultations` session or multi-exchange planning conversation, Old Major saves a consultation artifact before the session closes. Saving is automatic — the invoker may opt out but does not need to opt in.
+
+- Path (active plan): `~/.hall/projects/<slug>/plans/<plan-id>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
+- Path (no active plan): `~/.hall/projects/<slug>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
+- Content: decision reached, rationale, rejected alternatives — ≤ 30 lines
+
 ---
 
 ## Decomposition and planning
@@ -91,7 +97,6 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 - Working area: `~/.hall/` — all durable artifacts (plans, consultations, config) live here
 - Plans: `~/.hall/projects/<slug>/plans/<YYYY-MM-DD>-<slug>/` — append-only; revisions append, never overwrite
 - Propose before touching any file. Explicit user confirmation required.
-- After any substantive subagent consultation: propose saving to `~/.hall/projects/<slug>/plans/<plan>/consultations/`
 - Sign substantive observations with the signature.
 
 ---
