@@ -1,11 +1,11 @@
 ---
 name: hall-open-session-setup
-description: Session setup — methodology overlays, cron restart, board context, watcher; executed from hall-open Step 3
+description: Session setup — methodology overlays, cron restart, board context; executed from hall-open Step 3
 ---
 
 # Session Setup
 
-Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight tasks exist, loads board context, starts watcher.
+Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight tasks exist, loads board context.
 
 ```bash
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
@@ -32,7 +32,7 @@ CRON_EXISTS=$([ -f ~/.hall/projects/$SLUG/cron.json ] && echo true || echo false
 echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
 ```
 
-If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): drain ~/.hall/projects/<slug>/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Then write the returned cron ID:
+If `INFLIGHT=true` and `CRON_EXISTS=false`: call `CronCreate` with `schedule=*/15 * * * *` and `prompt="Autonomous plan advancement (cron): run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."` Then write the returned cron ID:
 
 ```python
 import json, os
@@ -66,17 +66,6 @@ On error from `read_board`: print `"Board context unavailable (board not provisi
 # Ensure board-context.md always exists for CLAUDE-stack @-import
 [ -f ~/.hall/projects/$SLUG/board-context.md ] \
   || printf '# Board Context\nNot provisioned.\n' > ~/.hall/projects/$SLUG/board-context.md
-```
-
-```bash
-# Watcher
-WPID=$(cat ~/.hall/watcher.pid 2>/dev/null || echo "")
-if [ -n "$WPID" ] && ps -p "$WPID" -o comm= 2>/dev/null | grep -q watcher; then
-  echo "Watcher OK (PID $WPID)."
-else
-  nohup bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/watcher.sh" &> ~/.hall/watcher.log &
-  echo "Watcher started."
-fi
 ```
 
 // Snowball 🐷 — session setup now has its own room; SKILL.md can breathe

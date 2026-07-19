@@ -32,17 +32,6 @@
         }
       ]
     }
-  ],
-  "Stop": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "if [ -f ~/.hall/watcher.pid ]; then kill $(cat ~/.hall/watcher.pid) 2>/dev/null; rm -f ~/.hall/watcher.pid; fi",
-          "timeout": 5
-        }
-      ]
-    }
   ]
   }
 }
