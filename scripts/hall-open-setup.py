@@ -87,7 +87,7 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug or "standalone"})')
+print(f'Phase 2 built (project layer — {slug or "standalone"}).')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
