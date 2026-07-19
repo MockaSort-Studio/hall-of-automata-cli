@@ -71,9 +71,6 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
     open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(
         open(f'{pr}/templates/CLAUDE-stack-invariant.md.tpl').read()
         .replace('{{CACHE_ROOT}}', root).replace('{{ASSEMBLED_AT}}', at))
-    open(f'{root}/session/session-guard.md', 'w').write(
-        open(f'{pr}/templates/session-guard.md.tpl').read()
-        .replace('{{CACHE_ROOT}}', root))
 
     open(phase1_marker, 'w').write(current_sha)
     print('Phase 1 built (invariant layer).')
@@ -90,7 +87,7 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug or "standalone"}).')
+print(f'Phase 2 built (project layer — {slug or "standalone"})')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
