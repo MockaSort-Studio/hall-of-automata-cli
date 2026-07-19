@@ -48,7 +48,7 @@ else:
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-# Phase 1 — invariant: persona, methodology, skills (once per session; gated by agents.yml SHA)
+# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.yml SHA)
 phase1_marker = f'{root}/session/.invariant-built'
 current_sha = (open(f'{root}/session/.current-sha').read().strip()
                if os.path.exists(f'{root}/session/.current-sha') else '')
@@ -62,11 +62,10 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
 
     os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
     open(f'{root}/session/.plugin-root', 'w').write(pr)
-    specs = json.load(open(f'{root}/personas/.advisory-roster.json'))
+    roster = json.load(open(f'{root}/personas/roster-index.json'))
     tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
-    for name in specs:
-        lines = [l.rstrip() for l in open(f'{root}/personas/{name}.md') if l.strip()]
-        desc = next((l.lstrip('# ') for l in lines if l.startswith('#')), name)
+    for name, data in roster.items():
+        desc = data.get('display_name', name)
         open(f'{root}/session/claude-agents/{name}.md', 'w').write(
             tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
                .replace('{{PERSONA_PATH}}', f'{root}/personas/{name}.md')
@@ -91,7 +90,7 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug or "standalone"}).')
+print(f'Phase 2 built (project layer — {slug or "standalone"})')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
