@@ -64,9 +64,6 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))
-open(f'{root}/session/session-guard.md', 'w').write(
-    open(f'{pr}/templates/session-guard.md.tpl').read()
-    .replace('{{CACHE_ROOT}}', root))
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 

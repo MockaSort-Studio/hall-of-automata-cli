@@ -30,8 +30,8 @@ If the count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — sk
 ```bash
 python3 << 'PYEOF'
 import json, os
-plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT', '.')
-cache_root = '.hall-cache'
+plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT') or open(os.path.expanduser('~/.hall/session/.plugin-root')).read().strip()
+cache_root = os.path.expanduser('~/.hall')
 specialist = '<SPECIALIST>'  # substitute task['specialist']
 persona_path = f'{cache_root}/personas/{specialist}.md'
 with open(f'{plugin_root}/templates/reviewer-overlay.md.tpl') as f:
