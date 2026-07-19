@@ -52,7 +52,23 @@ PYEOF
 
 #### 0c. Run inline review
 
-Treat `review_cycle` as 1 if absent. Load `~/.hall/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy from `review-loop.md` inline and produce the structured verdict block.
+Treat `review_cycle` as 1 if absent. Load `~/.hall/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy below and produce the structured verdict block.
+
+**Verdict taxonomy:**
+- **LGTM** — all acceptance criteria met; no required changes
+- **MINOR** — fixable in one commit (style, naming, missing edge case); specialist pushes a fix; no invoker input needed
+- **MAJOR** — wrong approach, missing scope, or broken logic; requires a decision above task level; REQUEST_CHANGES with clear fix direction
+- **BLOCKED** — cannot proceed without a missing dependency or unresolved architectural question; escalate to invoker
+
+**Loop prevention:** MINOR at cycle 1 → REFINE (one shot). MINOR at cycle 2 → escalate unconditionally. MAJOR or BLOCKED → always escalate; never loop.
+
+**Verdict format** (review body):
+```
+VERDICT: <LGTM|MINOR|MAJOR|BLOCKED>
+---
+<1-3 bullet findings if not LGTM>
+<Required fix: specific enough that the specialist can act without asking>
+```
 
 #### 0d. Submit GitHub review
 
