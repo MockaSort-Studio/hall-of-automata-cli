@@ -44,18 +44,25 @@ else
   echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."
 fi
 
-# Slug derivation
+# Slug derivation — git first, config fallback on any failure or empty result
+SLUG=""
 if [ "$STANDALONE" = "false" ]; then
   SLUG=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||' | cut -d/ -f2)
-else
-  SLUG=$(python3 -c "
+fi
+if [ -z "$SLUG" ]; then
+  CFG_SLUG=$(python3 -c "
 import json, os
 try:
     print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo','').split('/')[-1])
 except Exception:
     print('')
 " 2>/dev/null || echo "")
+  if [ -n "$CFG_SLUG" ]; then
+    SLUG="$CFG_SLUG"
+    echo "Using project from ~/.hall/.config.json: $SLUG"
+  fi
 fi
+[ -n "$SLUG" ] && echo "SLUG_STATUS=ok" || echo "SLUG_STATUS=empty"
 [ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
@@ -103,7 +110,7 @@ echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || 
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
-If `STANDALONE=true`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, and `REPO` are set for subsequent steps.
+If `STANDALONE=true` OR `SLUG_STATUS=empty`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
 ### Step 2: Persona fetch (skip if NEED_FETCH=false)
 

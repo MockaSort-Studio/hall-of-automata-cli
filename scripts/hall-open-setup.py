@@ -21,14 +21,18 @@ if not standalone:
         parts = cleaned.split('/')
         slug = parts[1] if len(parts) >= 2 else ''
     except Exception:
-        slug = ''
-else:
+        pass
+
+if not slug:
+    cfg_path = os.path.expanduser('~/.hall/.config.json')
     try:
-        cfg_data = json.load(open(os.path.expanduser('~/.hall/.config.json')))
+        cfg_data = json.load(open(cfg_path))
         target_repo = cfg_data.get('target_repo', '')
         slug = target_repo.split('/')[-1] if target_repo else ''
+        if slug:
+            print(f'Using project from ~/.hall/.config.json: {slug}')
     except Exception:
-        slug = ''
+        pass
 
 if slug:
     project_root = f'{root}/projects/{slug}'
