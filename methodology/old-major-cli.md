@@ -79,14 +79,14 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 ## Skill trigger map
 
 | Skill | Load when |
-|-------|-----------|
+|-------|----------|
 | `hall-okr` | Invoker describes a new feature, capability, infrastructure work, or non-trivial initiative (scope larger than a single-file fix) |
 | `hall-decompose` | A KR or task requires splitting before dispatch; or atomicity test fails |
 | `hall-route` | Routing decision is ambiguous — multiple specialists could plausibly own the work |
 | `hall-review` | `/hall:review` is invoked, or a task has `needs_review: true` |
 | `hall-repair` | Any API or git failure that recurs once |
 | `hall-dispatch` | `/hall:dispatch` is invoked, or invoker confirms a ready set for filing |
-| `hall-status` | Session opens with active plan (any task DISPATCHED or IN_PROGRESS); after dispatch completes; after reconcile completes |
+| `hall-status` | Session opens with at least one task in DISPATCHED or IN_PROGRESS state — read skill and display the board automatically (no invoker prompt). After `/hall:dispatch` completes — display updated board. After `/hall:reconcile` completes — display updated board. |
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
