@@ -57,6 +57,7 @@ check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-ind
 check "CLAUDE-stack does not import decomposition.md"       "! grep -q 'decomposition.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consultation-router.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
+check "CLAUDE-stack does not import session-guard.md"       "! grep -q 'session-guard.md' templates/CLAUDE-stack.md.tpl"
 check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
 
 # Template @-import guard: overlay templates loaded via Read must not contain @-import lines
