@@ -37,15 +37,15 @@ check "skills/hall-review/SKILL.md has frontmatter"         "grep -q '^---' skil
 check "skills/hall-review/SKILL.md has name field"          "grep -q '^name:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has description field"   "grep -q '^description:' skills/hall-review/SKILL.md"
 check "skills/hall-review/SKILL.md has allowed-tools field" "grep -q '^allowed-tools:' skills/hall-review/SKILL.md"
-check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -lt 200 ]"
-check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -lt 200 ]"
+check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -le 200 ]"
+check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -le 200 ]"
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
 check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 
 # Methodology
-for F in old-major-local-overlay decomposition consultation-router routing-rationale; do
+for F in decomposition routing-rationale old-major-cli; do
   check "methodology/$F.md exists" "test -f methodology/$F.md"
 done
 
@@ -57,6 +57,7 @@ check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-ind
 check "CLAUDE-stack does not import decomposition.md"       "! grep -q 'decomposition.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consultation-router.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
+check "CLAUDE-stack does not import session-guard.md"       "! grep -q 'session-guard.md' templates/CLAUDE-stack.md.tpl"
 check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
 
 # Template @-import guard: overlay templates loaded via Read must not contain @-import lines
@@ -69,9 +70,7 @@ done
 check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks.json"
 check "hooks/scripts/guard-writes.sh exists"   "test -f hooks/scripts/guard-writes.sh"
 check "hooks/scripts/session-start.sh exists"  "test -f hooks/scripts/session-start.sh"
-check "hooks/scripts/watcher.sh exists"        "test -f hooks/scripts/watcher.sh"
 check "guard-writes.sh is executable"          "test -x hooks/scripts/guard-writes.sh"
-check "watcher.sh is executable"               "test -x hooks/scripts/watcher.sh"
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

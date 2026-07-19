@@ -4,15 +4,17 @@
 
 create_labels() {
   local repo="${REPO:?REPO required}"
+  local GH; GH=$(command -v gh)
+  local JQ; JQ=$(command -v jq)
 
   local existing
-  existing=$(gh label list --repo "$repo" --json name --jq '[.[].name]' --limit 200 2>/dev/null || echo '[]')
+  existing=$("$GH" label list --repo "$repo" --json name --jq '[.[].name]' --limit 200 2>/dev/null || echo '[]')
 
   _label() {
     local name="$1" color="$2" desc="$3"
-    echo "$existing" | jq -e --arg n "$name" 'contains([$n])' > /dev/null 2>&1 \
+    echo "$existing" | "$JQ" -e --arg n "$name" 'contains([$n])' > /dev/null 2>&1 \
       && { echo "  skip: $name (exists)"; return; }
-    gh label create "$name" --color "$color" --description "$desc" --repo "$repo"
+    "$GH" label create "$name" --color "$color" --description "$desc" --repo "$repo"
     echo "  created: $name"
   }
 

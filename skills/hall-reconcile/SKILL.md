@@ -10,19 +10,9 @@ Resync the local plan with GitHub's current state. Runs automatically before any
 
 ## Execution
 
-### Step 0: Drain watcher events
-
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 ```
-
-If `~/.hall/projects/$SLUG/watcher-events.jsonl` exists and is non-empty:
-- Read all lines; parse each JSON object.
-- Group by issue number and surface as a summary: `"Watcher detected N events since last reconcile: [list]"`
-- Truncate the file to zero bytes: `> ~/.hall/projects/$SLUG/watcher-events.jsonl`
-- Use these events as early-warning signals — the reconcile pass below queries GitHub authoritatively.
-
-If absent or empty, skip silently.
 
 Find the active plan. For each task with a `github_issue` number:
 
@@ -32,7 +22,7 @@ PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json, os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','')))"\  2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json, os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -157,9 +147,11 @@ For each task whose status **newly** transitioned to MERGED or DONE during this 
    - `value` = `{"singleSelectOptionId": <Done option ID>}`
    - `invoker_login` = `$INVOKER_LOGIN`
 
-   On `rate_limit`/`secondary-rate-limit` error:
+   On `rate_limit`/`secondary-rate-limit` error, resolve values and inline them in the query string:
    ```bash
-   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "<project_id>", itemId: "<item_id>", fieldId: "<field_id>", value: { singleSelectOptionId: "<option_id>" } }) { projectV2Item { id } } }'
+   DONE_OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
+   PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])")
+   gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${DONE_OPT}\"}}){projectV2Item{id}}}"
    ```
 
 4. Log `Board item #<N> → Done` on success; log error and continue — never abort reconcile.
