@@ -88,6 +88,15 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
+**Pre-check — pre-filed issue:**
+
+```bash
+GITHUB_ISSUE=$(python3 -c "import json; t=next((x for x in json.load(open('${PLAN_DIR}plan.json')).get('tasks',[]) if x['id']=='<task_id>'),{}); print(t.get('github_issue',''))" 2>/dev/null || echo "")
+```
+
+If `GITHUB_ISSUE` is non-empty: `gh issue edit $GITHUB_ISSUE --repo <ORG/REPO> --add-label "hall:<specialist>"`, update task status to DISPATCHED in `plan.json`, skip issue creation and board steps, continue to next task.
+If empty: proceed with issue creation below.
+
 Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
 

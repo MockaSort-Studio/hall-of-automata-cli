@@ -77,6 +77,7 @@ Once the gate passes:
 2. Create KR issues — titles `[KR N.M] <outcome>`
 3. Wire KRs as sub-issues of the OKR via `sub_issue_write`
 4. For each KR, read `skills/hall-decompose/SKILL.md` and apply the atomicity test. Determine whether the KR dispatches as one Item or decomposes into multiple Items.
+   - After filing each Item as a GitHub issue, write `github_issue: <number>` to the corresponding task entry in `plan.json` immediately after the issue is created.
 5. Report: issue numbers, board item IDs, blocked KRs
 
 **Items are the dispatchable unit.** KRs never receive specialist labels directly.
