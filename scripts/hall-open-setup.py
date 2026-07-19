@@ -1,4 +1,4 @@
-import json, os, re, shutil, glob, subprocess, sys
+import json, os, re, shutil, glob, subprocess
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
@@ -9,66 +9,6 @@ try:
     standalone = False
 except subprocess.CalledProcessError:
     standalone = True
-
-
-def resolve_slug_interactive(root):
-    local = sorted(
-        os.path.basename(p) for p in glob.glob(f'{root}/projects/*')
-        if os.path.isdir(p)
-    )
-    orgs, org = [], None
-    try:
-        r = subprocess.run(
-            ['gh', 'api', 'user/teams', '--jq', '[.[].organization.login] | unique'],
-            capture_output=True, text=True, timeout=10
-        )
-        if r.returncode == 0:
-            orgs = json.loads(r.stdout.strip())
-    except Exception:
-        pass
-    if len(orgs) == 1:
-        org = orgs[0]
-    elif len(orgs) > 1:
-        print(f'Multiple orgs: {", ".join(orgs)}')
-        print('Which org contains your Hall project? ', end='', flush=True)
-        try:
-            org = input().strip()
-        except EOFError:
-            org = ''
-    remote = []
-    if org:
-        try:
-            r = subprocess.run(
-                ['gh', 'api', f'/orgs/{org}/repos', '--jq', '[.[].name]'],
-                capture_output=True, text=True, timeout=10
-            )
-            if r.returncode == 0:
-                remote = json.loads(r.stdout.strip())
-        except Exception:
-            pass
-    options = list(dict.fromkeys(local + remote))
-    if not options:
-        print('Enter project slug: ', end='', flush=True)
-        try:
-            return input().strip()
-        except EOFError:
-            return ''
-    print('On which project are you working?')
-    for i, name in enumerate(options, 1):
-        print(f'  [{i}] {name}')
-    print('  [0] Enter manually')
-    print('Select [1-N or 0]: ', end='', flush=True)
-    try:
-        choice = input().strip()
-        if choice.isdigit() and 0 < int(choice) <= len(options):
-            return options[int(choice) - 1]
-        elif choice == '0':
-            print('Slug: ', end='', flush=True)
-            return input().strip()
-        return choice
-    except EOFError:
-        return ''
-
 
 slug = ''
 if not standalone:
@@ -94,19 +34,17 @@ if not slug:
     except Exception:
         pass
 
-if not slug:
-    slug = resolve_slug_interactive(root)
-    if not slug:
-        print('ERROR: No project selected. Aborting.', file=sys.stderr)
-        sys.exit(1)
-
-project_root = f'{root}/projects/{slug}'
-os.makedirs(project_root, exist_ok=True)
-open(f'{root}/session/.repo-slug', 'w').write(slug)
-if not os.path.exists(f'{project_root}/config.json'):
-    open(f'{project_root}/config.json', 'w').write('{}')
-stack_dir = f'{project_root}/session'
-os.makedirs(stack_dir, exist_ok=True)
+if slug:
+    project_root = f'{root}/projects/{slug}'
+    os.makedirs(project_root, exist_ok=True)
+    open(f'{root}/session/.repo-slug', 'w').write(slug)
+    if not os.path.exists(f'{project_root}/config.json'):
+        open(f'{project_root}/config.json', 'w').write('{}')
+    stack_dir = f'{project_root}/session'
+    os.makedirs(stack_dir, exist_ok=True)
+else:
+    project_root = f'{root}/session'
+    stack_dir = f'{root}/session'
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -153,7 +91,7 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug}).')
+print(f'Phase 2 built (project layer — {slug or "standalone"}).')
 
 LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
 if os.path.exists('CLAUDE.md'):
