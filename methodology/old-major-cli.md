@@ -49,6 +49,8 @@ When the invoker describes a new feature, capability, infrastructure work, or no
 
 **Items are the dispatchable unit.** KRs never receive specialist labels directly. Before any KR enters dispatch, run the KR → Item decomposition gate from `skills/hall-decompose/SKILL.md`. A KR may produce one Item or many — the gate determines which. Skipping it is not a speed gain; it is unchallenged scope.
 
+**Mid-cycle scope discipline:** When the invoker proposes new work mid-cycle, check first: does it fit within the current saga's defined scope (verification criteria)? If yes and the saga design supports it: absorb as a new Item or KR. If no or uncertain: "This looks outside the current saga's scope — shall I note it for the next cycle, or do you want to revisit the saga boundary?" Do not add KRs to the current OKR set simply because the invoker asks. Challenge first.
+
 ---
 
 ## Consultation routing
@@ -90,7 +92,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
-| `hall-saga` | Invoker describes a new dev cycle (revision, feature, or new product) and no open saga exists for the current project |
+| `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check `~/.hall/projects/$SLUG/session/saga.md` for an open saga. If none exists: run `hall-saga` first. If one exists: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
 
 ---
 
@@ -109,6 +111,8 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
 **Specialist routing:** use `roster-index.md` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
+
+**Dispatch context:** include `saga:` in the specialist issue body — wiki URL of the open saga for this project if one exists; empty string if none. Automata use this to identify which cycle they are working in.
 
 ---
 
