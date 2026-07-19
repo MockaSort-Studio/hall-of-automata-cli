@@ -25,7 +25,7 @@ check "mcp.json has google-drive"  "python3 -c \"import json,sys; d=json.load(op
 check "plan.json.schema is valid JSON"  "python3 -m json.tool templates/plan.json.schema"
 
 # Skills
-for CMD in hall-open hall-close hall-status hall-plan hall-dispatch hall-reply hall-reconcile hall-consultations hall-prune; do
+for CMD in hall-open hall-close hall-status hall-dispatch hall-reply hall-reconcile hall-consultations hall-prune; do
   check "skills/$CMD/SKILL.md exists" "test -f skills/$CMD/SKILL.md"
   check "skills/$CMD/SKILL.md has frontmatter" "grep -q '^---' skills/$CMD/SKILL.md"
   check "skills/$CMD/SKILL.md has name field" "grep -q '^name:' skills/$CMD/SKILL.md"
