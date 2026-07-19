@@ -106,7 +106,8 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 **Cross-board:** when another invoker's item conflicts or overlaps, post a comment via `add_issue_comment`. Never edit fields or body on items where the current session is not the owner.
 
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
-**Specialist personas:** `~/.hall/personas/<name>.md` — fetched from upstream at session open. Read before preparing any specialist dispatch.
+
+**Specialist routing:** use `roster-index.md` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
 
 ---
 
