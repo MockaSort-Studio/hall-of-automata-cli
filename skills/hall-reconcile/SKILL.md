@@ -128,6 +128,47 @@ If GitHub wins on any conflict (task shows MERGED on GitHub but DISPATCHED local
 
 Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **reconcile-write** procedure for each task that newly transitioned to MERGED or DONE during this pass.
 
+## Saga close
+
+After board writes complete, check if all tasks across the active plan reached a successful terminal state:
+
+```bash
+ALL_SAGA_DONE=$(HALL_SLUG="$SLUG" python3 -c "
+import json, glob, os
+slug = os.environ.get('HALL_SLUG', '')
+all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
+success = {'MERGED', 'DONE'}
+print('true' if all_tasks and all(t['status'] in success for t in all_tasks) else 'false')
+")
+```
+
+FAILED or ESCALATED tasks prevent close — those require manual resolution. If `ALL_SAGA_DONE=true`:
+
+```bash
+TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
+if [ -z "$TOKEN" ]; then
+  echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — skip saga close"
+else
+  WIKI_DIR=$(mktemp -d)
+  if git clone "https://x-access-token:${TOKEN}@github.com/${REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null; then
+    OPEN_FILE=$(find "$WIKI_DIR" -maxdepth 1 -name "*\[open\]*" | head -1)
+    if [ -n "$OPEN_FILE" ]; then
+      CLOSED_FILE="${OPEN_FILE/\[open\]/\[complete\]}"
+      git -C "$WIKI_DIR" mv "$OPEN_FILE" "$CLOSED_FILE"
+      git -C "$WIKI_DIR" -c user.name="Old Major" -c user.email="old-major@hall" \
+        commit -m "wiki: close saga — all OKRs merged"
+      git -C "$WIKI_DIR" push origin master
+      echo "Saga closed: $(basename "$CLOSED_FILE")"
+    fi
+  else
+    echo "WARN: wiki clone failed — skip saga close"
+  fi
+  rm -rf "$WIKI_DIR"
+fi
+```
+
+`REPO` is `org/repo` from `plan.json` (same value used throughout reconcile). Skip silently if no `[open]` wiki page exists — state is already correct or will be resolved manually.
+
 ## Summary
 
 End with a reconciliation summary:
