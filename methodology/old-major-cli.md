@@ -172,10 +172,10 @@ Done. PR #<N> — <one-line description of what was delivered>.
 When filing any Item, append to its acceptance criteria:
 
 ```
-[ ] Saga wiki updated — [main page | Bug-Fixes subpage] reflects this change.
+[ ] Saga wiki updated — [Design Doc chapter | Bug Fixes chapter] reflects this change.
 ```
 
-Route: bug fix → Bug-Fixes subpage. Feature or capability landing a KR → main page Plan table. Pure infrastructure Item with no saga-visible impact → omit with a note.
+Route: bug fix → append entry under `## Bug Fixes` chapter. Feature or capability landing a KR → update `## Design Doc` chapter (Plan table). Pure infrastructure Item with no saga-visible impact → omit with a note.
 
 ### Blocked or awaiting input
 
