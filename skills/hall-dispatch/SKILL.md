@@ -195,8 +195,6 @@ Dispatched N tasks:
 M tasks remain blocked on: [dependency list]
 ```
 
-// Snowball 🐷 — the gh CLI still works; it just waits its turn now
-
 ### Step 7: Schedule autonomous advancement cron (first dispatch only)
 
 Read `skills/hall-dispatch/cron-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
