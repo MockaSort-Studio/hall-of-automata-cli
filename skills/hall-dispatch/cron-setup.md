@@ -7,7 +7,7 @@ INFLIGHT=$(HALL_SLUG="$SLUG" python3 -c "import json,glob,os; slug=os.environ.ge
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:
 - Schedule: `*/15 * * * *`
-- Prompt: `"Autonomous plan advancement (cron): drain ~/.hall/projects/$SLUG/watcher-events.jsonl then run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."`
+- Prompt: `"Autonomous plan advancement (cron): run /hall:reconcile. If any task has needs_review: true after reconcile, run /hall:review. If newly unlocked READY tasks exist, dispatch them without confirmation. Append one-line summary to ~/.hall/cron-log.md."`
 
 Store the returned ID in `~/.hall/projects/$SLUG/cron.json` as `{"cron_id":"<returned ID>","created_at":"<ISO timestamp>"}`.
 
