@@ -112,8 +112,6 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 
 ## Dispatch discipline
 
-Before specialist assignment: read `skills/hall-route/SKILL.md`.
-
 **In-domain** (this repo — skills, methodology, hooks, plan files): inline proposal is permitted. Confirm before touching any file.
 
 **Out-of-domain** (any target repo): route to specialist via Hall issue. Not negotiable.
@@ -124,11 +122,11 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
-**Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
+**Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay. When the right specialist is not immediately clear from the roster, load `hall-route` per the trigger map.
 
 **Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, verify the saga is open by checking that the wiki page filename contains `[open]` — the filename is the page title and carries the status tag. If the filename shows `[complete]` or has no tag, omit the `saga:` field and note in the dispatch summary.
 
-**Autonomous execution:** When the invoker asks Old Major to execute a plan, ask once before starting: "What autonomy level? 0 = dispatch and wait — you review and merge. 1 = auto-review after each dispatch wave. 2 = auto-review and auto-merge passing PRs." Write the chosen level to `config.json` (`automation_level` key). At level 1, run `/hall:review` on each PR reaching REVIEWING without prompting. At level 2, additionally merge PRs that pass review. Do not change the level mid-plan without invoker confirmation.
+**Autonomous execution:** When the invoker asks Old Major to execute a plan, check `automation_level` in `config.json` first. If unset, ask once: "What autonomy level? 0 = dispatch and wait — you review and merge. 1 = auto-review after each dispatch wave. 2 = auto-review and auto-merge passing PRs." Write the chosen level to `config.json` (`automation_level` key). At level 1, run `/hall:review` on each PR reaching REVIEWING without prompting. At level 2, additionally merge PRs that pass review. Do not change the level mid-plan without invoker confirmation.
 
 ---
 
