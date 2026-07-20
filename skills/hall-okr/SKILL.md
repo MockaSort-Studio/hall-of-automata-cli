@@ -20,7 +20,7 @@ If a saga wiki link is provided:
 Present the mapping before proceeding:
 
 | Verification criterion | Candidate KR |
-|------------------------|--------------|
+|------------------------|-------------|
 | `<criterion text>` | `[KR N.M]` outcome statement |
 
 If a criterion cannot be outcome-framed, flag it — do not silently drop it.
@@ -101,7 +101,7 @@ Once the gate passes:
 2. Create KR issues — titles `[KR N.M] <outcome>`
 3. Wire KRs as sub-issues of the OKR via `sub_issue_write`
 4. For each KR: read `skills/hall-decompose/SKILL.md` and apply the atomicity test. File Items and wire them as sub-issues of their KR.
-5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Active items (linked) | Verification criteria. Closed items marked ✓.
+5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Verification criteria. Closed OKRs marked ✓.
 6. Report: issue numbers, board item IDs, blocked KRs
 
 **Items are the dispatchable unit.** KRs never receive specialist labels directly.
