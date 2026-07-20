@@ -63,12 +63,12 @@ Each criterion must be named, measurable, and explicit about how it is proven. T
 
 Compose the saga once Phases 1–4 are confirmed. Post to the target repository's GitHub Wiki.
 
-**Title:** `Saga — <cycle-type>: <one-line description> (<YYYY-MM>)`
+**Title:** `Saga — <cycle-type>: <one-line description> (<YYYY-MM>) [open]`
 
 **Saga template:**
 
 ```
-# Saga — <cycle-type>: <description> (<YYYY-MM>)
+# Saga — <cycle-type>: <description> (<YYYY-MM>) [open]
 
 **Cycle type:** revision | new-feature | new-product
 
@@ -104,13 +104,13 @@ Compose the saga once Phases 1–4 are confirmed. Post to the target repository'
 ### Verification criteria
 
 | # | Criterion | How to prove |
-|---|-----------|-------------- |
+|---|-----------|--------------|
 | 1 |           |              |
 
 ### Open points
 
 | # | Open point | Impact | Resolution path |
-|---|------------|--------|------------------|
+|---|------------|--------|-----------------|
 
 ---
 ## Bug Fixes
