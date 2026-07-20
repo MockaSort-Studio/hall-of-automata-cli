@@ -5,7 +5,29 @@ description: OKR formalization flow. Old Major reads this when an invoker descri
 
 # OKR Formalization Flow
 
-A 5-phase conversation. Work through each phase in order. Do not propose structure until Phase 3.
+A conversation with up to 6 phases. Work through each phase in order. Do not propose structure until Phase 3.
+
+---
+
+## Phase 0 — Saga intake *(skip if no saga link provided)*
+
+If a saga link is provided:
+
+1. Fetch the saga page via `gh api` or Fetch
+2. Extract: **cycle type**, **success horizon**, **verification criteria**
+3. Map each verification criterion to a candidate KR — criterion = measurable outcome = KR
+
+Present the mapping before proceeding:
+
+| Verification criterion | Candidate KR |
+|------------------------|-------------|
+| `<criterion text>` | `[KR N.M]` outcome statement |
+
+If a criterion cannot be outcome-framed, flag it — do not silently drop it.
+
+Wait for invoker confirmation, then proceed to Phase 1.
+
+If no saga link is provided: skip this phase and begin at Phase 1.
 
 ---
 
@@ -31,6 +53,8 @@ Good: *"What does a session look like after this is working — what can an invo
 Bad: *"Should we implement this as a hook or a skill?"*
 
 Stop asking when the Objective can be stated as a single outcome-framed sentence. If it can be stated clearly from the initial description, skip to Phase 3.
+
+When entering from Phase 0: the saga's success horizon is the Objective seed. Sharpen only what the saga left ambiguous.
 
 ---
 
@@ -76,9 +100,10 @@ Once the gate passes:
 1. Create the OKR issue — title `[OKR N] <objective>`
 2. Create KR issues — titles `[KR N.M] <outcome>`
 3. Wire KRs as sub-issues of the OKR via `sub_issue_write`
-4. For each KR, read `skills/hall-decompose/SKILL.md` and apply the atomicity test. Determine whether the KR dispatches as one Item or decomposes into multiple Items.
+4. For each KR: read `skills/hall-decompose/SKILL.md` and apply the atomicity test. File Items and wire them as sub-issues of their KR.
    - After filing each Item as a GitHub issue, write `github_issue: <number>` to the corresponding task entry in `plan.json` immediately after the issue is created.
-5. Report: issue numbers, board item IDs, blocked KRs
+5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Verification criteria. Closed OKRs marked ✓.
+6. Report: issue numbers, board item IDs, blocked KRs
 
 **Items are the dispatchable unit.** KRs never receive specialist labels directly.
 
