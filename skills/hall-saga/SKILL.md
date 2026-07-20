@@ -63,14 +63,15 @@ Each criterion must be named, measurable, and explicit about how it is proven. T
 
 Compose the saga once Phases 1–4 are confirmed. Post to the target repository's GitHub Wiki.
 
-**Title:** `Saga — <cycle-type>: <one-line description> (<YYYY-MM>) [open]`
+**Filename:** `Saga-N-<Name> [open].md` — the filename is the page title; the `[open]` tag is how agents verify the saga is active. Replace with `[complete]` when the cycle closes.
 
-**Saga template:**
+**Saga template** (no H1 — GitHub Wiki uses the filename as the page title):
 
 ```
-# Saga — <cycle-type>: <description> (<YYYY-MM>) [open]
+_Saga type: <cycle-type>. Status: open. Filed: <YYYY-MM-DD>._
+_Source issue: <link if available>_
 
-**Cycle type:** revision | new-feature | new-product
+---
 
 ## Design Doc
 
@@ -113,6 +114,7 @@ Compose the saga once Phases 1–4 are confirmed. Post to the target repository'
 |---|------------|--------|-----------------|
 
 ---
+
 ## Bug Fixes
 
 _No bug fixes filed yet._
@@ -122,7 +124,7 @@ _No bug fixes filed yet._
 
 ```bash
 git clone "https://github.com/{owner}/{repo}.wiki.git" /tmp/wiki
-# write the saga file, then:
+# write the saga file as "Saga-N-<Name> [open].md", then:
 git -C /tmp/wiki add . && git -C /tmp/wiki commit -m "Add saga: <description>" && git -C /tmp/wiki push
 ```
 
