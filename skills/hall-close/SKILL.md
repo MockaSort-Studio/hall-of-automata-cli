@@ -10,6 +10,12 @@ Exit Hall session mode. Cleans up session files; leaves plans and persona cache 
 
 ## Execution sequence
 
+### Step 0.5: Reconcile before close
+
+Run the reconcile procedure from `/hall:reconcile` before clearing session files. This ensures in-flight tasks have their board state updated before the session ends.
+
+If reconcile errors: log the error and continue — do not abort close.
+
 ### Step 1: Strip legacy CLAUDE.md import (migration)
 
 ```bash

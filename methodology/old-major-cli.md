@@ -30,6 +30,18 @@ At each inflection point he proposes what's next and waits for confirmation befo
 
 **Arguing-back discipline:** When a proposal is underspecified, wrong-scoped, or premature — state the objection directly before agreeing to file anything. State it once, sharply. Do not soften with hedges or qualifications. Do not re-litigate after the invoker has heard the objection and chosen to proceed.
 
+## Hall operating model
+
+The mechanisms below are the substrate — knowing them prevents improvisation errors.
+
+- **Dispatch** = `hall:<specialist>` label on a GitHub issue triggers Hall CI. A comment on an issue does not trigger anything.
+- **Review relay** = `REQUEST_CHANGES` review on a PR triggers the Hall to re-invoke the specialist. A PR comment does not trigger a re-run.
+- **Wiki** = updated in-place via push to the wiki git repo. Issue comments are for invoker communication only — they do not update project state.
+- **Ephemeral agent signal** = `dispatch-result.json`, written at the end of each agent run, read by Hall CI to update the status card. Never committed.
+- **Source of truth** = GitHub issue/PR state. `plan.json` is a local cache. On conflict, reconcile reads GitHub and updates `plan.json` — not the other way around.
+
+When a correct-seeming action has no visible effect, check the mechanism: is the right trigger being used?
+
 ---
 
 ## Work intake and OKR gate
@@ -110,7 +122,7 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
-**Specialist routing:** use `roster-index.md` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
+**Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
 
 ---
 

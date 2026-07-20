@@ -30,27 +30,20 @@ except: print(False)
 `LOCAL_MODE=True` → follow [LOCAL.md](LOCAL.md). Stop — do not continue to Step 0.
 `LOCAL_MODE=False` or config absent → continue to Step 0.
 
-### Step 0: Review dispatch
-
-Run `/hall:review`. Wait for it to complete before continuing to Step 1.
-
-### Step 1: Reconcile
-
-Run the reconcile procedure from `/hall:reconcile` before proceeding.
-
-### Step 2: Determine the ready set
+### Step 0: Determine the ready set
 
 Tasks with status READY (deferred) or PLANNED whose `depends_on` entries are all MERGED.
 
 If `--single` is specified, use only that task (verify it's in a dispatchable state).
 
-### Step 3: Check quota
+### Step 1: Check quota
 
 ```bash
 PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
-Read `repo` from the active plan's `plan.json` (e.g. `python3 -c "import json; print(json.load(open('$PLAN_DIR'+'plan.json'))['repo'])"`) and substitute it for `<ORG/REPO>` throughout.
+REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")
 ```
-Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.  
+
+Substitute `$REPO` for `<ORG/REPO>` throughout. Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.
 `# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:in-progress" --json number | jq length`
 
 If the ready set exceeds estimated available capacity, display:
@@ -58,11 +51,11 @@ If the ready set exceeds estimated available capacity, display:
 
 Default: the steward path (file up to capacity).
 
-### Step 3b: Query prior context (per-task)
+### Step 2: Query prior context (per-task)
 
 Read `skills/hall-dispatch/prior-context.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
 
-### Step 4: Confirmation summary
+### Step 3: Confirmation summary
 
 Display before any filing:
 
@@ -84,108 +77,25 @@ Label: `[doing]` when `task_type: "pr"` (or absent); `[reporting]` when `task_ty
 
 If `--dry-run`, show the confirmation summary and the issue bodies that would be created, then stop.
 
-### Step 5: File issues
+### Step 4: File issues
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-Call `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
+**Origination mode** — check `task["github_issue"]` in `plan.json`:
 
-Issue body — select by `task_type` (default `"pr"`):
+- **OKR-flow** (field is set): the issue was filed by hall-okr. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <github_issue> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
+- **CLI-flow** (field absent): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Record the returned number as `github_issue` in `plan.json`.
+  `# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
 
-**PR body** (`task_type: "pr"` or absent):
-```
-<!-- Hall dispatch by Old Major (Session Mode) -->
-saga: <wiki URL of open saga for this project; empty string if none>
+**Issue body** — load by `task_type`:
+- `task_type: "pr"` (or absent): Read `templates/dispatch-body-pr.md.tpl` (resolve against `$CLAUDE_PLUGIN_ROOT`). Substitute all placeholders before filing.
+- `task_type: "report"`: Read `templates/dispatch-body-report.md.tpl` (resolve against `$CLAUDE_PLUGIN_ROOT`). Substitute all placeholders before filing.
 
-## Working repository
+After filing, update task status in `plan.json` to DISPATCHED.
 
-All work for this task — branch, commits, and the final PR — must be created in **`<ORG/REPO>`**. Do not create branches or PRs on any other repository.
+**Board write:** Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **dispatch-write** procedure.
 
-## Summary
-
-<one paragraph description of the task>
-
-## Acceptance criteria
-
-<what done looks like>
-
-## Context
-
-<relevant context the specialist needs — existing code references, design decisions, constraints>
-
-## Prior context
-
-<from Step 3b — omit section entirely if no relevant prior issues found>
-
-## Routing
-
-Assigned to <Specialist>. Rationale: <routing_rationale text>
-
-## Dependencies
-
-<list of parent tasks that have completed, with their PR links>
-
-## Code quality
-
-Applies to all files produced by this task, regardless of language or framework:
-
-- **Size:** ≤200 lines per file. Hard ceiling — not a guideline.
-- **Readable:** clear, descriptive names; no magic values; no clever one-liners that obscure intent.
-- **Reusable:** no copy-paste logic — extract functions for anything used more than once.
-- **Modular:** single responsibility per file and per function. A file that does two things should be two files.
-
-If the natural implementation would exceed 200 lines for any file, decompose further and raise with Old Major before proceeding.
-```
-
-**Report body** (`task_type: "report"`):
-```
-<!-- Hall dispatch by Old Major (Session Mode) -->
-saga: <wiki URL of open saga for this project; empty string if none>
-
-## Summary
-
-<one paragraph description of the task>
-
-## Output
-
-Post your findings as a comment on this issue. Do not open a branch or PR.
-
-## Acceptance criteria
-
-<what done looks like>
-
-## Context
-
-<relevant context the specialist needs — existing code references, design decisions, constraints>
-
-## Prior context
-
-<from Step 3b — omit section entirely if no relevant prior issues found>
-
-## Routing
-
-Assigned to <Specialist>. Rationale: <routing_rationale text>
-
-## Dependencies
-
-<list of parent tasks that have completed, with their PR links>
-```
-
-After filing, update task status in `plan.json` to DISPATCHED and record `github_issue` number.
-
-**Board parent append:** If the task's `board_parent` is a non-null integer:
-
-Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueNumber: <board_parent>`. Append `- [ ] #<new_issue_number> [automaton] <task title>` as a new line to the body. Call `mcp__github__issue_write` with `method: update`, `issue_number: <board_parent>`, `body: <updated_body>`.
-`# On rate_limit/secondary-rate-limit error: BODY=$(gh issue view <board_parent> --repo <REPO> --json body --jq '.body'); gh issue edit <board_parent> --repo <REPO> --body "$BODY"$'\n''- [ ] #<new_issue_number> [automaton] <task title>'`
-
-On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
-
-**Board write:** `BOARD_ACTIVE=$(python3 -c "import json,os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','"")))" 2>/dev/null || echo False)` — skip if `False` or `~/.hall/projects/$SLUG/board.json` absent. Find item in `board.json` where `issue_number` matches filed issue; if absent log `"Board item not found for issue #<N>"` and skip; set `ITEM_ID` from item `id`. Resolve and inline via `python3` (`singleSelectOptionId` must be literal in the query — GitHub Projects API rejects GraphQL variables for this field):
-`INPROG_OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['In Progress'])"); PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])"); FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['id'])"); gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${INPROG_OPT}\"}}){projectV2Item{id}}}"`
-Log any error and continue — do not abort dispatch.
-
-### Step 6: Report
+### Step 5: Report
 
 ```
 Dispatched N tasks:
@@ -195,6 +105,6 @@ Dispatched N tasks:
 M tasks remain blocked on: [dependency list]
 ```
 
-### Step 7: Schedule autonomous advancement cron (first dispatch only)
+### Step 6: Schedule autonomous advancement cron (first dispatch only)
 
 Read `skills/hall-dispatch/cron-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute exactly as specified.
