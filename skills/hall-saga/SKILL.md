@@ -119,6 +119,32 @@ git clone "https://github.com/{owner}/{repo}.wiki.git" /tmp/wiki
 git -C /tmp/wiki add . && git -C /tmp/wiki commit -m "Add saga: <description>" && git -C /tmp/wiki push
 ```
 
-Return the wiki page URL. This URL is the saga reference for dispatch context.
+**Create Bug-Fixes subpage:** Immediately after pushing the main page, create a subpage at `<Saga-slug>/Bug-Fixes` (e.g. `Saga-0-The-Iron-Muster/Bug-Fixes`):
+
+- **Header:** `# Bug Fixes — <Saga title>`
+- **Body:** `_Bug fixes filed against this saga. One section per fix._`
+- Append a `## See also` section to the main saga page:
+  ```
+  ## See also
+  - [[<Saga-slug>/Bug-Fixes|Bug Fixes]]
+  ```
+
+Commit both together:
+
+```bash
+mkdir -p /tmp/wiki/<Saga-slug>
+# write <Saga-slug>/Bug-Fixes.md, update main page with ## See also, then:
+git -C /tmp/wiki add . && git -C /tmp/wiki commit -m "Add Bug-Fixes subpage: <Saga title>" && git -C /tmp/wiki push
+```
+
+Subpage entry format — for reference; automata write entries when closing items, not this skill:
+
+```
+## Bug: <issue title>
+<One paragraph: what broke, what was fixed, what changed.>
+Issue: #<N> · PR: #<M>
+```
+
+Return both the main wiki page URL and the Bug-Fixes subpage URL. Include both in the saga dispatch context.
 
 If the wiki is not enabled for the target repository, name the blocker and ask the invoker to enable it before proceeding.
