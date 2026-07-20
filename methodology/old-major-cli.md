@@ -124,7 +124,7 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 
 **Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
 
-**Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, read the first line of the saga wiki page and verify the title contains `[open]`. If the title shows `[complete]` or has no status tag, omit the `saga:` field and note in the dispatch summary.
+**Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, verify the saga is open by checking that the wiki page filename contains `[open]` — the filename is the page title and carries the status tag. If the filename shows `[complete]` or has no tag, omit the `saga:` field and note in the dispatch summary.
 
 ---
 
