@@ -127,7 +127,7 @@ _No bug fixes filed yet._
 gh api repos/{owner}/{repo} --method PATCH -f has_wiki=true
 
 # 2. Clone wiki — falls back to fresh init if wiki was never initialised
-TOKEN=$(gh auth token)
+TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
 WIKI_DIR=$(mktemp -d)
 git clone "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git" "$WIKI_DIR" 2>/dev/null \
   || {
