@@ -102,16 +102,16 @@ Works in the desktop app, VS Code, JetBrains, and the CLI — no terminal or git
 
 ## Working with Hall
 
-Hall is built around a **session** — an active working context that you open at the start of your work and close when you are done. Opening a session is intentional: it pulls personas, assembles the instruction stack, and starts the background watcher. It is not a fire-and-forget operation, and it is not meant to be opened and closed repeatedly.
+Hall is built around a **session** — an active working context that you open at the start of your work and close when you are done. Opening a session is intentional: it pulls personas, assembles the instruction stack, and syncs any in-flight tasks. It is not a fire-and-forget operation, and it is not meant to be opened and closed repeatedly.
 
 **The typical flow:**
 
 1. Open Claude Code in your project folder.
 2. Run `/hall:open` — Old Major introduces himself and asks what you are building (or resumes a plan already in progress).
 3. Have a conversation. Old Major helps you decompose the work, routes design questions to the right specialist, and proposes a dispatch plan.
-4. Approve the dispatch. Hall files GitHub Issues for each task. Agents pick them up and start working.
+4. Approve the dispatch. When you ask Old Major to execute the plan, he asks what autonomy level to use (0 = you review and merge manually; 1 = auto-review; 2 = auto-review and auto-merge). Hall files GitHub Issues for each task. Agents pick them up and start working.
 5. Keep working on other things. Hall runs a background cron that automatically syncs task states, triggers reviews, and dispatches newly unblocked tasks.
-6. Run `/hall:close` when you are done for the day. Hall saves session notes and shuts down cleanly.
+6. Run `/hall:close` when you are done for the day. Hall cancels the cron and cleans up session files.
 
 **The commands most users need most of the time are `/hall:open` and `/hall:close`.** Everything else — status, reconcile, reply, prune — is there for fine-grained control when you want it.
 
@@ -125,7 +125,7 @@ Hall is built around a **session** — an active working context that you open a
 
 **Ingest context from Google Drive.** Drop a spec, a design doc, or a set of meeting notes into Google Drive and point Old Major at them. Hall can read Drive files directly into the planning conversation — no copy-paste required.
 
-**Work fully unattended.** With automation level 2 enabled at session open, Hall schedules a background cron that reconciles state, reviews PRs, and dispatches new work automatically. You can walk away and come back to merged pull requests.
+**Work fully unattended.** With automation level 2 set when starting plan execution, Hall schedules a background cron that reconciles state, reviews PRs, and merges passing ones automatically. You can walk away and come back to merged pull requests.
 
 ---
 
@@ -133,18 +133,16 @@ Hall is built around a **session** — an active working context that you open a
 
 | Command | What it does |
 |---|---|
-| `/hall:doctor` | Preflight check — gh auth, token, Hall App installation, MCP connectivity |
-| `/hall:open` | Start a session: load Old Major, pull personas and methodology, start watcher |
-| `/hall:plan` | Design conversation with Old Major; produces the task graph |
+| `/hall:open` | Start a session: load Old Major, pull personas and methodology, sync in-flight tasks |
 | `/hall:dispatch` | File GitHub Issues for ready tasks |
-| `/hall:status` | Show current task states from the local plan |
+| `/hall:status` | Show current task states and board summary |
 | `/hall:reconcile` | Sync task states with GitHub — picks up label changes, PR merges, new reviews |
 | `/hall:review` | Run the inline review loop — assess open PRs and settle or escalate |
 | `/hall:init-board` | Provision the GitHub Projects v2 board, custom fields, and labels on the target repo |
-| `/hall:consultations` | List, view, or prune saved Tier-2 consultation outputs |
-| `/hall:reply` | Send a message to a task that is waiting for input |
-| `/hall:prune` | Remove completed plans or stale cache; `--invoker` resets invoker verification |
-| `/hall:close` | End the session — cancel cron, save notes, clean up |
+| `/hall:consultations` | List, view, or prune saved planning consultation artifacts |
+| `/hall:reply` | Route a reply to a specialist waiting for invoker input |
+| `/hall:prune` | Remove completed or stale plan directories |
+| `/hall:close` | End the session — cancel cron, clean up session files |
 
 ---
 
