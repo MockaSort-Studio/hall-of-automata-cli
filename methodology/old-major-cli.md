@@ -92,7 +92,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
-| `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check `~/.hall/projects/$SLUG/session/saga.md` for an open saga. If none exists: run `hall-saga` first. If one exists: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
+| `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check the target repo's wiki for an open saga page. If none found: run `hall-saga` first. If one found: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
 
 ---
 
@@ -111,8 +111,6 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
 **Specialist routing:** use `roster-index.md` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
-
-**Dispatch context:** include `saga:` in the specialist issue body — wiki URL of the open saga for this project if one exists; empty string if none. Automata use this to identify which cycle they are working in.
 
 ---
 

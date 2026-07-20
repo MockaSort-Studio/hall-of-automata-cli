@@ -96,6 +96,7 @@ Issue body — select by `task_type` (default `"pr"`):
 **PR body** (`task_type: "pr"` or absent):
 ```
 <!-- Hall dispatch by Old Major (Session Mode) -->
+saga: <wiki URL of open saga for this project; empty string if none>
 
 ## Working repository
 
@@ -140,6 +141,7 @@ If the natural implementation would exceed 200 lines for any file, decompose fur
 **Report body** (`task_type: "report"`):
 ```
 <!-- Hall dispatch by Old Major (Session Mode) -->
+saga: <wiki URL of open saga for this project; empty string if none>
 
 ## Summary
 
@@ -179,7 +181,7 @@ Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueN
 
 On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
 
-**Board write:** `BOARD_ACTIVE=$(python3 -c "import json,os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','')))" 2>/dev/null || echo False)` — skip if `False` or `~/.hall/projects/$SLUG/board.json` absent. Find item in `board.json` where `issue_number` matches filed issue; if absent log `"Board item not found for issue #<N>"` and skip; set `ITEM_ID` from item `id`. Resolve and inline via `python3` (`singleSelectOptionId` must be literal in the query — GitHub Projects API rejects GraphQL variables for this field):
+**Board write:** `BOARD_ACTIVE=$(python3 -c "import json,os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','"")))" 2>/dev/null || echo False)` — skip if `False` or `~/.hall/projects/$SLUG/board.json` absent. Find item in `board.json` where `issue_number` matches filed issue; if absent log `"Board item not found for issue #<N>"` and skip; set `ITEM_ID` from item `id`. Resolve and inline via `python3` (`singleSelectOptionId` must be literal in the query — GitHub Projects API rejects GraphQL variables for this field):
 `INPROG_OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['In Progress'])"); PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])"); FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['id'])"); gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${INPROG_OPT}\"}}){projectV2Item{id}}}"`
 Log any error and continue — do not abort dispatch.
 
