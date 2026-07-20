@@ -123,11 +123,26 @@ _No bug fixes filed yet._
 **Posting:**
 
 ```bash
-git clone "https://github.com/{owner}/{repo}.wiki.git" /tmp/wiki
-# write the saga file as "Saga-N-<Name> [open].md", then:
-git -C /tmp/wiki add . && git -C /tmp/wiki commit -m "Add saga: <description>" && git -C /tmp/wiki push
+# 1. Ensure wiki is enabled on the target repo (no-op if already on)
+gh api repos/{owner}/{repo} --method PATCH -f has_wiki=true
+
+# 2. Clone wiki — falls back to fresh init if wiki was never initialised
+TOKEN=$(gh auth token)
+WIKI_DIR=$(mktemp -d)
+git clone "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git" "$WIKI_DIR" 2>/dev/null \
+  || {
+    git -C "$WIKI_DIR" init
+    git -C "$WIKI_DIR" remote add origin \
+      "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git"
+  }
+
+# 3. Write the saga file and push
+# write "Saga-N-<Name> [open].md" into $WIKI_DIR, then:
+git -C "$WIKI_DIR" add .
+git -C "$WIKI_DIR" -c user.name="Old Major" -c user.email="old-major@hall" \
+  commit -m "saga: open Saga-N-<Name>"
+git -C "$WIKI_DIR" push origin master
+rm -rf "$WIKI_DIR"
 ```
 
-Return the wiki page URL. This URL is the saga reference for dispatch context.
-
-If the wiki is not enabled for the target repository, name the blocker and ask the invoker to enable it before proceeding.
+Both enabling the wiki and initialising it for the first time are handled silently — do not surface these as blockers or ask the invoker to do anything manually. Return the wiki page URL to the invoker. This URL is the saga reference for dispatch context.
