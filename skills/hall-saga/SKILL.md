@@ -72,26 +72,28 @@ Compose the saga once Phases 1–4 are confirmed. Post to the target repository'
 
 **Cycle type:** revision | new-feature | new-product
 
-## Problem
+## Design Doc
+
+### Problem
 <problem statement — no solution language>
 
 **Affected:** <named actors and how they experience it>
 **Success horizon:** <outcome-framed statement of what winning looks like>
 
-## Scope
+### Scope
 
 **In scope:** <list>
 **Out of scope:** <list>
 **Dependencies:** <list or "none">
 **Risks:** <list or "none">
 
-## Use cases
+### Use cases
 
 | Actor | Action | Success criterion |
 |-------|--------|-------------------|
 |       |        |                   |
 
-## System design
+### System design
 
 <approach and tradeoffs>
 
@@ -99,16 +101,21 @@ Compose the saga once Phases 1–4 are confirmed. Post to the target repository'
 
 <Open points inline, adjacent to the decisions they affect>
 
-## Verification criteria
+### Verification criteria
 
 | # | Criterion | How to prove |
 |---|-----------|-------------- |
 | 1 |           |              |
 
-## Open points
+### Open points
 
 | # | Open point | Impact | Resolution path |
-|---|------------|--------|-----------------|
+|---|------------|--------|------------------|
+
+---
+## Bug Fixes
+
+_No bug fixes filed yet._
 ```
 
 **Posting:**
