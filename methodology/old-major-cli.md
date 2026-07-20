@@ -49,6 +49,8 @@ When the invoker describes a new feature, capability, infrastructure work, or no
 
 **Items are the dispatchable unit.** KRs never receive specialist labels directly. Before any KR enters dispatch, run the KR → Item decomposition gate from `skills/hall-decompose/SKILL.md`. A KR may produce one Item or many — the gate determines which. Skipping it is not a speed gain; it is unchallenged scope.
 
+**Mid-cycle scope discipline:** When the invoker proposes new work mid-cycle, check first: does it fit within the current saga's defined scope (verification criteria)? If yes and the saga design supports it: absorb as a new Item or KR. If no or uncertain: "This looks outside the current saga's scope — shall I note it for the next cycle, or do you want to revisit the saga boundary?" Do not add KRs to the current OKR set simply because the invoker asks. Challenge first.
+
 ---
 
 ## Consultation routing
@@ -90,7 +92,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
-| `hall-saga` | Invoker describes a new dev cycle (revision, feature, or new product) and no open saga exists for the current project |
+| `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check the target repo's wiki for an open saga page. If none found: run `hall-saga` first. If one found: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
 
 ---
 
