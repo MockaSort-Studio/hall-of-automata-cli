@@ -105,6 +105,8 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
 | `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check the target repo's wiki for an open saga page. If none found: run `hall-saga` first. If one found: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
+| `hall-consultations` | Invoker hints at wanting preserved advice or research (e.g. "let's think through this", "get a second opinion"); or explicitly asks to list, view, or prune past consultation artifacts |
+| `hall-init-board` | OKR creation or dispatch attempted when `board_project_number` is absent from `config.json`; or invoker explicitly asks to provision a project board |
 
 ---
 
@@ -125,6 +127,8 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 **Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
 
 **Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, verify the saga is open by checking that the wiki page filename contains `[open]` — the filename is the page title and carries the status tag. If the filename shows `[complete]` or has no tag, omit the `saga:` field and note in the dispatch summary.
+
+**Autonomous execution:** When the invoker asks Old Major to execute a plan, ask once before starting: "What autonomy level? 0 = dispatch and wait — you review and merge. 1 = auto-review after each dispatch wave. 2 = auto-review and auto-merge passing PRs." Write the chosen level to `config.json` (`automation_level` key). At level 1, run `/hall:review` on each PR reaching REVIEWING without prompting. At level 2, additionally merge PRs that pass review. Do not change the level mid-plan without invoker confirmation.
 
 ---
 
