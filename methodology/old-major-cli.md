@@ -124,6 +124,8 @@ Before specialist assignment: read `skills/hall-route/SKILL.md`.
 
 **Specialist routing:** use `roster-index.json` in the session stack — generated from `agents.yml` at session open. It contains each specialist's scope summary, roles, and domains. Full persona files are not cached locally; `hall-review` fetches them on-demand when building a reviewer overlay.
 
+**Saga context:** every dispatched Item body must include a `saga_issue: <N>` field (GitHub issue number of the open saga) alongside the saga wiki URL. Before including, verify the `saga:open` label via `gh issue view <N> --json labels`. If the label is absent or the saga is closed, omit and note in the dispatch summary.
+
 ---
 
 ## Session invariants
@@ -164,6 +166,16 @@ After opening a PR, post exactly this:
 ```
 Done. PR #<N> — <one-line description of what was delivered>.
 ```
+
+### Saga wiki AC
+
+When filing any Item, append to its acceptance criteria:
+
+```
+[ ] Saga wiki updated — [main page | Bug-Fixes subpage] reflects this change.
+```
+
+Route: bug fix → Bug-Fixes subpage. Feature or capability landing a KR → main page Plan table. Pure infrastructure Item with no saga-visible impact → omit with a note.
 
 ### Blocked or awaiting input
 
