@@ -64,6 +64,8 @@ check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consulta
 check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import session-guard.md"       "! grep -q 'session-guard.md' templates/CLAUDE-stack.md.tpl"
 check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
+check "templates/dispatch-body-pr.md.tpl exists"     "test -f templates/dispatch-body-pr.md.tpl"
+check "templates/dispatch-body-report.md.tpl exists"  "test -f templates/dispatch-body-report.md.tpl"
 
 # Template @-import guard: overlay templates loaded via Read must not contain @-import lines
 for TPL in templates/*-overlay.md.tpl; do
