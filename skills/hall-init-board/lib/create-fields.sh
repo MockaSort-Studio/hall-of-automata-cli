@@ -57,7 +57,22 @@ create_fields() {
   # -- field creation ---------------------------------------------------------
 
   echo "Creating custom fields..."
-  _select "ItemType" '[{name:"OKR",color:BLUE,description:""},{name:"KR",color:PURPLE,description:""},{name:"Item",color:GRAY,description:""}]'
+  _select "ItemType" '[{name:"OKR",color:BLUE,description:""},{name:"KR",color:PURPLE,description:""},{name:"Item",color:GRAY,description:""},{name:"Bug",color:RED,description:""}]'
+
+  # Add Bug to existing boards where ItemType was created before Bug was introduced.
+  # updateProjectV2Field replaces option IDs — safe only when no board items have ItemType set,
+  # which is the case for boards where provisioning was never done (pre-#278).
+  local has_bug
+  has_bug=$("$GH" api graphql \
+    -f query='query($p:ID!){node(id:$p){...on ProjectV2{fields(first:50){nodes{...on ProjectV2SingleSelectField{name options{name}}}}}}}' \
+    -F p="$pid" 2>/dev/null \
+    | "$JQ" -r '.data.node.fields.nodes[] | select(.name=="ItemType") | .options[] | select(.name=="Bug") | .name' \
+    2>/dev/null || echo "")
+  if [ -z "$has_bug" ]; then
+    echo "  adding Bug to ItemType (existing board)..."
+    _update_select_options "ItemType" '[{name:"OKR",color:BLUE,description:""},{name:"KR",color:PURPLE,description:""},{name:"Item",color:GRAY,description:""},{name:"Bug",color:RED,description:""}]'
+  fi
+
   _text   "Owner"
   _select "Priority" '[{name:"P0",color:RED,description:""},{name:"P1",color:ORANGE,description:""},{name:"P2",color:YELLOW,description:""},{name:"P3",color:GRAY,description:""}]'
   _text   "Reference"

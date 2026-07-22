@@ -101,3 +101,14 @@ Acceptance criteria state what must be true — not how to verify it. Scannable 
 4. Initial ready set and estimated dispatch batch
 
 Ask for explicit confirmation before filing.
+
+## Board provisioning
+
+After each Item issue is filed — whether as a KR sub-issue via `hall-okr` Phase 5 or as a CLI-flow issue via `hall-dispatch` — the filing agent must execute `board-provision`:
+
+Read `skills/hall-dispatch/board-provision.md` and execute with:
+- `ITEM_TYPE=Item`
+- `SAGA_MILESTONE_TITLE=<saga name if applicable; empty on hotfix path>`
+- `BLOCKED_BY_LIST=<hard dependencies from Phase 4 — issue numbers, space-separated>`
+
+Cross-OKR blockers (Items in a different OKR that this Item genuinely depends on) belong in `BLOCKED_BY_LIST`. Soft ordering and thematic grouping are not edges.
