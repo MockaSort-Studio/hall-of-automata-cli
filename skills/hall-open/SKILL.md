@@ -40,8 +40,6 @@ CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/d
 if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   export CLAUDE_PLUGIN_ROOT
   printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
-else
-  echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."
 fi
 
 # Slug derivation — git first, config fallback on any failure or empty result
@@ -67,6 +65,12 @@ fi
 [ -n "$SLUG" ] && bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
 [ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
+
+If `CLAUDE_PLUGIN_ROOT` is empty after the block above, check the harness-injected context at the top of this skill invocation for a line in the form `Base directory for this skill: <path>`. Derive the plugin root by stripping the trailing `/skills/hall-open` from that path. If found, cache and export it (substitute `<derived-path>` with the actual value):
+```bash
+printf '%s' "<derived-path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<derived-path>"
+```
+This fires at most once per machine — subsequent invocations read from the cached file. If the harness line is also absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
 Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash
