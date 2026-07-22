@@ -66,7 +66,7 @@ Compose the saga once Phases 1–4 are confirmed.
 **Status tags** — the only valid values:
 
 | Tag | In filename | In status field | Meaning |
-|-----|-------------|-----------------|---------|
+|-----|-------------|-----------------|----------|
 | `open` | `[open]` | `Status: open` | Active — dispatch operates against it |
 | `draft` | `[draft]` | `Status: draft` | Being authored, not yet active |
 | `closed` | `[closed]` | `Status: closed` | Cycle complete |
@@ -113,18 +113,22 @@ _Source issue: <link if available>_
 ### Verification criteria
 
 | # | Criterion | How to prove |
-|---|-----------|--------------|
-| 1 |           |              |
+|---|-----------|---------------|
+| 1 |           |               |
+
+### Appendix
+
+_No appendices yet. Add lettered sections (A, B, …) for reference material that supports the design but does not belong in the main doc._
 
 ---
 
 ## Plan
 
-<!-- KR-level only. List key results, not individual tasks. Tasks belong on the board. -->
+<!-- OKR-level only. No individual tasks — those belong on the board. Link each OKR to its tracking issue. -->
 
-| # | Key result | Owner | Status |
-|---|------------|-------|--------|
-| 1 |            |       | open   |
+| # | OKR | Link | Status |
+|---|-----|------|--------|
+| 1 |     |      | open   |
 
 ---
 
@@ -133,12 +137,6 @@ _Source issue: <link if available>_
 <!-- Flat list. No dated headers. One entry per fix: **Title** — one-sentence description. ([#N](link)) -->
 
 _No bug fixes filed yet._
-
----
-
-## Appendices
-
-_No appendices yet. Add lettered sections (A, B, …) for reference material that supports the design but does not belong in the main doc._
 ```
 
 **Posting:**
