@@ -16,17 +16,7 @@ Run the reconcile procedure from `/hall:reconcile` before clearing session files
 
 If reconcile errors: log the error and continue — do not abort close.
 
-### Step 1: Strip legacy CLAUDE.md import (migration)
-
-```bash
-LEGACY="@.hall-cache/session/CLAUDE-stack.md"
-if [ -f CLAUDE.md ] && grep -qF "$LEGACY" CLAUDE.md; then
-  grep -vF "$LEGACY" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
-  echo "Stripped legacy Hall stack import from CLAUDE.md."
-fi
-```
-
-### Step 1.5: Cancel autonomous reconcile cron
+### Step 1: Cancel autonomous reconcile cron
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
