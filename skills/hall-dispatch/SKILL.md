@@ -86,6 +86,10 @@ For each task in dispatch order, spaced 15 seconds apart:
 - **OKR-flow** (field is set): the issue was filed by hall-okr. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <github_issue> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
 - **CLI-flow** (field absent): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Record the returned number as `github_issue` in `plan.json`.
   `# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
+  After filing: read `skills/hall-dispatch/board-provision.md` and execute with `ISSUE_NUM=<returned number>`,
+  `ITEM_TYPE=Bug`, `SAGA_MILESTONE_TITLE=<saga name from dispatch-context if saga is linked; otherwise "">`,
+  `BLOCKED_BY_LIST=<issue numbers from task.depends_on cross-references; otherwise "">`.
+  Run board-provision before board-write below.
 
 **Issue body** — load by `task_type`:
 - `task_type: "pr"` (or absent): Read `templates/dispatch-body-pr.md.tpl` (resolve against `$CLAUDE_PLUGIN_ROOT`). Substitute all placeholders before filing.
@@ -93,7 +97,7 @@ For each task in dispatch order, spaced 15 seconds apart:
 
 After filing, update task status in `plan.json` to DISPATCHED.
 
-**Board write:** Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **dispatch-write** procedure.
+**Board write:** Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **dispatch-write** procedure. For CLI-flow issues, this transitions the board item from Backlog (set by board-provision) to In Progress.
 
 ### Step 5: Report
 
