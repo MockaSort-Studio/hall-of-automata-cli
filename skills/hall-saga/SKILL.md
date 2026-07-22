@@ -45,7 +45,7 @@ Do not propose an approach until Phase 2 is confirmed.
 **System design:**
 - Proposed approach and the tradeoffs it makes
 - Alternatives rejected and why
-- Mermaid fenced code block for any flow that is hard to follow in prose
+- Mermaid fenced code block for any flow that is hard to follow in prose. **Never use ASCII art for diagrams.**
 
 **Open points** — genuine blockers or unresolved decisions only. If a point is resolvable by reading a file or making a technical judgment, resolve it and state the rationale.
 
@@ -61,9 +61,17 @@ Each criterion must be named, measurable, and explicit about how it is proven. T
 
 ## Phase 5 — Post to wiki
 
-Compose the saga once Phases 1–4 are confirmed. Post to the target repository's GitHub Wiki.
+Compose the saga once Phases 1–4 are confirmed.
 
-**Filename:** `Saga-N-<Name> [open].md` — the filename is the page title; the `[open]` tag is how agents verify the saga is active. Replace with `[complete]` when the cycle closes.
+**Status tags** — the only valid values:
+
+| Tag | In filename | In status field | Meaning |
+|-----|-------------|-----------------|----------|
+| `open` | `[open]` | `Status: open` | Active — dispatch operates against it |
+| `draft` | `[draft]` | `Status: draft` | Being authored, not yet active |
+| `closed` | `[closed]` | `Status: closed` | Cycle complete |
+
+Filename convention: `Saga-N-<Name> [<tag>].md`. Use no other tag values. Agents search for `[open]` to locate the active saga.
 
 **Saga template** (no H1 — GitHub Wiki uses the filename as the page title):
 
@@ -98,24 +106,35 @@ _Source issue: <link if available>_
 
 <approach and tradeoffs>
 
-<Mermaid diagram(s) where the flow is hard to follow in prose>
+<Mermaid diagram(s) — never ASCII art>
 
 <Open points inline, adjacent to the decisions they affect>
 
 ### Verification criteria
 
 | # | Criterion | How to prove |
-|---|-----------|--------------|
-| 1 |           |              |
+|---|-----------|---------------|
+| 1 |           |               |
 
-### Open points
+### Appendix
 
-| # | Open point | Impact | Resolution path |
-|---|------------|--------|-----------------|
+_No appendices yet. Add lettered sections (A, B, …) for reference material that supports the design but does not belong in the main doc._
+
+---
+
+## Plan
+
+<!-- OKR-level only. No individual tasks — those belong on the board. Link each OKR to its tracking issue. -->
+
+| # | OKR | Link | Status |
+|---|-----|------|--------|
+| 1 |     |      | open   |
 
 ---
 
 ## Bug Fixes
+
+<!-- Flat list. No dated headers. One entry per fix: **Title** — one-sentence description. ([#N](link)) -->
 
 _No bug fixes filed yet._
 ```
@@ -123,26 +142,37 @@ _No bug fixes filed yet._
 **Posting:**
 
 ```bash
-# 1. Ensure wiki is enabled on the target repo (no-op if already on)
-gh api repos/{owner}/{repo} --method PATCH -f has_wiki=true
-
-# 2. Clone wiki — falls back to fresh init if wiki was never initialised
 TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
-WIKI_DIR=$(mktemp -d)
-git clone "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git" "$WIKI_DIR" 2>/dev/null \
-  || {
-    git -C "$WIKI_DIR" init
-    git -C "$WIKI_DIR" remote add origin \
-      "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git"
-  }
+SAGA_FILE="Saga-N-<Name> [open].md"
 
-# 3. Write the saga file and push
-# write "Saga-N-<Name> [open].md" into $WIKI_DIR, then:
-git -C "$WIKI_DIR" add .
-git -C "$WIKI_DIR" -c user.name="Old Major" -c user.email="old-major@hall" \
-  commit -m "saga: open Saga-N-<Name>"
-git -C "$WIKI_DIR" push origin master
-rm -rf "$WIKI_DIR"
+# Detect wiki availability; attempt to enable if off — may fail on private free-tier orgs
+HAS_WIKI=$(gh api repos/{owner}/{repo} --jq '.has_wiki' 2>/dev/null || echo "false")
+if [ "$HAS_WIKI" != "true" ]; then
+  HAS_WIKI=$(gh api repos/{owner}/{repo} --method PATCH -f has_wiki=true \
+    --jq '.has_wiki' 2>/dev/null || echo "false")
+fi
+
+if [ "$HAS_WIKI" = "true" ]; then
+  WIKI_DIR=$(mktemp -d)
+  git clone "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git" "$WIKI_DIR" 2>/dev/null \
+    || { git -C "$WIKI_DIR" init
+         git -C "$WIKI_DIR" remote add origin \
+           "https://x-access-token:${TOKEN}@github.com/{owner}/{repo}.wiki.git"; }
+  # write $SAGA_FILE into $WIKI_DIR, then:
+  git -C "$WIKI_DIR" add .
+  git -C "$WIKI_DIR" -c user.name="Old Major" -c user.email="old-major@hall" \
+    commit -m "saga: open Saga-N-<Name>"
+  git -C "$WIKI_DIR" push origin master
+  rm -rf "$WIKI_DIR"
+else
+  # Fall back: commit saga file to docs/saga/ in the target repo
+  mkdir -p docs/saga
+  # write $SAGA_FILE into docs/saga/, then:
+  git add "docs/saga/$SAGA_FILE"
+  git -c user.name="Old Major" -c user.email="old-major@hall" \
+    commit -m "saga: open Saga-N-<Name>"
+  git push
+fi
 ```
 
-Both enabling the wiki and initialising it for the first time are handled silently — do not surface these as blockers or ask the invoker to do anything manually. Return the wiki page URL to the invoker. This URL is the saga reference for dispatch context.
+**Reading saga pages:** check the wiki first, then `docs/saga/` in the main branch. Both locations use identical filename and tag conventions. Return the saga page URL to the invoker — this is the dispatch context reference.
