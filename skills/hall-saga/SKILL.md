@@ -173,6 +173,16 @@ else
     commit -m "saga: open Saga-N-<Name>"
   git push
 fi
+
+# Create the saga milestone (title: "Saga N - <codename>", idempotent)
+MILESTONE_TITLE="Saga N - <codename>"
+EXISTING=$(gh api "repos/{owner}/{repo}/milestones?state=all&per_page=50" \
+  --jq ".[] | select(.title == \"${MILESTONE_TITLE}\") | .number" 2>/dev/null | head -1)
+[ -z "$EXISTING" ] \
+  && gh api "repos/{owner}/{repo}/milestones" \
+       -X POST -f title="${MILESTONE_TITLE}" \
+       --jq '"Milestone opened: \(.title) → #\(.number)"' \
+  || echo "Milestone '${MILESTONE_TITLE}' already exists — skipping"
 ```
 
-**Reading saga pages:** check the wiki first, then `docs/saga/` in the main branch. Both locations use identical filename and tag conventions. Return the saga page URL to the invoker — this is the dispatch context reference.
+**Reading saga pages:** check the wiki first, then `docs/saga/` in the main branch. Both locations use identical filename and tag conventions. Return the saga page URL to the invoker — this is the dispatch context reference. The milestone must exist before any OKR filing begins — `board-provision` references it by title, and a missing milestone causes issues to be silently un-milestoned.
