@@ -31,25 +31,25 @@ run_test() {
 
 echo "=== hall-open-setup slug derivation tests ==="
 
-# Scenario 1: fresh git invocation — slug from remote
+# Scenario 1: no config, git remote present — git is not consulted; no-project mode
 GIT_DIR="$TMP/git-repo"
 mkdir -p "$GIT_DIR"
 git -C "$GIT_DIR" init -q
 git -C "$GIT_DIR" remote add origin "https://github.com/TestOrg/my-project.git"
 GIT_HOME="$TMP/home-git"
 make_hall_home "$GIT_HOME"
-run_test "fresh git: slug from remote" "$GIT_DIR" "$GIT_HOME" \
-  "project layer — my-project" 0
+run_test "no config, git present: no-project mode (git unused)" "$GIT_DIR" "$GIT_HOME" \
+  "project layer — no project" 0
 
-# Scenario 2: repoless + no config — slug empty, falls through to standalone session root
+# Scenario 2: no config, no git — no-project mode
 BARE_DIR="$TMP/bare-dir"
 mkdir -p "$BARE_DIR"
 BARE_HOME="$TMP/home-bare"
 make_hall_home "$BARE_HOME"
-run_test "repoless: no git, no config — standalone session root, exits 0" "$BARE_DIR" "$BARE_HOME" \
-  "project layer — standalone" 0
+run_test "no config, no git: no-project mode" "$BARE_DIR" "$BARE_HOME" \
+  "project layer — no project" 0
 
-# Scenario 3: slug from config — prints config-origin message
+# Scenario 3: slug from config — reads target_repo, prints config message, writes .repo-slug
 NO_GIT_DIR="$TMP/no-git"
 mkdir -p "$NO_GIT_DIR"
 CFG_HOME="$TMP/home-cfg"
@@ -57,16 +57,20 @@ make_hall_home "$CFG_HOME"
 echo '{"target_repo":"TestOrg/config-repo"}' > "$CFG_HOME/.hall/.config.json"
 run_test "slug from config: prints config message" "$NO_GIT_DIR" "$CFG_HOME" \
   "Using project from ~/.hall/.config.json: config-repo" 0
+if grep -q "config-repo" "$CFG_HOME/.hall/session/.repo-slug" 2>/dev/null; then
+  echo "  PASS: .repo-slug written from config"; PASS=$((PASS+1))
+else
+  echo "  FAIL: .repo-slug not written from config"; FAIL=$((FAIL+1))
+fi
 
-# Scenario 4: different repo from last session — git slug used, .repo-slug updated
+# Scenario 4: config slug overrides stale .repo-slug
 DIFF_DIR="$TMP/diff-repo"
 mkdir -p "$DIFF_DIR"
-git -C "$DIFF_DIR" init -q
-git -C "$DIFF_DIR" remote add origin "https://github.com/TestOrg/new-project.git"
 DIFF_HOME="$TMP/home-diff"
 make_hall_home "$DIFF_HOME"
+echo '{"target_repo":"TestOrg/new-project"}' > "$DIFF_HOME/.hall/.config.json"
 echo "old-project" > "$DIFF_HOME/.hall/session/.repo-slug"
-run_test "different repo: git slug overrides stale .repo-slug" "$DIFF_DIR" "$DIFF_HOME" \
+run_test "config slug overrides stale .repo-slug" "$DIFF_DIR" "$DIFF_HOME" \
   "project layer — new-project" 0
 if grep -q "new-project" "$DIFF_HOME/.hall/session/.repo-slug" 2>/dev/null; then
   echo "  PASS: .repo-slug updated to new-project"; PASS=$((PASS+1))
