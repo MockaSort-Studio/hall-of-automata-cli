@@ -1,6 +1,0 @@
-{
-  "hall-projects": {
-    "command": "uv",
-    "args": ["run", "--with", "mcp", "HALL_CLI_PLUGIN_ROOT/mcp/hall-projects-server.py"]
-  }
-}
