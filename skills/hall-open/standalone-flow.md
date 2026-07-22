@@ -1,12 +1,12 @@
 ---
-name: hall-open-standalone
-description: Org and repo resolution for standalone mode and empty-slug fallback — executed from hall-open Step 1 when STANDALONE=true or SLUG_STATUS=empty
+name: hall-open-repo-picker
+description: Org and repo resolution fallback — executed from hall-open Step 1 when no cached target_repo exists
 ---
 
-# Standalone Mode — Org and Repo Resolution
+# Org and Repo Resolution — Picker Fallback
 
-Execute when `STANDALONE=true` OR `SLUG_STATUS=empty`. Resolves the target org and repo,
-persists the org, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequent `hall-open` steps.
+Execute when `SLUG` is empty — no cached `target_repo` in `~/.hall/.config.json`. Resolves the target org and repo,
+persists the result, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequent `hall-open` steps.
 
 Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
 
@@ -119,4 +119,4 @@ SLUG="$REPO_NAME"
 
 After this file completes, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set for the remainder of `hall-open`.
 
-// Snowball 🐷 — standalone-flow now covers the git-failure path too; no slug goes unresolved
+// Snowball 🐷 — picker is the sole fallback; no slug goes unresolved without user input

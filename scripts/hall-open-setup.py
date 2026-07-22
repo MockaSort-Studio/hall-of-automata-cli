@@ -1,38 +1,19 @@
-import json, os, re, shutil, glob, subprocess
+import json, os, shutil, glob
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
 pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    subprocess.run(['git', 'remote', 'get-url', 'origin'], check=True, capture_output=True)
-    standalone = False
-except subprocess.CalledProcessError:
-    standalone = True
-
 slug = ''
-if not standalone:
-    try:
-        origin = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'], check=True, capture_output=True, text=True
-        ).stdout.strip()
-        cleaned = re.sub(r'.*github\.com[:/]', '', origin)
-        cleaned = re.sub(r'\.git$', '', cleaned)
-        parts = cleaned.split('/')
-        slug = parts[1] if len(parts) >= 2 else ''
-    except Exception:
-        pass
-
-if not slug:
-    cfg_path = os.path.expanduser('~/.hall/.config.json')
-    try:
-        cfg_data = json.load(open(cfg_path))
-        target_repo = cfg_data.get('target_repo', '')
-        slug = target_repo.split('/')[-1] if target_repo else ''
-        if slug:
-            print(f'Using project from ~/.hall/.config.json: {slug}')
-    except Exception:
-        pass
+cfg_path = os.path.expanduser('~/.hall/.config.json')
+try:
+    cfg_data = json.load(open(cfg_path))
+    target_repo = cfg_data.get('target_repo', '')
+    slug = target_repo.split('/')[-1] if target_repo else ''
+    if slug:
+        print(f'Using project from ~/.hall/.config.json: {slug}')
+except Exception:
+    pass
 
 if slug:
     project_root = f'{root}/projects/{slug}'
@@ -90,30 +71,9 @@ open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
     .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
     .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
 
-print(f'Phase 2 built (project layer — {slug or "standalone"})')
-
-LEGACY_IMPORT = '@.hall-cache/session/CLAUDE-stack.md'
-if os.path.exists('CLAUDE.md'):
-    content = open('CLAUDE.md').read()
-    if LEGACY_IMPORT in content:
-        cleaned = '\n'.join(l for l in content.splitlines() if l.strip() != LEGACY_IMPORT)
-        open('CLAUDE.md', 'w').write(cleaned.lstrip('\n'))
+print(f'Phase 2 built (project layer — {slug or "no project"})')
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 open(f'{root}/session/.open_mode', 'w').write(mode)
-
-if not standalone:
-    if not os.path.exists('.claude/settings.json'):
-        os.makedirs('.claude', exist_ok=True)
-        open('.claude/settings.json', 'w').write(
-            open(f'{pr}/templates/claude-settings.json').read().replace('HALL_CLI_PLUGIN_ROOT', pr))
-        print('Configured unattended permissions (takes effect next session).')
-
-    hook_src = f'{pr}/hooks/git/pre-commit'
-    hook_dst = '.git/hooks/pre-commit'
-    if os.path.exists('.git/hooks') and not os.path.exists(hook_dst):
-        shutil.copy(hook_src, hook_dst)
-        os.chmod(hook_dst, 0o755)
-        print('Installed git pre-commit guard.')
 
 print(f'Setup complete (mode={mode}).')

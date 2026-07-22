@@ -26,11 +26,6 @@ set -euo pipefail
 
 # Hard stops
 gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; }
-ORIGIN=$(git remote get-url origin 2>/dev/null || echo "")
-STANDALONE=$([ -z "$ORIGIN" ] && echo true || echo false)
-if [ "$STANDALONE" = "false" ]; then
-  REPO=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||')
-fi
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
@@ -42,28 +37,29 @@ if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
 fi
 
-# Slug derivation — git first, config fallback on any failure or empty result
-SLUG=""
-if [ "$STANDALONE" = "false" ]; then
-  SLUG=$(echo "$ORIGIN" | sed 's|.*github.com[:/]||;s|\.git$||' | cut -d/ -f2)
-fi
-if [ -z "$SLUG" ]; then
-  CFG_SLUG=$(python3 -c "
+# Slug derivation — config cache only; picker is the only fallback
+SLUG=$(python3 -c "
 import json, os
 try:
     print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo','').split('/')[-1])
 except Exception:
     print('')
 " 2>/dev/null || echo "")
-  if [ -n "$CFG_SLUG" ]; then
-    SLUG="$CFG_SLUG"
-    echo "Using project from ~/.hall/.config.json: $SLUG"
-  fi
+ORG=$(python3 -c "
+import json, os
+try:
+    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org',''))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+if [ -n "$SLUG" ]; then
+  REPO_NAME="$SLUG"
+  REPO="${ORG:+$ORG/}$SLUG"
+  echo "Using project from ~/.hall/.config.json: $SLUG"
+  mkdir -p ~/.hall/projects/$SLUG/plans
+  bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
+  echo -n "$SLUG" > ~/.hall/session/.repo-slug
 fi
-[ -n "$SLUG" ] && echo "SLUG_STATUS=ok" || echo "SLUG_STATUS=empty"
-[ -n "$SLUG" ] && mkdir -p ~/.hall/projects/$SLUG/plans
-[ -n "$SLUG" ] && bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
-[ -n "$SLUG" ] && echo -n "$SLUG" > ~/.hall/session/.repo-slug
 ```
 
 If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
@@ -106,12 +102,12 @@ AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.
 LOCAL_MODE=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode','missing'))" \
   2>/dev/null || echo "missing")
 
-echo "STANDALONE=$STANDALONE | NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
+echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
-If `STANDALONE=true` OR `SLUG_STATUS=empty`: read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
+If `SLUG` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
 ### Step 2: Roster index build (skip if NEED_FETCH=false)
 
@@ -171,7 +167,7 @@ CTXEOF
 ```
 If no README exists: write `Project context: not available.`
 
-**Standalone mode:** if `STANDALONE=true`, call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
+Call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
 
 ### Step 5: Context injection
 
