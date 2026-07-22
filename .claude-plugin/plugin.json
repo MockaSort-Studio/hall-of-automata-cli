@@ -51,7 +51,7 @@
       "PushNotification",
       "RemoteTrigger",
       "mcp__github__*",
-      "mcp__plugin_hall-of-automata_github__*",
+      "mcp__plugin_hall-of-automata-cli_github__*",
       "mcp__fetch__fetch",
       "mcp__sequential-thinking__sequentialthinking"
     ]
