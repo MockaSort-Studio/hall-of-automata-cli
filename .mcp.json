@@ -22,14 +22,5 @@
   "google-drive": {
     "type": "http",
     "url": "https://drivemcp.googleapis.com/mcp/v1"
-  },
-  "hall-projects": {
-    "command": "uv",
-    "args": [
-      "run",
-      "--with",
-      "mcp",
-      "/home/mike/Workspace/hall-of-automata-cli/mcp/hall-projects-server.py"
-    ]
   }
 }

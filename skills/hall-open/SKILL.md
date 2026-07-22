@@ -2,7 +2,7 @@
 name: hall-open
 description: Enter Old Major session mode — fetch personas, assemble session stack, activate
 argument-hint: [--refresh|--verify]
-allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories, mcp__hall-projects__read_board]
+allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
 ---
 
 # /hall:open

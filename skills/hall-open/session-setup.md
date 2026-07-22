@@ -76,13 +76,51 @@ BOARD_NUM=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.p
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 ```
 
-If `BOARD_NUM` is non-empty: call `read_board` MCP with `owner=$OWNER` and `project_number=$BOARD_NUM` (integer). On success, format `board-context.md`:
+If `BOARD_NUM` is non-empty:
+
+```bash
+gh project item-list "$BOARD_NUM" --owner "$OWNER" --format json --limit 1000 \
+  > ~/.hall/projects/$SLUG/board-raw.json 2>/dev/null \
+  && echo "BOARD_OK" || echo "BOARD_ERROR"
+```
+
+On `BOARD_ERROR`: print `"Board context unavailable (board not provisioned)."` and continue. On `BOARD_OK`:
+
+```bash
+python3 << 'PYEOF'
+import json, os
+from datetime import datetime, timezone
+root = os.path.expanduser('~/.hall')
+slug = open(f'{root}/session/.repo-slug').read().strip()
+proj = f'{root}/projects/{slug}'
+RESERVED = {'id', 'title', 'number', 'type', 'body', 'url', 'assignees', 'labels',
+            'milestone', 'repository', 'createdAt', 'updatedAt', 'closedAt'}
+raw = json.load(open(f'{proj}/board-raw.json'))
+items = []
+for it in raw.get('items', []):
+    fields = {k: v for k, v in it.items() if k not in RESERVED and v not in (None, '')}
+    items.append({
+        'id': it.get('id', ''),
+        'issue_number': it.get('number'),
+        'title': it.get('title', ''),
+        'state': 'OPEN',
+        'url': it.get('url', ''),
+        'body': it.get('body', ''),
+        'assignees': it.get('assignees', []),
+        'labels': it.get('labels', []),
+        'fields': fields,
+    })
+json.dump(
+    {'fetched_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+     'project_id': '', 'items': items},
+    open(f'{proj}/board.json', 'w'), indent=2)
+print(f'Board fetched: {len(items)} items.')
+PYEOF
+```
 
 ```bash
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/format-board-context.py"
 ```
-
-On error from `read_board`: print `"Board context unavailable (board not provisioned)."` and continue.
 
 ```bash
 # Ensure board-context.md always exists for CLAUDE-stack @-import

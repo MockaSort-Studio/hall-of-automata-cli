@@ -116,24 +116,4 @@ if not standalone:
         os.chmod(hook_dst, 0o755)
         print('Installed git pre-commit guard.')
 
-    mcp_path = '.mcp.json'
-    snippet_path = f'{pr}/templates/mcp-hall-projects-snippet.json'
-    mcp_cfg = {}
-    if os.path.exists(mcp_path):
-        try:
-            mcp_cfg = json.load(open(mcp_path))
-        except json.JSONDecodeError:
-            pass
-    snippet = json.load(open(snippet_path))
-    key = 'hall-projects'
-    entry = list(snippet.values())[0]
-    entry['args'] = [a.replace('HALL_CLI_PLUGIN_ROOT', pr) for a in entry['args']]
-    is_new = key not in mcp_cfg
-    if is_new:
-        mcp_cfg[key] = entry
-    else:
-        mcp_cfg[key]['args'] = entry['args']
-    json.dump(mcp_cfg, open(mcp_path, 'w'), indent=2)
-    print(f"{'Added' if is_new else 'Updated'} hall-projects MCP server in .mcp.json.")
-
 print(f'Setup complete (mode={mode}).')
