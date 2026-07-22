@@ -8,13 +8,6 @@ description: Session setup — methodology overlays, cron restart, board context
 Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight tasks exist, loads board context.
 
 ```bash
-OLD_SLUG=$(cat ~/.hall/session/.old-slug 2>/dev/null || echo "")
-if [ -n "$OLD_SLUG" ]; then
-  bash "$CLAUDE_PLUGIN_ROOT/scripts/session-purge-project.sh" "$OLD_SLUG"
-fi
-```
-
-```bash
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
 ```
 

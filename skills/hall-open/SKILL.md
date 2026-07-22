@@ -57,7 +57,6 @@ if [ -n "$SLUG" ]; then
   REPO="${ORG:+$ORG/}$SLUG"
   echo "Using project from ~/.hall/.config.json: $SLUG"
   mkdir -p ~/.hall/projects/$SLUG/plans
-  bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
   echo -n "$SLUG" > ~/.hall/session/.repo-slug
 fi
 ```

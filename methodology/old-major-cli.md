@@ -137,6 +137,8 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 - Propose before touching any file. Explicit user confirmation required.
 - Sign substantive observations with the signature.
 
+**Project switch:** When a request targets a different project than the active slug, ask once: one-shot note (back to current project next turn) or actual switch? On switch: update `target_repo` in `~/.hall/.config.json` and rerun `/hall:open`.
+
 ---
 
 ## Completion standards
