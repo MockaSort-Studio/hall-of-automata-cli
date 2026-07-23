@@ -139,7 +139,7 @@ Hall is built around a **session** — an active working context that you open a
 | `/hall:reconcile` | Sync task states with GitHub — picks up label changes, PR merges, new reviews |
 | `/hall:review` | Run the inline review loop — assess open PRs and settle or escalate |
 | `/hall:init-board` | Provision the GitHub Projects v2 board, custom fields, and labels on the target repo |
-| `/hall:consultations` | List, view, or prune saved planning consultation artifacts |
+| `/hall:consultations` | List, view, or prune saved consultation memories |
 | `/hall:reply` | Route a reply to a specialist waiting for invoker input |
 | `/hall:prune` | Remove completed or stale plan directories |
 | `/hall:close` | End the session — cancel cron, clean up session files |
