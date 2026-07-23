@@ -77,7 +77,7 @@ If `HEAD_SHA` differs from `task["last_reviewed_sha"]` (and `last_reviewed_sha` 
 
 **Newly REVIEWING:** Determine which tasks newly transitioned into REVIEWING — status was not REVIEWING on the prior reconcile pass, is now REVIEWING. For each such task:
 
-1. Read `automation_level` from `~/.hall/<slug>/config.json` (slug from `~/.hall/session/.repo-slug`). If the file is absent, treat as 0.
+1. Read `automation_level` from `~/.hall/<org>/<slug>/config.json` (org/slug from `~/.hall/session/.repo-slug`). If the file is absent, treat as 0.
 2. If `automation_level >= 1`, set `needs_review: true` on that task in `plan.json`.
 3. If `automation_level` is 0 or the file is absent, do not write `needs_review` (or write `false`).
 
