@@ -141,9 +141,11 @@ Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker
 
 ### Step 5: Plans + invite
 
+Check Claude memory for any notes saved about `$REPO` and surface relevant context before proceeding.
+
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-ls ~/.hall/$SLUG/plans/ 2>/dev/null || true
+REPO=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+ls ~/.hall/$REPO/plans/ 2>/dev/null || true
 ```
 
 List existing plans with status. Ask whether to resume or start fresh. Then ask what the invoker wants to build — one sentence, in character as Old Major.

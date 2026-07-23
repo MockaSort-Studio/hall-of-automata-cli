@@ -1,6 +1,6 @@
 ---
 name: hall-open-invoker-gate
-description: Invoker verification — executed from hall-open Step 6
+description: Invoker verification — executed from hall-open Step 4
 ---
 
 # Invoker Verification Gate
@@ -47,11 +47,7 @@ Else: proceed to **Automation Q&A** below — skip verification below.
 ## Live verification (runs when no valid cache)
 
 ```bash
-if [ "${STANDALONE:-false}" = "true" ]; then
-  ORG=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.hall/.config.json')))['org'])" 2>/dev/null || echo "")
-else
-  ORG=$(echo "$REPO" | cut -d/ -f1)
-fi
+ORG=$(echo "$REPO" | cut -d/ -f1)
 ```
 
 Call `get_me` MCP → `ME` = returned `login` field.
