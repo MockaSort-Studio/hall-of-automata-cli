@@ -36,14 +36,14 @@ import json, glob, os, sys
 slug = os.environ.get('HALL_SLUG', '')
 found = any(
     any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))
+    for f in glob.glob(os.path.expanduser('~/.hall/' + slug + '/plans/*/plan.json'))
 )
 sys.exit(0 if found else 1)
 PYEOF
 then
   INFLIGHT=true
 fi
-CRON_EXISTS=$([ -f ~/.hall/projects/$SLUG/cron.json ] && echo true || echo false)
+CRON_EXISTS=$([ -f ~/.hall/$SLUG/cron.json ] && echo true || echo false)
 echo "INFLIGHT=$INFLIGHT | CRON_EXISTS=$CRON_EXISTS"
 ```
 
@@ -56,16 +56,16 @@ slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
 cron_id = "<returned cron ID>"
 json.dump(
     {"cron_id": cron_id, "created_at": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')},
-    open(os.path.expanduser(f'~/.hall/projects/{slug}/cron.json'), 'w')
+    open(os.path.expanduser(f'~/.hall/{slug}/cron.json'), 'w')
 )
 print('Cron restarted (in-flight tasks detected).')
 ```
 
-**Board context:** Read `board_project_number` from `~/.hall/projects/$SLUG/config.json`. If absent, skip silently.
+**Board context:** Read `board_project_number` from `~/.hall/$SLUG/config.json`. If absent, skip silently.
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-BOARD_NUM=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
+BOARD_NUM=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 ```
 
@@ -73,7 +73,7 @@ If `BOARD_NUM` is non-empty:
 
 ```bash
 gh project item-list "$BOARD_NUM" --owner "$OWNER" --format json --limit 1000 \
-  > ~/.hall/projects/$SLUG/board-raw.json 2>/dev/null \
+  > ~/.hall/$SLUG/board-raw.json 2>/dev/null \
   && echo "BOARD_OK" || echo "BOARD_ERROR"
 ```
 
@@ -85,7 +85,7 @@ import json, os
 from datetime import datetime, timezone
 root = os.path.expanduser('~/.hall')
 slug = open(f'{root}/session/.repo-slug').read().strip()
-proj = f'{root}/projects/{slug}'
+proj = f'{root}/{slug}'
 RESERVED = {'id', 'title', 'number', 'type', 'body', 'url', 'assignees', 'labels',
             'milestone', 'repository', 'createdAt', 'updatedAt', 'closedAt'}
 raw = json.load(open(f'{proj}/board-raw.json'))
@@ -117,8 +117,8 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/format-board-context.py"
 
 ```bash
 # Ensure board-context.md always exists for CLAUDE-stack @-import
-[ -f ~/.hall/projects/$SLUG/board-context.md ] \
-  || printf '# Board Context\nNot provisioned.\n' > ~/.hall/projects/$SLUG/board-context.md
+[ -f ~/.hall/$SLUG/board-context.md ] \
+  || printf '# Board Context\nNot provisioned.\n' > ~/.hall/$SLUG/board-context.md
 ```
 
 // Snowball 🐷 — session setup now has its own room; SKILL.md can breathe

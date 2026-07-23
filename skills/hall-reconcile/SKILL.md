@@ -17,12 +17,12 @@ SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 Find the active plan. For each task with a `github_issue` number:
 
 ```bash
-PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
+PLAN_DIR=$(ls -d ~/.hall/$SLUG/plans/*/ | sort | tail -1)
 ```
 Read `repo` from `$PLAN_DIR/plan.json` for the `--repo` argument throughout: `REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")` — split into ORG and REPO parts as needed.
 
 ```bash
-BOARD_ACTIVE=$(python3 -c "import json, os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
+BOARD_ACTIVE=$(python3 -c "import json, os; slug='$SLUG'; print(bool(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json'))).get('board_project_number','')))"\ 2>/dev/null || echo "False")
 ```
 
 For each issue, call `issue_read` (method: `get`, owner: ORG, repo: REPO, issue_number: N).
@@ -77,7 +77,7 @@ If `HEAD_SHA` differs from `task["last_reviewed_sha"]` (and `last_reviewed_sha` 
 
 **Newly REVIEWING:** Determine which tasks newly transitioned into REVIEWING — status was not REVIEWING on the prior reconcile pass, is now REVIEWING. For each such task:
 
-1. Read `automation_level` from `~/.hall/projects/<slug>/config.json` (slug from `~/.hall/session/.repo-slug`). If the file is absent, treat as 0.
+1. Read `automation_level` from `~/.hall/<org>/<slug>/config.json` (org/slug from `~/.hall/session/.repo-slug`). If the file is absent, treat as 0.
 2. If `automation_level >= 1`, set `needs_review: true` on that task in `plan.json`.
 3. If `automation_level` is 0 or the file is absent, do not write `needs_review` (or write `false`).
 
@@ -88,7 +88,7 @@ AUTOMATION_LEVEL=$(python3 -c "
 import json, sys, os
 slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip() if os.path.exists(os.path.expanduser('~/.hall/session/.repo-slug')) else ''
 try:
-    cfg = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json')))
+    cfg = json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))
     print(cfg.get('automation_level', 0))
 except FileNotFoundError:
     print(0)
@@ -103,22 +103,22 @@ After writing `plan.json`, check if all tasks across all plans have reached a te
 ALL_DONE=$(HALL_SLUG="$SLUG" python3 -c "
 import json, glob, os
 slug = os.environ.get('HALL_SLUG', '')
-all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
+all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
 terminal = {'MERGED', 'DONE', 'FAILED', 'ESCALATED'}
 print('true' if all_tasks and all(t['status'] in terminal for t in all_tasks) else 'false')
 ")
 ```
 
-If `ALL_DONE=true` and `~/.hall/projects/$SLUG/cron.json` exists:
+If `ALL_DONE=true` and `~/.hall/$SLUG/cron.json` exists:
 
 ```bash
-CRON_ID=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/cron.json')))['cron_id'])" 2>/dev/null || echo "")
+CRON_ID=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/cron.json')))['cron_id'])" 2>/dev/null || echo "")
 ```
 
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`. Then:
 
 ```bash
-rm -f ~/.hall/projects/$SLUG/cron.json
+rm -f ~/.hall/$SLUG/cron.json
 echo "All tasks terminal — autonomous cron cancelled."
 ```
 
@@ -136,7 +136,7 @@ After board writes complete, check if all tasks across the active plan reached a
 ALL_SAGA_DONE=$(HALL_SLUG="$SLUG" python3 -c "
 import json, glob, os
 slug = os.environ.get('HALL_SLUG', '')
-all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
+all_tasks = [t for f in glob.glob(os.path.expanduser('~/.hall/' + slug + '/plans/*/plan.json')) for t in json.load(open(f)).get('tasks', [])]
 success = {'MERGED', 'DONE'}
 print('true' if all_tasks and all(t['status'] in success for t in all_tasks) else 'false')
 ")

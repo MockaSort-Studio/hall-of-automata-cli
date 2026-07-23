@@ -25,7 +25,7 @@ REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 OWNER_TYPE=$(gh api "repos/${REPO}" --jq '.owner.type')
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-mkdir -p ~/.hall/session ~/.hall/projects/$SLUG
+mkdir -p ~/.hall/session ~/.hall/$SLUG
 python3 -c "
 import json, os
 json.dump({'owner':'${OWNER}','owner_type':'${OWNER_TYPE}','repo':'${REPO}'},
@@ -39,7 +39,7 @@ echo "Resolved: OWNER=${OWNER} OWNER_TYPE=${OWNER_TYPE}"
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 BOARD_NUM=$(python3 -c \
-  "import json, os; print(json.load(open(os.path.expanduser('~/.hall/projects/$SLUG/config.json'))).get('board_project_number',''))" \
+  "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/config.json'))).get('board_project_number',''))" \
   2>/dev/null || echo "")
 if [ -n "$BOARD_NUM" ]; then
   echo "Board #${BOARD_NUM} already provisioned — skipping Step 3."
@@ -129,7 +129,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
 export PROJECT_ID=$(python3 -c "
 import json, os
 s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
-cfg_path = os.path.expanduser('~/.hall/projects/$SLUG/config.json')
+cfg_path = os.path.expanduser('~/.hall/$SLUG/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 print(s.get('project_id') or cfg.get('board_project_id',''))
 ")
@@ -183,7 +183,7 @@ OWNER_TYPE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduse
 PROJECT_NUM=$(python3 -c "
 import json, os
 s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
-cfg_path = os.path.expanduser('~/.hall/projects/$SLUG/config.json')
+cfg_path = os.path.expanduser('~/.hall/$SLUG/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 print(s.get('project_num') or cfg.get('board_project_number',''))
 ")
@@ -219,9 +219,9 @@ for node in meta.get('fields', {}).get('nodes', []):
     fields_out[node['name']] = entry
 
 json.dump({'project_id': meta['id'], 'fields': fields_out},
-          open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json'), 'w'), indent=2)
+          open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json'), 'w'), indent=2)
 
-cfg_path = os.path.expanduser(f'~/.hall/projects/{slug}/config.json')
+cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 cfg['board_project_number'] = str(meta.get('number', ''))
 cfg['board_project_id'] = meta['id']
@@ -234,7 +234,7 @@ PYEOF
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-PROJECT_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/projects/$SLUG/board-meta.json')))['project_id'])")
+PROJECT_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/board-meta.json')))['project_id'])")
 EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on ProjectV2{views(first:20){nodes{name}}}}}" --jq '[.data.node.views.nodes[].name]|index("Roadmap")' 2>/dev/null || echo "null")
 if [ "$EXISTS" != "null" ]; then
   echo "skip: Roadmap view already exists"
@@ -251,8 +251,8 @@ fi
 python3 << 'PYEOF'
 import json, os
 slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
-meta = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))
-cfg = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json')))
+meta = json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))
+cfg = json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))
 state = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
 board_num = cfg.get('board_project_number', '?')
 owner = state['owner']
