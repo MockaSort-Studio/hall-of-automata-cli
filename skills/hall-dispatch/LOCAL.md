@@ -43,7 +43,7 @@ Co-authored-by: Old Major <hall-of-automata[bot]@users.noreply.github.com>"
 
 ## Step L5: Write result artifact
 
-Read slug from `~/.hall/session/.repo-slug`. Write `~/.hall/<slug>/plans/<plan-slug>/local-runs/<task-id>/result.md`:
+Read org/slug from `~/.hall/session/.repo-slug`. Write `~/.hall/<org>/<slug>/plans/<plan-slug>/local-runs/<task-id>/result.md`:
 
 ```
 # Local Run: <task-id>
