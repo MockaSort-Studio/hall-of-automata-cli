@@ -60,15 +60,16 @@ if [ -n "$SLUG" ]; then
   bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
   echo -n "$SLUG" > ~/.hall/session/.repo-slug
 fi
+echo "ORG=$ORG"
 ```
 
 If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
+Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash
 printf '%s' "<SHA>" > ~/.hall/session/.current-sha
 ```
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.sha'`
+`# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
 ```bash
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
@@ -106,11 +107,11 @@ If `SLUG` is empty (no cached `target_repo`): read `skills/hall-open/standalone-
 
 ### Step 2: Agent index build (skip if NEED_FETCH=false)
 
-Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.sha'`
+Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
-`# On rate_limit/secondary-rate-limit error: BASE64_CONTENT=$(gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.content'); then substitute as <base64-content> below`
+Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
+`# On rate_limit/secondary-rate-limit error: BASE64_CONTENT=$(gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.content'); then substitute as <base64-content> below`
 
 ```bash
 python3 << 'PYEOF'
