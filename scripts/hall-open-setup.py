@@ -1,5 +1,4 @@
 import json, os
-from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
 pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,15 +22,11 @@ if org_slug:
     open(f'{root}/session/.repo-slug', 'w').write(org_slug)
     if not os.path.exists(f'{project_root}/config.json'):
         open(f'{project_root}/config.json', 'w').write('{}')
-    stack_dir = f'{project_root}/session'
-    os.makedirs(stack_dir, exist_ok=True)
+    os.makedirs(f'{project_root}/session', exist_ok=True)
 else:
     project_root = f'{root}/session'
-    stack_dir = f'{root}/session'
 
-at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.json SHA)
+# Phase 1 — invariant: overlays (once per session; gated by agents.json SHA)
 phase1_marker = f'{root}/session/.invariant-built'
 current_sha = (open(f'{root}/session/.current-sha').read().strip()
                if os.path.exists(f'{root}/session/.current-sha') else '')
@@ -50,26 +45,10 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
                .replace('{{ORG}}', org)
                .replace('{{CACHE_ROOT}}', root))
 
-    open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(
-        open(f'{pr}/templates/CLAUDE-stack-invariant.md.tpl').read()
-        .replace('{{CACHE_ROOT}}', root).replace('{{PLUGIN_ROOT}}', pr).replace('{{ASSEMBLED_AT}}', at))
-
     open(phase1_marker, 'w').write(current_sha)
     print('Phase 1 built (invariant layer).')
 else:
     print('Phase 1 cached (invariant layer — skip).')
-
-# Phase 2 — project: context.md, board-context.md, plan state (per project, always rebuilt)
-open(f'{stack_dir}/CLAUDE-stack-project.md', 'w').write(
-    open(f'{pr}/templates/CLAUDE-stack-project.md.tpl').read()
-    .replace('{{PROJECT_ROOT}}', project_root).replace('{{ASSEMBLED_AT}}', at))
-
-open(f'{stack_dir}/CLAUDE-stack.md', 'w').write(
-    open(f'{pr}/templates/CLAUDE-stack.md.tpl').read()
-    .replace('{{PLUGIN_ROOT}}', pr).replace('{{CACHE_ROOT}}', root)
-    .replace('{{STACK_DIR}}', stack_dir).replace('{{ASSEMBLED_AT}}', at))
-
-print(f'Phase 2 built (project layer — {slug or "no project"})')
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 open(f'{root}/session/.open_mode', 'w').write(mode)
