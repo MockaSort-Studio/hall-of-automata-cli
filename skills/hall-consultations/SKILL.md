@@ -1,27 +1,22 @@
 ---
 name: hall-consultations
-description: List, view, or prune saved Tier-2 subagent consultation outputs
+description: List, view, or prune saved consultation memories
 argument-hint: "list|view <id>|prune [--older-than <days>]"
-allowed-tools: [Read, Bash, Write]
+allowed-tools: [Read, Edit, Bash]
 ---
 
 # /hall:consultations [list|view <id>|prune]
 
-Manage saved Tier-2 subagent consultation outputs.
+Manage consultation artifacts saved in Claude memory. Consultation entries use `metadata.type: project` and names matching `consultation-<YYYYMMDD-HHmm>-<topic-slug>`.
 
 ## list (default)
 
-```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-find ~/.hall/$SLUG/plans -name "*.md" -path "*/consultations/*" | sort
-```
-
-Display as a table: plan, filename, approximate size, date.
+Scan memory for entries whose names begin with `consultation-`. Display a table: name, description, date (parsed from name slug).
 
 ## view <id>
 
-Read and display the consultation file. `<id>` can be a filename or a partial match.
+`<id>` is a full or partial name match against the name slug. Read and display the matched memory entry in full.
 
 ## prune [--older-than <days>]
 
-Remove consultation files older than N days (default: 90). List files to be removed and ask for confirmation before deleting.
+Default: 90 days. Parse `YYYYMMDD` from entry names. List entries older than the threshold. Confirm with the invoker, then: remove each matched memory file and its MEMORY.md index line.
