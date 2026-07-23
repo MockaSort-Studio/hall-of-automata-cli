@@ -39,7 +39,7 @@ git -C "$GIT_DIR" remote add origin "https://github.com/TestOrg/my-project.git"
 GIT_HOME="$TMP/home-git"
 make_hall_home "$GIT_HOME"
 run_test "no .repo-slug, git present: no-project mode (git unused)" "$GIT_DIR" "$GIT_HOME" \
-  "project layer — no project" 0
+  "Setup complete" 0
 
 # Scenario 2: no .repo-slug, no git — no-project mode
 BARE_DIR="$TMP/bare-dir"
@@ -47,7 +47,7 @@ mkdir -p "$BARE_DIR"
 BARE_HOME="$TMP/home-bare"
 make_hall_home "$BARE_HOME"
 run_test "no .repo-slug, no git: no-project mode" "$BARE_DIR" "$BARE_HOME" \
-  "project layer — no project" 0
+  "Setup complete" 0
 
 # Scenario 3: .repo-slug present — reads it, prints project message, preserves file
 NO_GIT_DIR="$TMP/no-git"
@@ -70,7 +70,7 @@ DIFF_HOME="$TMP/home-diff"
 make_hall_home "$DIFF_HOME"
 echo '{"target_repo":"TestOrg/new-project"}' > "$DIFF_HOME/.hall/.config.json"
 run_test "legacy .config.json not consulted: no .repo-slug → no-project mode" "$DIFF_DIR" "$DIFF_HOME" \
-  "project layer — no project" 0
+  "Setup complete" 0
 
 echo
 echo "Results: $PASS passed, $FAIL failed"

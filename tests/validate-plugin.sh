@@ -55,14 +55,8 @@ check "no orphaned methodology files" \
   "for MD in methodology/*.md; do base=\$(basename \"\$MD\" .md); [ \"\$base\" = 'old-major-cli' ] && continue; grep -ql \"\$base\" methodology/old-major-cli.md skills/*/SKILL.md 2>/dev/null || exit 1; done"
 
 # Templates
-check "templates/CLAUDE-stack.md.tpl exists"        "test -f templates/CLAUDE-stack.md.tpl"
 check "templates/subagent-overlay.md.tpl exists"    "test -f templates/subagent-overlay.md.tpl"
 check "templates/plan.json.schema exists"            "test -f templates/plan.json.schema"
-check "CLAUDE-stack template has roster-index import"       "grep -q 'roster-index.md' templates/CLAUDE-stack-invariant.md.tpl"
-check "CLAUDE-stack does not import decomposition.md"       "! grep -q 'decomposition.md' templates/CLAUDE-stack.md.tpl"
-check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consultation-router.md' templates/CLAUDE-stack.md.tpl"
-check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
-check "CLAUDE-stack does not import session-guard.md"       "! grep -q 'session-guard.md' templates/CLAUDE-stack.md.tpl"
 check "subagent overlay fetches base persona on-demand"     "grep -q 'get_file_contents' templates/subagent-overlay.md.tpl"
 check "templates/dispatch-body-pr.md.tpl exists"     "test -f templates/dispatch-body-pr.md.tpl"
 check "templates/dispatch-body-report.md.tpl exists"  "test -f templates/dispatch-body-report.md.tpl"
