@@ -21,8 +21,10 @@ Read config before any GitHub API call:
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 LOCAL_MODE=$(python3 -c "
-import json, os; slug='$SLUG'
-try: print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json'))).get('local_mode',False))
+import json, os
+try:
+    org = json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org', '')
+    print(json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json'))).get('local_mode', False))
 except: print(False)
 " 2>/dev/null || echo "False")
 ```
