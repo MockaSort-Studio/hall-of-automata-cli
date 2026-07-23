@@ -114,8 +114,6 @@ Once the gate passes:
 
 5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Verification criteria. Closed OKRs marked ✓.
 
-**plan.json coupling:** hall-decompose Phase 7 returns the filed issue numbers. Write `github_issue: <N>` to the corresponding task entry in plan.json for each Item. This is the dispatch pre-check signal: when hall-dispatch encounters `github_issue` set, it applies the `hall:` label without re-creating. Write before the session closes to prevent duplicates.
-
 6. Report: issue numbers, board item IDs, blocked KRs
 
 ---
