@@ -89,16 +89,8 @@ fi
 
 AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "
-import json, os
-org = '$ORG'
-try:
-    print(json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json'))).get('local_mode', 'missing'))
-except Exception:
-    print('missing')
-" 2>/dev/null || echo "missing")
 
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
+echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/$REPO/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
@@ -172,9 +164,9 @@ fi
 
 Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via SessionStart hook. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
 
-### Step 6: Invoker detection gate
+### Step 6: Invoker verification gate
 
-Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR (b) `~/.hall/$ORG/invoker.json` exists and contains a valid `mode` (`invoker` or `local`). If neither condition holds, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
+Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 7.
 
 ### Step 7: Plans + invite
 
