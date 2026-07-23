@@ -1,4 +1,4 @@
-import json, os, shutil, glob
+import json, os
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
@@ -41,10 +41,6 @@ cached_sha = (open(phase1_marker).read().strip()
               if os.path.exists(phase1_marker) else None)
 
 if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRESH_INVARIANT'):
-    os.makedirs(f'{root}/methodology', exist_ok=True)
-    for f in glob.glob(f'{pr}/methodology/*.md'):
-        shutil.copy(f, f'{root}/methodology/')
-
     os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
     open(f'{root}/session/.plugin-root', 'w').write(pr)
     roster = json.load(open(f'{root}/agent-index.json'))
@@ -58,7 +54,7 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
 
     open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(
         open(f'{pr}/templates/CLAUDE-stack-invariant.md.tpl').read()
-        .replace('{{CACHE_ROOT}}', root).replace('{{ASSEMBLED_AT}}', at))
+        .replace('{{CACHE_ROOT}}', root).replace('{{PLUGIN_ROOT}}', pr).replace('{{ASSEMBLED_AT}}', at))
 
     open(phase1_marker, 'w').write(current_sha)
     print('Phase 1 built (invariant layer).')

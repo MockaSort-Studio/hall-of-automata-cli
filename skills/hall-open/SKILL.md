@@ -96,6 +96,12 @@ echo "SHA=${CURRENT_SHA:0:8}"
 
 If `REPO` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
+Read `$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md` directly from the plugin and adopt its contents as operating instructions for this session:
+```bash
+CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
+cat "$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md"
+```
+
 ### Step 2: Agent index build (skip if NEED_FETCH=false)
 
 Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
