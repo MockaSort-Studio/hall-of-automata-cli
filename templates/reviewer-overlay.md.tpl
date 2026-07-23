@@ -1,5 +1,4 @@
 Before beginning:
-- Read `{{CACHE_ROOT}}/personas/automaton_base.md`
 - Read `{{PERSONA_PATH}}`
 - Read `{{CACHE_ROOT}}/methodology/review-loop.md`
 
