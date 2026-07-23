@@ -1,15 +1,15 @@
 ---
 name: hall-open
-description: Enter Old Major session mode — fetch personas, assemble session stack, activate
+description: Enter Old Major session mode — build agent index, assemble session stack, activate
 argument-hint: [--refresh|--verify]
 allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
 ---
 
 # /hall:open
 
-Enter Hall session mode. Fetches personas, assembles session stack, activates Old Major.
+Enter Hall session mode. Builds agent index, assembles session stack, activates Old Major.
 
-Use `--refresh` to force persona re-fetch even if cache is fresh. Use `--verify` to force invoker re-check.
+Use `--refresh` to force agent-index re-fetch even if SHA matches. Use `--verify` to force invoker re-check.
 
 ## Execution sequence
 
@@ -30,7 +30,7 @@ gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
 # Cache state
-mkdir -p ~/.hall/personas ~/.hall/session
+mkdir -p ~/.hall ~/.hall/session
 CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
 if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   export CLAUDE_PLUGIN_ROOT
@@ -72,16 +72,11 @@ printf '%s' "<SHA>" > ~/.hall/session/.current-sha
 
 ```bash
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
-CACHED_SHA=$(cat ~/.hall/personas/agent-index.sha 2>/dev/null || echo "")
-FETCHED_AT=$(cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "")
-NOW=$(date +%s)
-FETCHED_TS=$([ -n "$FETCHED_AT" ] && date -d "$FETCHED_AT" +%s 2>/dev/null || echo "0")
+CACHED_SHA=$(cat ~/.hall/agent-index.sha 2>/dev/null || echo "")
 
 NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
-[ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
-[ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
+python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
@@ -134,19 +129,17 @@ for slug, data in catalog.items():
         'scope_summary': c.get('scope_summary', '').strip(),
         'model': data.get('model', ''),
     }
-json.dump(roster, open(os.path.expanduser('~/.hall/personas/agent-index.json'), 'w'), indent=2)
+json.dump(roster, open(os.path.expanduser('~/.hall/agent-index.json'), 'w'), indent=2)
 print(f'Agent index: {len(roster)} specialists.')
 PYEOF
 ```
 
 ```bash
-gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
-  --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
-**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for persona or methodology changes to apply. See Step 5.
+**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for agent index or methodology changes to apply. See Step 5.
 
 ### Step 3: Setup — methodology, overlays, stack
 

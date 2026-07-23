@@ -43,13 +43,12 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
 
     os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
     open(f'{root}/session/.plugin-root', 'w').write(pr)
-    roster = json.load(open(f'{root}/personas/agent-index.json'))
+    roster = json.load(open(f'{root}/agent-index.json'))
     tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
     for name, data in roster.items():
         desc = data.get('display_name', name)
         open(f'{root}/session/claude-agents/{name}.md', 'w').write(
             tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
-               .replace('{{PERSONA_PATH}}', f'{root}/personas/{name}.md')
                .replace('{{CACHE_ROOT}}', root))
 
     open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(

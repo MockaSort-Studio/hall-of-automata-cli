@@ -21,7 +21,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
 ```bash
 python3 << 'PYEOF'
 import json, os
-roster = json.load(open(os.path.expanduser('~/.hall/personas/agent-index.json')))
+roster = json.load(open(os.path.expanduser('~/.hall/agent-index.json')))
 lines = ['# Specialist Roster\n']
 for slug, data in roster.items():
     lines.append(f"## {data['display_name']} (`{slug}`)")

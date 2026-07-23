@@ -1,4 +1,4 @@
-Before beginning: Read `{{CACHE_ROOT}}/personas/automaton_base.md`. Read `{{PERSONA_PATH}}`.
+Before beginning: call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents/automaton_base.md`) and apply its content as your base persona. Then call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`roster/{{SPECIALIST_NAME}}.md`) and apply its content as your specialist persona.
 
 # Local consultation overlay
 
