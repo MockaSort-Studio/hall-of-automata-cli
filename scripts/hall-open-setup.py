@@ -33,7 +33,7 @@ else:
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-# Phase 1 — invariant: overlays, stack (once per session; gated by agents.json SHA)
+# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.json SHA)
 phase1_marker = f'{root}/session/.invariant-built'
 current_sha = (open(f'{root}/session/.current-sha').read().strip()
                if os.path.exists(f'{root}/session/.current-sha') else '')
