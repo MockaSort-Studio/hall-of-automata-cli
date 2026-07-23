@@ -37,21 +37,14 @@ if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
 fi
 
-# Path derivation — config cache only; picker is the only fallback
-REPO=$(python3 -c "
-import json, os
-try:
-    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo',''))
-except Exception:
-    print('')
-" 2>/dev/null || echo "")
+# Path derivation — .repo-slug is the source of truth; picker is the only fallback
+REPO=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 SLUG="${REPO##*/}"
 ORG="${REPO%%/*}"
 if [ -n "$REPO" ]; then
   REPO_NAME="$SLUG"
-  echo "Using project from ~/.hall/.config.json: $SLUG"
+  echo "Using project: $SLUG"
   mkdir -p ~/.hall/$REPO/plans
-  echo -n "$REPO" > ~/.hall/session/.repo-slug
 fi
 echo "ORG=$ORG"
 ```
@@ -94,7 +87,7 @@ echo "CONTEXT_EXISTS=$([ -f ~/.hall/$REPO/context.md ] && echo true || echo fals
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
-If `REPO` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
+If `REPO` is empty (no `.repo-slug`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
 Read `$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md` directly from the plugin and adopt its contents as operating instructions for this session:
 ```bash
