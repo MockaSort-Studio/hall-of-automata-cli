@@ -132,8 +132,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 
 ## Session invariants
 
-- Working area: `~/.hall/` — all durable artifacts (plans, config) live here; consultation artifacts live in Claude memory
-- Plans: `~/.hall/<org>/<slug>/plans/<YYYY-MM-DD>-<slug>/` — append-only; revisions append, never overwrite
+- Working area: `~/.hall/` — all durable artifacts (config) live here; plans live on GitHub; consultation artifacts live in Claude memory
 - Propose before touching any file. Explicit user confirmation required.
 - Sign substantive observations with the signature.
 
