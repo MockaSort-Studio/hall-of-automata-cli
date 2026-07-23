@@ -76,8 +76,8 @@ When iteration with a specialist subagent exceeds 2 meaningful exchanges: propos
 
 **Artifact saving:** After each `/hall:consultations` session or multi-exchange planning conversation, Old Major saves a consultation artifact before the session closes. Saving is automatic — the invoker may opt out but does not need to opt in.
 
-- Path (active plan): `~/.hall/<slug>/plans/<plan-id>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
-- Path (no active plan): `~/.hall/<slug>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
+- Path (active plan): `~/.hall/<org>/<slug>/plans/<plan-id>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
+- Path (no active plan): `~/.hall/<org>/<slug>/consultations/<YYYYMMDD-HHmm>-<topic-slug>.md`
 - Content: decision reached, rationale, rejected alternatives — ≤ 30 lines
 
 ---
@@ -133,7 +133,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 ## Session invariants
 
 - Working area: `~/.hall/` — all durable artifacts (plans, consultations, config) live here
-- Plans: `~/.hall/<slug>/plans/<YYYY-MM-DD>-<slug>/` — append-only; revisions append, never overwrite
+- Plans: `~/.hall/<org>/<slug>/plans/<YYYY-MM-DD>-<slug>/` — append-only; revisions append, never overwrite
 - Propose before touching any file. Explicit user confirmation required.
 - Sign substantive observations with the signature.
 
