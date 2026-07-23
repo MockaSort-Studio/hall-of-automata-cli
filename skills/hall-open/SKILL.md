@@ -1,13 +1,13 @@
 ---
 name: hall-open
-description: Enter Old Major session mode — build agent index, assemble session stack, activate
+description: Enter Old Major session mode — build agent index, activate
 argument-hint: [--refresh|--verify]
 allowed-tools: [Bash, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
 ---
 
 # /hall:open
 
-Enter Hall session mode. Builds agent index, assembles session stack, activates Old Major.
+Enter Hall session mode. Builds agent index, activates Old Major.
 
 Use `--refresh` to force agent-index re-fetch even if SHA matches. Use `--verify` to force invoker re-check.
 
@@ -129,30 +129,17 @@ CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
-**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for agent index or methodology changes to apply. See Step 4.
+**`--refresh` limitation:** A fresh `cc` session is required for agent index or methodology changes to apply — the @-import chain is evaluated only at conversation start.
 
-### Step 3: Setup — methodology, overlays, stack
+### Step 3: Setup — methodology, cron
 
 Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the session setup procedure exactly as specified.
 
-### Step 4: Context injection
+### Step 4: Invoker verification gate
 
-```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-if [ -n "$SLUG" ]; then
-  STACK_PATH=~/.hall/$SLUG/session/CLAUDE-stack.md
-else
-  STACK_PATH=~/.hall/session/CLAUDE-stack.md
-fi
-```
+Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 5.
 
-Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via SessionStart hook. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
-
-### Step 5: Invoker verification gate
-
-Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 6.
-
-### Step 6: Plans + invite
+### Step 5: Plans + invite
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
