@@ -4,7 +4,7 @@ Companion brief for [MockaSort-Studio/hall-of-automata](https://github.com/Mocka
 
 ---
 
-## 1. What This Plugin Is
+## 1. What This Is
 
 The Hall of Automata dispatches specialist AI agents via GitHub Issues — one issue per task, one specialist per issue, everything sandboxed. It handles single tasks well. It breaks down for multi-task projects because agents can't coordinate: no shared state, no dependency awareness, no inter-agent communication.
 
@@ -142,7 +142,7 @@ hall-of-automata-cli/
 
 ### `/hall:open` sequence
 
-1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `~/.hall/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
+1. **Preflight** — `gh` auth check; warn on missing PAT; cache state check. Flags: `--verify` clears `~/.hall/<org>/invoker.json` for re-verification; `--refresh` forces persona re-fetch.
 2. **Directory init** — `mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans` (idempotent; `~/.hall/` lives in the home directory and cannot be accidentally committed).
 3. **Synthesise project context** — read first 30 lines of `README.md`; write 2–4 sentence brief to `~/.hall/session/context.md`. Skipped if `context.md` already exists.
 4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
@@ -154,7 +154,7 @@ hall-of-automata-cli/
 10. **Watcher start** — launch `watcher.sh` as background daemon; log to `~/.hall/watcher.log`.
 11. **Autonomous cron (resume path)** — if any task has status DISPATCHED or IN_PROGRESS and no `cron.json` is present, restart the cron (every 15 min). On a fresh session, `/hall:dispatch` Step 7 creates the cron after the first batch of issues is filed.
 12. **Context injection** — read and apply the assembled session stack; Old Major activates immediately.
-13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `~/.hall/invoker.json`; set `local_mode` in `config.json`. Invoker path also prompts automation Q&A and writes `automation_level`. See [Invoker Detection](#invoker-detection).
+13. **Invoker detection gate** — if `LOCAL_MODE` not yet set: prompt "Are you a Hall invoker?"; verify via Hall repo existence + `automata-invokers` team membership; write result to `~/.hall/<org>/invoker.json`; set `local_mode` in `~/.hall/<org>/invoker.json`; set `automation_level` in `config.json`. Invoker path also prompts automation Q&A. See [Invoker Detection](#invoker-detection).
 14. **Plan check** — offer to resume if plans exist in `~/.hall/plans/`.
 15. **Banner** — Old Major introduces himself.
 
@@ -167,7 +167,7 @@ hall-of-automata-cli/
 
 ### Invoker Detection
 
-Runs at Step 13 of `/hall:open` when `~/.hall/invoker.json` is absent (or removed by `--verify` / `hall:prune --invoker`).
+Runs at Step 13 of `/hall:open` when `~/.hall/<org>/invoker.json` is absent (or removed by `--verify` to `/hall:open`).
 
 **Verification:** two checks against the authenticated user's org:
 
@@ -188,6 +188,7 @@ Decision logic:
 ```json
 {
   "mode": "invoker | local",
+  "local_mode": true | false,
   "verified_at": "<ISO timestamp>",
   "checks": {
     "hall_repo": true | false,
@@ -198,15 +199,15 @@ Decision logic:
 
 `team_member` is `"unknown"` when the token lacks `read:org` scope; in that case the outcome is `invoker` with a warning (see decision table above).
 
-Cached at `~/.hall/invoker.json`. Reset with `hall:prune --invoker` (removes the file) or pass `--verify` to `/hall:open` (same effect inline).
+Cached at `~/.hall/<org>/invoker.json`. Reset by passing `--verify` to `/hall:open`.
 
 **Session effect:**
-- `invoker` → automation Q&A proceeds; writes `local_mode: false` to `config.json`
-- `local` → skips automation Q&A; writes `local_mode: true`, `automation_level: 0` to `config.json`
+- `invoker` → writes `local_mode: false` to `~/.hall/<org>/invoker.json`; automation Q&A writes `automation_level` to `config.json`
+- `local` → writes `local_mode: true` to `~/.hall/<org>/invoker.json`; writes `automation_level: 0` to `config.json`
 
 ### Local Mode
 
-Active when `config.json` contains `local_mode: true`. Old Major implements tasks inline in the current Claude Code session, without filing GitHub Issues. Assigned automatically to users whose verification returned `local`.
+Active when `~/.hall/<org>/invoker.json` contains `local_mode: true`. Old Major implements tasks inline in the current Claude Code session, without filing GitHub Issues. Assigned automatically to users whose verification returned `local`.
 
 **Persona load path:** `~/.hall/personas/<specialist>.md` — fetched from Hall on demand if absent.
 
@@ -280,6 +281,9 @@ For the current specialist roster and their domains, see [hall-codex — Roster]
 │       ├── plan.md                 # human-readable rendering
 │       ├── ledger.json             # immutable dispatch log
 │       └── consultations/          # saved Tier-2 outputs
+│
+├── <org>/
+│   └── invoker.json                # org-scoped invoker verification cache
 │
 ├── watcher.pid                     # PID of background polling daemon
 ├── watcher-state.json              # last-seen state per issue (transition deduplication)
@@ -456,7 +460,7 @@ Each hit produces a `CROSS-INVOKER RISK` entry with a recommended action (`coord
 | `/hall:reconcile` | Resync local plan from GitHub. Runs implicitly before any dispatch. |
 | `/hall:review` | Run the inline review loop — assess open PRs for `needs_review` tasks and settle or escalate. |
 | `/hall:consultations [list\|view <id>\|prune]` | Manage saved Tier-2 consultation outputs. |
-| `/hall:prune [--invoker] [--plans <days>] [--cache]` | Clean old plans, stale cache, or invoker status. `--invoker` clears `~/.hall/invoker.json` and prompts re-verification on next `/hall:open`. |
+| `/hall:prune [--plans <days>]` | Age out stale plan directories from `~/.hall/projects/`. Use `/hall:open --verify` to reset invoker status. |
 
 ---
 
