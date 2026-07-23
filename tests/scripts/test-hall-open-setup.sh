@@ -57,10 +57,10 @@ make_hall_home "$CFG_HOME"
 echo '{"target_repo":"TestOrg/config-repo"}' > "$CFG_HOME/.hall/.config.json"
 run_test "slug from config: prints config message" "$NO_GIT_DIR" "$CFG_HOME" \
   "Using project from ~/.hall/.config.json: config-repo" 0
-if grep -q "config-repo" "$CFG_HOME/.hall/session/.repo-slug" 2>/dev/null; then
-  echo "  PASS: .repo-slug written from config"; PASS=$((PASS+1))
+if grep -q "TestOrg/config-repo" "$CFG_HOME/.hall/session/.repo-slug" 2>/dev/null; then
+  echo "  PASS: .repo-slug written as org/slug from config"; PASS=$((PASS+1))
 else
-  echo "  FAIL: .repo-slug not written from config"; FAIL=$((FAIL+1))
+  echo "  FAIL: .repo-slug not written as org/slug from config"; FAIL=$((FAIL+1))
 fi
 
 # Scenario 4: config slug overrides stale .repo-slug
@@ -72,10 +72,10 @@ echo '{"target_repo":"TestOrg/new-project"}' > "$DIFF_HOME/.hall/.config.json"
 echo "old-project" > "$DIFF_HOME/.hall/session/.repo-slug"
 run_test "config slug overrides stale .repo-slug" "$DIFF_DIR" "$DIFF_HOME" \
   "project layer — new-project" 0
-if grep -q "new-project" "$DIFF_HOME/.hall/session/.repo-slug" 2>/dev/null; then
-  echo "  PASS: .repo-slug updated to new-project"; PASS=$((PASS+1))
+if grep -q "TestOrg/new-project" "$DIFF_HOME/.hall/session/.repo-slug" 2>/dev/null; then
+  echo "  PASS: .repo-slug updated to TestOrg/new-project"; PASS=$((PASS+1))
 else
-  echo "  FAIL: .repo-slug not updated"; FAIL=$((FAIL+1))
+  echo "  FAIL: .repo-slug not updated to org/slug"; FAIL=$((FAIL+1))
 fi
 
 echo

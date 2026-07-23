@@ -119,7 +119,7 @@ Read the `VERDICT:` line from the returned block:
 
 #### 0f. SETTLE
 
-Read `automation_level` from `~/.hall/projects/<slug>/config.json` (slug from `~/.hall/session/.repo-slug`).
+Read `automation_level` from `~/.hall/<slug>/config.json` (slug from `~/.hall/session/.repo-slug`).
 
 | Verdict | Level | Action |
 |---------|-------|--------|

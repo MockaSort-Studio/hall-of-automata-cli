@@ -28,31 +28,31 @@ echo "=== project switch / session purge tests ==="
 
 # Seed project-a with session layer, plans, and context
 HALL_HOME="$TMP/home"
-mkdir -p "$HALL_HOME/.hall/projects/project-a/session"
-mkdir -p "$HALL_HOME/.hall/projects/project-a/plans"
+mkdir -p "$HALL_HOME/.hall/mock-org/project-a/session"
+mkdir -p "$HALL_HOME/.hall/mock-org/project-a/plans"
 mkdir -p "$HALL_HOME/.hall/session"
-echo "stale stack" > "$HALL_HOME/.hall/projects/project-a/session/CLAUDE-stack.md"
-echo "stale roster" > "$HALL_HOME/.hall/projects/project-a/session/roster-index.md"
-echo "plan-data" > "$HALL_HOME/.hall/projects/project-a/plans/sprint-1.json"
-echo "project context" > "$HALL_HOME/.hall/projects/project-a/context.md"
-echo "project-a" > "$HALL_HOME/.hall/session/.repo-slug"
+echo "stale stack" > "$HALL_HOME/.hall/mock-org/project-a/session/CLAUDE-stack.md"
+echo "stale roster" > "$HALL_HOME/.hall/mock-org/project-a/session/roster-index.md"
+echo "plan-data" > "$HALL_HOME/.hall/mock-org/project-a/plans/sprint-1.json"
+echo "project context" > "$HALL_HOME/.hall/mock-org/project-a/context.md"
+echo "mock-org/project-a" > "$HALL_HOME/.hall/session/.repo-slug"
 
 # Test 1: purge removes the session directory for the old slug
-HOME="$HALL_HOME" bash "$SCRIPT" "project-a"
+HOME="$HALL_HOME" bash "$SCRIPT" "mock-org/project-a"
 assert_absent "session/CLAUDE-stack.md removed on switch" \
-  "$HALL_HOME/.hall/projects/project-a/session/CLAUDE-stack.md"
+  "$HALL_HOME/.hall/mock-org/project-a/session/CLAUDE-stack.md"
 assert_absent "session/roster-index.md removed on switch" \
-  "$HALL_HOME/.hall/projects/project-a/session/roster-index.md"
+  "$HALL_HOME/.hall/mock-org/project-a/session/roster-index.md"
 
 # Test 2: plans/ and context.md are not touched
 assert_present "plans/ preserved after switch" \
-  "$HALL_HOME/.hall/projects/project-a/plans/sprint-1.json"
+  "$HALL_HOME/.hall/mock-org/project-a/plans/sprint-1.json"
 assert_present "context.md preserved after switch" \
-  "$HALL_HOME/.hall/projects/project-a/context.md"
+  "$HALL_HOME/.hall/mock-org/project-a/context.md"
 
 # Test 3: purge is idempotent when session dir is already absent
-rm -rf "$HALL_HOME/.hall/projects/project-a/session"
-if HOME="$HALL_HOME" bash "$SCRIPT" "project-a" &>/dev/null; then
+rm -rf "$HALL_HOME/.hall/mock-org/project-a/session"
+if HOME="$HALL_HOME" bash "$SCRIPT" "mock-org/project-a" &>/dev/null; then
   echo "  PASS: purge is idempotent when session dir absent"; PASS=$((PASS + 1))
 else
   echo "  FAIL: purge failed when session dir absent"; FAIL=$((FAIL + 1))

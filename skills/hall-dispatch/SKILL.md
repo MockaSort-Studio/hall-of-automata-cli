@@ -22,7 +22,7 @@ Read config before any GitHub API call:
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 LOCAL_MODE=$(python3 -c "
 import json, os; slug='$SLUG'
-try: print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode',False))
+try: print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json'))).get('local_mode',False))
 except: print(False)
 " 2>/dev/null || echo "False")
 ```
@@ -39,7 +39,7 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 ### Step 1: Check quota
 
 ```bash
-PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
+PLAN_DIR=$(ls -d ~/.hall/$SLUG/plans/*/ | sort | tail -1)
 REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")
 ```
 
