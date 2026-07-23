@@ -116,7 +116,7 @@ hall-of-automata-cli/
 ├── scripts/                         # Python helpers called from skills
 │   ├── hall-open-setup.py           # methodology copy, overlay render, stack assembly
 │   ├── format-board-context.py      # board-context.md formatting
-│   └── verify-personas.py           # persona validation + roster-index build
+│   └── verify-personas.py           # persona validation + agent-index build
 │
 ├── templates/
 │   ├── CLAUDE-stack.md.tpl          # session stack assembly template
@@ -146,7 +146,7 @@ hall-of-automata-cli/
 2. **Directory init** — `mkdir -p ~/.hall/personas ~/.hall/session ~/.hall/plans` (idempotent; `~/.hall/` lives in the home directory and cannot be accidentally committed).
 3. **Synthesise project context** — read first 30 lines of `README.md`; write 2–4 sentence brief to `~/.hall/session/context.md`. Skipped if `context.md` already exists.
 4. **Unattended permissions** — copy `templates/claude-settings.json` to `.claude/settings.json` if absent; enables fully autonomous tool execution.
-5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `~/.hall/personas/` with 24 h TTL, **or** force re-fetch if `agents.yml` SHA differs from `~/.hall/personas/.agents-yml-sha` (whichever condition triggers first).
+5. **Persona fetch** — pull `automaton_base.md`, `old-major.md`, and advisory specialist personas from `hall-of-automata`. Cache at `~/.hall/personas/` with 24 h TTL, **or** force re-fetch if `agents.json` SHA differs from `~/.hall/personas/agent-index.sha` (whichever condition triggers first).
 6. **Methodology copy** — copy `methodology/` tree to `~/.hall/methodology/`.
 7. **Subagent generation** — render per-specialist overlays into `~/.hall/session/claude-agents/`.
 8. **Stack assembly** — render `templates/CLAUDE-stack.md.tpl` into `~/.hall/session/CLAUDE-stack.md`.
@@ -622,7 +622,7 @@ It appears immediately after the MCP call it covers. Representative examples fro
 
 ```bash
 # On rate_limit/secondary-rate-limit error: gh issue list --repo <REPO> --label "hall:in-progress" --json number | jq length
-# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'
+# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.sha'
 # On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <REPO> <PR_NUMBER>
 ```
 

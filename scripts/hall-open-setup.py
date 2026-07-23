@@ -29,7 +29,7 @@ else:
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.yml SHA)
+# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.json SHA)
 phase1_marker = f'{root}/session/.invariant-built'
 current_sha = (open(f'{root}/session/.current-sha').read().strip()
                if os.path.exists(f'{root}/session/.current-sha') else '')
@@ -43,7 +43,7 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
 
     os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
     open(f'{root}/session/.plugin-root', 'w').write(pr)
-    roster = json.load(open(f'{root}/personas/roster-index.json'))
+    roster = json.load(open(f'{root}/personas/agent-index.json'))
     tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
     for name, data in roster.items():
         desc = data.get('display_name', name)

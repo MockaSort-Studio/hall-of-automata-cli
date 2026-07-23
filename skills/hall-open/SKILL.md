@@ -64,15 +64,15 @@ fi
 
 If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash
 printf '%s' "<SHA>" > ~/.hall/session/.current-sha
 ```
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.sha'`
 
 ```bash
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
-CACHED_SHA=$(cat ~/.hall/personas/.agents-yml-sha 2>/dev/null || echo "")
+CACHED_SHA=$(cat ~/.hall/personas/agent-index.sha 2>/dev/null || echo "")
 FETCHED_AT=$(cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "")
 NOW=$(date +%s)
 FETCHED_TS=$([ -n "$FETCHED_AT" ] && date -d "$FETCHED_AT" +%s 2>/dev/null || echo "0")
@@ -81,7 +81,7 @@ NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
 [ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
 [ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/roster-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
+python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
@@ -109,23 +109,19 @@ echo "SHA=${CURRENT_SHA:0:8}"
 
 If `SLUG` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
-### Step 2: Roster index build (skip if NEED_FETCH=false)
+### Step 2: Agent index build (skip if NEED_FETCH=false)
 
-Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
+Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.content' | base64 -d > ~/.hall/personas/.agents-yml`
+Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.json`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
+`# On rate_limit/secondary-rate-limit error: BASE64_CONTENT=$(gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.json --jq '.content'); then substitute as <base64-content> below`
 
-```bash
-printf '%s' "<base64-content>" | base64 -d > ~/.hall/personas/.agents-yml
-```
 ```bash
 python3 << 'PYEOF'
-import yaml, json, os
-with open(os.path.expanduser('~/.hall/personas/.agents-yml')) as f:
-    agents_yml = f.read()
-catalog = yaml.safe_load(agents_yml).get('agents', {})
+import json, os, base64
+content_b64 = "<base64-content>"
+catalog = json.loads(base64.b64decode(content_b64)).get('agents', {})
 roster = {}
 for slug, data in catalog.items():
     if slug == 'old-major':
@@ -138,8 +134,8 @@ for slug, data in catalog.items():
         'scope_summary': c.get('scope_summary', '').strip(),
         'model': data.get('model', ''),
     }
-json.dump(roster, open(os.path.expanduser('~/.hall/personas/roster-index.json'), 'w'), indent=2)
-print(f'Roster index: {len(roster)} specialists.')
+json.dump(roster, open(os.path.expanduser('~/.hall/personas/agent-index.json'), 'w'), indent=2)
+print(f'Agent index: {len(roster)} specialists.')
 PYEOF
 ```
 
