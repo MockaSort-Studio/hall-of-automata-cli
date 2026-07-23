@@ -10,12 +10,7 @@ Entered from `hall-dispatch/SKILL.md` when `LOCAL_MODE=True`. Do not open GitHub
 
 ## Step L1: Load specialist persona
 
-Identify the specialist for the task. Read `~/.hall/personas/<specialist>.md`. If absent, fetch first:
-
-```bash
-gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/<specialist>.md" \
-  --jq '.content' | base64 -d > "~/.hall/personas/<specialist>.md"
-```
+Identify the specialist for the task. Derive `$ORG` from `~/.hall/session/.repo-slug` (first path segment). Call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`roster/<specialist>.md`) to load the persona on-demand. Do not write it to disk.
 
 ## Step L2: Planning discipline
 
