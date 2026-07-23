@@ -26,19 +26,19 @@ run_hook "silent when no active session" "$NO_SESSION" "^$"
 # Test 2: Injects methodology JSON when session is open
 WITH_SESSION="$TMP/with-session"
 mkdir -p "$WITH_SESSION/.hall/session"
-mkdir -p "$WITH_SESSION/.hall/projects/test-project/session"
+mkdir -p "$WITH_SESSION/.hall/test-org/test-project/session"
 mkdir -p "$WITH_SESSION/.hall/personas"
 echo "Old Major persona content" > "$WITH_SESSION/.hall/personas/old-major.md"
 echo "running" > "$WITH_SESSION/.hall/session/.open_mode"
-echo "test-project" > "$WITH_SESSION/.hall/session/.repo-slug"
-printf '@%s/.hall/personas/old-major.md\n' "$WITH_SESSION" > "$WITH_SESSION/.hall/projects/test-project/session/CLAUDE-stack.md"
+echo "test-org/test-project" > "$WITH_SESSION/.hall/session/.repo-slug"
+printf '@%s/.hall/personas/old-major.md\n' "$WITH_SESSION" > "$WITH_SESSION/.hall/test-org/test-project/session/CLAUDE-stack.md"
 run_hook "injects methodology JSON when session is open" "$WITH_SESSION" "hookSpecificOutput"
 
 # Test 3: Silent when session open but stack missing
 NO_STACK="$TMP/no-stack"
 mkdir -p "$NO_STACK/.hall/session"
 echo "running" > "$NO_STACK/.hall/session/.open_mode"
-echo "test-project" > "$NO_STACK/.hall/session/.repo-slug"
+echo "test-org/test-project" > "$NO_STACK/.hall/session/.repo-slug"
 run_hook "silent when session open but stack missing" "$NO_STACK" "^$"
 
 rm -rf "$TMP"
