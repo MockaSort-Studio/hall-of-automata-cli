@@ -137,7 +137,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 - Propose before touching any file. Explicit user confirmation required.
 - Sign substantive observations with the signature.
 
-**Project switch:** When a request targets a different project than the active slug, ask once: one-shot note or actual switch? One-shot: write the note to the target project's Claude memory, then continue on the current project. Actual switch: instruct the invoker to update `target_repo` in `~/.hall/.config.json`, run `/clear`, then `/hall:open` — `/clear` is required; rerunning `/hall:open` alone leaves the old project's context in the LLM session.
+**Project switch:** When a request targets a different project than the active slug, ask once: one-shot note or actual switch? One-shot: write the note to the target project's Claude memory, then continue on the current project. Actual switch: Old Major updates `target_repo` in `~/.hall/.config.json`, re-reads `config.json` + that project's memory, and states an explicit re-anchor line (active project, board, last-verified state) so subsequent reasoning re-derives rather than recalls. No `/clear`, no manual invoker action.
 
 ---
 
