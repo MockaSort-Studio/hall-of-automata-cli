@@ -7,15 +7,13 @@ pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.pat
 slug = ''
 org = ''
 org_slug = ''
-cfg_path = os.path.expanduser('~/.hall/.config.json')
+slug_file = os.path.expanduser('~/.hall/session/.repo-slug')
 try:
-    cfg_data = json.load(open(cfg_path))
-    target_repo = cfg_data.get('target_repo', '')
-    org_slug = target_repo
-    slug = target_repo.split('/')[-1] if target_repo else ''
-    org = target_repo.split('/')[0] if '/' in target_repo else ''
+    org_slug = open(slug_file).read().strip()
+    slug = org_slug.split('/')[-1] if org_slug else ''
+    org = org_slug.split('/')[0] if '/' in org_slug else ''
     if slug:
-        print(f'Using project from ~/.hall/.config.json: {slug}')
+        print(f'Using project: {slug}')
 except Exception:
     pass
 

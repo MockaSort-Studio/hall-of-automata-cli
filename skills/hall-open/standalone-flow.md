@@ -1,11 +1,11 @@
 ---
 name: hall-open-repo-picker
-description: Org and repo resolution fallback — executed from hall-open Step 1 when no cached target_repo exists
+description: Org and repo resolution fallback — executed from hall-open Step 1 when .repo-slug is absent or empty
 ---
 
 # Org and Repo Resolution — Picker Fallback
 
-Execute when `SLUG` is empty — no cached `target_repo` in `~/.hall/.config.json`. Resolves the target org and repo,
+Execute when `SLUG` is empty — no `.repo-slug` in `~/.hall/session/`. Resolves the target org and repo,
 persists the result, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequent `hall-open` steps.
 
 Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
@@ -88,7 +88,7 @@ REPO_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(s
     description = `"Repo: $ORG/<name>"`. The "Other" fallback accepts a custom repo name.
   - Assign the user's selection to `REPO_NAME`.
 
-**Write `target_repo` and export `REPO`:**
+**Persist and export `REPO`:**
 
 ```bash
 python3 -c "
@@ -96,18 +96,9 @@ import json, os
 slug = '$REPO_NAME'
 org = '$ORG'
 org_slug = f'{org}/{slug}'
-# persist to global config for future path derivation
-gcfg = os.path.expanduser('~/.hall/.config.json')
-gd = json.load(open(gcfg)) if os.path.exists(gcfg) else {}
-gd['target_repo'] = org_slug
-json.dump(gd, open(gcfg, 'w'))
-# write to per-project config
+# ensure project directory exists
 proj = os.path.expanduser(f'~/.hall/{org_slug}')
 os.makedirs(proj, exist_ok=True)
-pcfg = f'{proj}/config.json'
-d = json.load(open(pcfg)) if os.path.exists(pcfg) else {}
-d['target_repo'] = org_slug
-json.dump(d, open(pcfg, 'w'))
 # write org/slug for path resolution
 open(os.path.expanduser('~/.hall/session/.repo-slug'), 'w').write(org_slug)
 print('Target repo: $ORG/$REPO_NAME')
