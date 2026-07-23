@@ -5,20 +5,22 @@ root = os.path.expanduser('~/.hall')
 pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 slug = ''
+org_slug = ''
 cfg_path = os.path.expanduser('~/.hall/.config.json')
 try:
     cfg_data = json.load(open(cfg_path))
     target_repo = cfg_data.get('target_repo', '')
+    org_slug = target_repo
     slug = target_repo.split('/')[-1] if target_repo else ''
     if slug:
         print(f'Using project from ~/.hall/.config.json: {slug}')
 except Exception:
     pass
 
-if slug:
-    project_root = f'{root}/projects/{slug}'
+if org_slug:
+    project_root = f'{root}/{org_slug}'
     os.makedirs(project_root, exist_ok=True)
-    open(f'{root}/session/.repo-slug', 'w').write(slug)
+    open(f'{root}/session/.repo-slug', 'w').write(org_slug)
     if not os.path.exists(f'{project_root}/config.json'):
         open(f'{project_root}/config.json', 'w').write('{}')
     stack_dir = f'{project_root}/session'

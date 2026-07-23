@@ -21,8 +21,8 @@ If reconcile errors: log the error and continue — do not abort close.
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 CRON_ID=""
-if [ -n "$SLUG" ] && [ -f ~/.hall/projects/$SLUG/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/projects/$SLUG/cron.json'))['cron_id'])")
+if [ -n "$SLUG" ] && [ -f ~/.hall/$SLUG/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/$SLUG/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
@@ -30,7 +30,7 @@ fi
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
 
 ```bash
-rm -f ~/.hall/projects/$SLUG/cron.json
+rm -f ~/.hall/$SLUG/cron.json
 echo "Autonomous cron cancelled."
 ```
 
@@ -48,7 +48,7 @@ fi
 
 ```bash
 if [ -n "$SLUG" ]; then
-  rm -f ~/.hall/projects/$SLUG/session/CLAUDE-stack.md
+  rm -f ~/.hall/$SLUG/session/CLAUDE-stack.md
 else
   rm -f ~/.hall/session/CLAUDE-stack.md
 fi

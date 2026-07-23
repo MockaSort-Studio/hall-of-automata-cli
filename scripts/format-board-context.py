@@ -2,8 +2,9 @@ import json, os, re
 from datetime import datetime, timezone
 
 root = os.path.expanduser('~/.hall')
-slug = open(f'{root}/session/.repo-slug').read().strip()
-proj = f'{root}/projects/{slug}'
+org_slug = open(f'{root}/session/.repo-slug').read().strip()
+slug = org_slug.split('/')[-1]
+proj = f'{root}/{org_slug}'
 b = json.load(open(f'{proj}/board.json'))
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 items = b.get('items', [])

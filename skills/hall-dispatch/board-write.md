@@ -11,13 +11,13 @@ In Progress → Done   (reconcile-write, triggered by hall-reconcile)
 
 ## Resolution pattern
 
-Prerequisite: `BOARD_ACTIVE` must be `True` and `~/.hall/projects/$SLUG/board.json` must exist. Skip entirely if either condition fails.
+Prerequisite: `BOARD_ACTIVE` must be `True` and `~/.hall/$SLUG/board.json` must exist. Skip entirely if either condition fails.
 
 Resolve identifiers:
 
 ```bash
-PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])")
-FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['id'])")
+PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json')))['project_id'])")
+FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['id'])")
 ```
 
 Find item in `board.json` where `issue_number` matches the task's `github_issue`. If absent: log `"Board item not found for issue #N"` and skip. Set `ITEM_ID` to the matched item's `id`.
@@ -44,7 +44,7 @@ On any error: log `"WARN: failed to update board parent #<board_parent> — <err
 **Board status — set In Progress:**
 
 ```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['In Progress'])")
+OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['In Progress'])")
 ```
 
 Execute the resolution pattern above. Log `"Board item #<N> → In Progress"` on success.
@@ -56,7 +56,7 @@ Called from hall-reconcile for each task that newly transitioned to MERGED or DO
 **Board status — set Done:**
 
 ```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
+OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
 ```
 
 Execute the resolution pattern above. Log `"Board item #<N> → Done"` on success.

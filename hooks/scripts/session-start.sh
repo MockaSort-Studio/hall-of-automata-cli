@@ -18,7 +18,7 @@ fi
 
 # 3. Resolve stack path.
 if [ -n "$SLUG" ]; then
-  STACK="$HALL/projects/$SLUG/session/CLAUDE-stack.md"
+  STACK="$HALL/$SLUG/session/CLAUDE-stack.md"
 else
   STACK="$HALL/session/CLAUDE-stack.md"
 fi
