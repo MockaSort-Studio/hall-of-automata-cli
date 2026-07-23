@@ -31,52 +31,46 @@ run_test() {
 
 echo "=== hall-open-setup slug derivation tests ==="
 
-# Scenario 1: no config, git remote present — git is not consulted; no-project mode
+# Scenario 1: no .repo-slug, git remote present — git is not consulted; no-project mode
 GIT_DIR="$TMP/git-repo"
 mkdir -p "$GIT_DIR"
 git -C "$GIT_DIR" init -q
 git -C "$GIT_DIR" remote add origin "https://github.com/TestOrg/my-project.git"
 GIT_HOME="$TMP/home-git"
 make_hall_home "$GIT_HOME"
-run_test "no config, git present: no-project mode (git unused)" "$GIT_DIR" "$GIT_HOME" \
+run_test "no .repo-slug, git present: no-project mode (git unused)" "$GIT_DIR" "$GIT_HOME" \
   "project layer — no project" 0
 
-# Scenario 2: no config, no git — no-project mode
+# Scenario 2: no .repo-slug, no git — no-project mode
 BARE_DIR="$TMP/bare-dir"
 mkdir -p "$BARE_DIR"
 BARE_HOME="$TMP/home-bare"
 make_hall_home "$BARE_HOME"
-run_test "no config, no git: no-project mode" "$BARE_DIR" "$BARE_HOME" \
+run_test "no .repo-slug, no git: no-project mode" "$BARE_DIR" "$BARE_HOME" \
   "project layer — no project" 0
 
-# Scenario 3: slug from config — reads target_repo, prints config message, writes .repo-slug
+# Scenario 3: .repo-slug present — reads it, prints project message, preserves file
 NO_GIT_DIR="$TMP/no-git"
 mkdir -p "$NO_GIT_DIR"
 CFG_HOME="$TMP/home-cfg"
 make_hall_home "$CFG_HOME"
-echo '{"target_repo":"TestOrg/config-repo"}' > "$CFG_HOME/.hall/.config.json"
-run_test "slug from config: prints config message" "$NO_GIT_DIR" "$CFG_HOME" \
-  "Using project from ~/.hall/.config.json: config-repo" 0
+echo "TestOrg/config-repo" > "$CFG_HOME/.hall/session/.repo-slug"
+run_test "slug from .repo-slug: prints project message" "$NO_GIT_DIR" "$CFG_HOME" \
+  "Using project: config-repo" 0
 if grep -q "TestOrg/config-repo" "$CFG_HOME/.hall/session/.repo-slug" 2>/dev/null; then
-  echo "  PASS: .repo-slug written as org/slug from config"; PASS=$((PASS+1))
+  echo "  PASS: .repo-slug preserved after setup"; PASS=$((PASS+1))
 else
-  echo "  FAIL: .repo-slug not written as org/slug from config"; FAIL=$((FAIL+1))
+  echo "  FAIL: .repo-slug not preserved after setup"; FAIL=$((FAIL+1))
 fi
 
-# Scenario 4: config slug overrides stale .repo-slug
+# Scenario 4: legacy .config.json not consulted — absent .repo-slug → no-project mode
 DIFF_DIR="$TMP/diff-repo"
 mkdir -p "$DIFF_DIR"
 DIFF_HOME="$TMP/home-diff"
 make_hall_home "$DIFF_HOME"
 echo '{"target_repo":"TestOrg/new-project"}' > "$DIFF_HOME/.hall/.config.json"
-echo "old-project" > "$DIFF_HOME/.hall/session/.repo-slug"
-run_test "config slug overrides stale .repo-slug" "$DIFF_DIR" "$DIFF_HOME" \
-  "project layer — new-project" 0
-if grep -q "TestOrg/new-project" "$DIFF_HOME/.hall/session/.repo-slug" 2>/dev/null; then
-  echo "  PASS: .repo-slug updated to TestOrg/new-project"; PASS=$((PASS+1))
-else
-  echo "  FAIL: .repo-slug not updated to org/slug"; FAIL=$((FAIL+1))
-fi
+run_test "legacy .config.json not consulted: no .repo-slug → no-project mode" "$DIFF_DIR" "$DIFF_HOME" \
+  "project layer — no project" 0
 
 echo
 echo "Results: $PASS passed, $FAIL failed"
