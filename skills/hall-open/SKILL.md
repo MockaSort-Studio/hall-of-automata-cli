@@ -1,13 +1,13 @@
 ---
 name: hall-open
-description: Enter Old Major session mode — build agent index, assemble session stack, activate
+description: Enter Old Major session mode — build agent index, activate
 argument-hint: [--refresh|--verify]
-allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
+allowed-tools: [Bash, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
 ---
 
 # /hall:open
 
-Enter Hall session mode. Builds agent index, assembles session stack, activates Old Major.
+Enter Hall session mode. Builds agent index, activates Old Major.
 
 Use `--refresh` to force agent-index re-fetch even if SHA matches. Use `--verify` to force invoker re-check.
 
@@ -83,7 +83,6 @@ AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.
   2>/dev/null || echo "missing")
 
 echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL"
-echo "CONTEXT_EXISTS=$([ -f ~/.hall/$REPO/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
@@ -130,43 +129,17 @@ CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
-**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for agent index or methodology changes to apply. See Step 5.
+**`--refresh` limitation:** A fresh `cc` session is required for agent index or methodology changes to apply — the @-import chain is evaluated only at conversation start.
 
-### Step 3: Setup — methodology, overlays, stack
+### Step 3: Setup — methodology, cron
 
 Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the session setup procedure exactly as specified.
 
-### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
+### Step 4: Invoker verification gate
 
-Read the first 30 lines of `README.md` and synthesise a 2–4 sentence brief. Write it to `~/.hall/$SLUG/context.md` using Bash — the Write tool fails on new files. Use printf or a heredoc:
-```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-cat > "$HOME/.hall/$SLUG/context.md" << 'CTXEOF'
-<synthesised brief here>
-CTXEOF
-```
-If no README exists: write `Project context: not available.`
+Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 5.
 
-Call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`). On success, write decoded content to `~/.hall/context/target-claude.md`; incorporate as supplemental project context in `context.md`. On 404: skip silently; synthesise from README only.
-
-### Step 5: Context injection
-
-```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-if [ -n "$SLUG" ]; then
-  STACK_PATH=~/.hall/$SLUG/session/CLAUDE-stack.md
-else
-  STACK_PATH=~/.hall/session/CLAUDE-stack.md
-fi
-```
-
-Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via SessionStart hook. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
-
-### Step 6: Invoker verification gate
-
-Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 7.
-
-### Step 7: Plans + invite
+### Step 5: Plans + invite
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
