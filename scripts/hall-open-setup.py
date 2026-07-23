@@ -1,4 +1,4 @@
-import json, os
+import os
 
 root = os.path.expanduser('~/.hall')
 pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,29 +26,8 @@ if org_slug:
 else:
     project_root = f'{root}/session'
 
-# Phase 1 — invariant: overlays (once per session; gated by agents.json SHA)
-phase1_marker = f'{root}/session/.invariant-built'
-current_sha = (open(f'{root}/session/.current-sha').read().strip()
-               if os.path.exists(f'{root}/session/.current-sha') else '')
-cached_sha = (open(phase1_marker).read().strip()
-              if os.path.exists(phase1_marker) else None)
-
-if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRESH_INVARIANT'):
-    os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
-    open(f'{root}/session/.plugin-root', 'w').write(pr)
-    roster = json.load(open(f'{root}/agent-index.json'))
-    tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
-    for name, data in roster.items():
-        desc = data.get('display_name', name)
-        open(f'{root}/session/claude-agents/{name}.md', 'w').write(
-            tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
-               .replace('{{ORG}}', org)
-               .replace('{{CACHE_ROOT}}', root))
-
-    open(phase1_marker, 'w').write(current_sha)
-    print('Phase 1 built (invariant layer).')
-else:
-    print('Phase 1 cached (invariant layer — skip).')
+os.makedirs(f'{root}/session', exist_ok=True)
+open(f'{root}/session/.plugin-root', 'w').write(pr)
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 open(f'{root}/session/.open_mode', 'w').write(mode)
