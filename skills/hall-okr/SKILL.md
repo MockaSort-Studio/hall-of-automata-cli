@@ -110,14 +110,9 @@ Once the gate passes:
 3. Wire KRs as sub-issues of the OKR via `sub_issue_write`
 
 4. For each KR: read `skills/hall-decompose/SKILL.md` and apply the atomicity test.
-   File Items and wire them as sub-issues of their KR.
-   Board-provision each Item immediately after filing:
-   `ITEM_TYPE=Item`, `SAGA_MILESTONE_TITLE=<saga name>`,
-   `BLOCKED_BY_LIST="<blockers from Phase 4 dependency analysis>"`
+   The skill files Items and wires them as sub-issues of the KR directly (Phase 7) — no local staging.
 
 5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Verification criteria. Closed OKRs marked ✓.
-
-**plan.json coupling:** After filing each Item, write `github_issue: <N>` to the corresponding task entry in plan.json. This field is the dispatch pre-check signal: when hall-dispatch encounters a task with `github_issue` set, it applies the `hall:` label to the existing issue rather than creating a new one. The field must be written before the session closes; if it is absent on next dispatch, a duplicate issue will be created.
 
 6. Report: issue numbers, board item IDs, blocked KRs
 

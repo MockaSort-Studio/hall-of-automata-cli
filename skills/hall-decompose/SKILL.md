@@ -100,15 +100,24 @@ Acceptance criteria state what must be true — not how to verify it. Scannable 
 3. Mermaid dependency diagram showing execution waves
 4. Initial ready set and estimated dispatch batch
 
-Ask for explicit confirmation before filing.
+Ask for explicit confirmation. On confirmation, proceed to Phase 7 immediately — do not stage to a local file.
 
-## Board provisioning
+## Phase 7: File
 
-After each Item issue is filed — whether as a KR sub-issue via `hall-okr` Phase 5 or as a CLI-flow issue via `hall-dispatch` — the filing agent must execute `board-provision`:
+File each Item directly to GitHub in dependency order (blockers first).
 
-Read `skills/hall-dispatch/board-provision.md` and execute with:
-- `ITEM_TYPE=Item`
-- `SAGA_MILESTONE_TITLE=<saga name if applicable; empty on hotfix path>`
-- `BLOCKED_BY_LIST=<hard dependencies from Phase 4 — issue numbers, space-separated>`
+For each Item:
 
-Cross-OKR blockers (Items in a different OKR that this Item genuinely depends on) belong in `BLOCKED_BY_LIST`. Soft ordering and thematic grouping are not edges.
+1. **Create the issue** — call `mcp__github__create_issue` with `owner`, `repo`, `title`, and body drawn from the confirmed plan. Record the returned issue number.
+
+2. **Wire as sub-issue** — call `sub_issue_write` with the parent issue number and the newly created issue number.
+
+3. **Board-provision** — read `skills/hall-dispatch/board-provision.md` and execute with:
+   - `ISSUE_NUM=<returned number>`
+   - `ITEM_TYPE=Item`
+   - `SAGA_MILESTONE_TITLE=<saga name if applicable; empty on hotfix path>`
+   - `BLOCKED_BY_LIST=<hard dependencies from Phase 4, space-separated>`
+
+Cross-OKR blockers belong in `BLOCKED_BY_LIST`. Soft ordering and thematic grouping are not edges.
+
+Return the filed issue numbers to the caller on completion.
