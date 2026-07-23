@@ -18,7 +18,7 @@ Execute each step in order. Hard-stop on any error; warn-and-continue on non-cri
 ### Step 1: Preflight + diagnostics
 
 **Flag pre-processing:**
-- If `--verify` was passed: `rm -f ~/.hall/invoker.json`
+- If `--verify` was passed: after deriving `$ORG` below, run `rm -f ~/.hall/$ORG/invoker.json`
 - If `--refresh` was passed: treat `NEED_FETCH=true` regardless of the block output below.
 
 ```bash
@@ -99,8 +99,14 @@ fi
 
 AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('local_mode','missing'))" \
-  2>/dev/null || echo "missing")
+LOCAL_MODE=$(python3 -c "
+import json, os
+org = '$ORG'
+try:
+    print(json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json'))).get('local_mode', 'missing'))
+except Exception:
+    print('missing')
+" 2>/dev/null || echo "missing")
 
 echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
@@ -184,7 +190,7 @@ Read `$STACK_PATH` and each @-imported file in order; apply as operating instruc
 
 ### Step 6: Invoker detection gate
 
-Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR (b) `~/.hall/invoker.json` exists and contains a valid `mode` (`invoker` or `local`). If neither condition holds, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
+Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR (b) `~/.hall/$ORG/invoker.json` exists and contains a valid `mode` (`invoker` or `local`). If neither condition holds, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
 
 ### Step 7: Plans + invite
 
