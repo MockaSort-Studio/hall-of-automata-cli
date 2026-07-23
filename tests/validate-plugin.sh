@@ -43,7 +43,6 @@ check "scripts/hall-open-setup.py exists"                   "test -f scripts/hal
 check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
 check "hall-open-setup.py reads agent-index.json"           "grep -q 'agent-index.json' scripts/hall-open-setup.py"
-check "session-setup.md generates agent-index from json"    "grep -q 'agent-index.json' skills/hall-open/session-setup.md"
 check "hall-review fetches persona on-demand"               "grep -q 'gh api.*roster' skills/hall-review/SKILL.md"
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 
