@@ -1,11 +1,11 @@
 ---
 name: hall-open-session-setup
-description: Session setup — methodology overlays, cron restart, board context; executed from hall-open Step 3
+description: Session setup — methodology overlays, cron restart; executed from hall-open Step 3
 ---
 
 # Session Setup
 
-Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight tasks exist, loads board context.
+Execute only from hall-open Step 3. Runs setup.py, restarts cron if in-flight tasks exist.
 
 ```bash
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/hall-open-setup.py"
@@ -61,64 +61,4 @@ json.dump(
 print('Cron restarted (in-flight tasks detected).')
 ```
 
-**Board context:** Read `board_project_number` from `~/.hall/$SLUG/config.json`. If absent, skip silently.
-
-```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-BOARD_NUM=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
-OWNER=$(echo "$REPO" | cut -d/ -f1)
-```
-
-If `BOARD_NUM` is non-empty:
-
-```bash
-gh project item-list "$BOARD_NUM" --owner "$OWNER" --format json --limit 1000 \
-  > ~/.hall/$SLUG/board-raw.json 2>/dev/null \
-  && echo "BOARD_OK" || echo "BOARD_ERROR"
-```
-
-On `BOARD_ERROR`: print `"Board context unavailable (board not provisioned)."` and continue. On `BOARD_OK`:
-
-```bash
-python3 << 'PYEOF'
-import json, os
-from datetime import datetime, timezone
-root = os.path.expanduser('~/.hall')
-slug = open(f'{root}/session/.repo-slug').read().strip()
-proj = f'{root}/{slug}'
-RESERVED = {'id', 'title', 'number', 'type', 'body', 'url', 'assignees', 'labels',
-            'milestone', 'repository', 'createdAt', 'updatedAt', 'closedAt'}
-raw = json.load(open(f'{proj}/board-raw.json'))
-items = []
-for it in raw.get('items', []):
-    fields = {k: v for k, v in it.items() if k not in RESERVED and v not in (None, '')}
-    items.append({
-        'id': it.get('id', ''),
-        'issue_number': it.get('number'),
-        'title': it.get('title', ''),
-        'state': 'OPEN',
-        'url': it.get('url', ''),
-        'body': it.get('body', ''),
-        'assignees': it.get('assignees', []),
-        'labels': it.get('labels', []),
-        'fields': fields,
-    })
-json.dump(
-    {'fetched_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-     'project_id': '', 'items': items},
-    open(f'{proj}/board.json', 'w'), indent=2)
-print(f'Board fetched: {len(items)} items.')
-PYEOF
-```
-
-```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/format-board-context.py"
-```
-
-```bash
-# Ensure board-context.md always exists for CLAUDE-stack @-import
-[ -f ~/.hall/$SLUG/board-context.md ] \
-  || printf '# Board Context\nNot provisioned.\n' > ~/.hall/$SLUG/board-context.md
-```
-
-// Snowball 🐷 — session setup now has its own room; SKILL.md can breathe
+// Snowball 🐷 — board context stripped; board state is now fetched live when needed, not persisted at session start
