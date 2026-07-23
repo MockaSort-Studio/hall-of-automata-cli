@@ -13,7 +13,7 @@ Render the current plan board. Use `--format` to dump plan data in an alternate 
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-ls -d ~/.hall/projects/$SLUG/plans/*/ 2>/dev/null | sort | tail -1
+ls -d ~/.hall/$SLUG/plans/*/ 2>/dev/null | sort | tail -1
 ```
 
 If no active plan exists, say so and suggest running `/hall:open` to start one.

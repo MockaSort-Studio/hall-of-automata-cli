@@ -94,20 +94,22 @@ REPO_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(s
 python3 -c "
 import json, os
 slug = '$REPO_NAME'
-# persist to global config for future slug derivation
+org = '$ORG'
+org_slug = f'{org}/{slug}'
+# persist to global config for future path derivation
 gcfg = os.path.expanduser('~/.hall/.config.json')
 gd = json.load(open(gcfg)) if os.path.exists(gcfg) else {}
-gd['target_repo'] = '$ORG/$REPO_NAME'
+gd['target_repo'] = org_slug
 json.dump(gd, open(gcfg, 'w'))
 # write to per-project config
-proj = os.path.expanduser(f'~/.hall/projects/{slug}')
+proj = os.path.expanduser(f'~/.hall/{org_slug}')
 os.makedirs(proj, exist_ok=True)
 pcfg = f'{proj}/config.json'
 d = json.load(open(pcfg)) if os.path.exists(pcfg) else {}
-d['target_repo'] = '$ORG/$REPO_NAME'
+d['target_repo'] = org_slug
 json.dump(d, open(pcfg, 'w'))
-# write slug for other processes
-open(os.path.expanduser('~/.hall/session/.repo-slug'), 'w').write(slug)
+# write org/slug for path resolution
+open(os.path.expanduser('~/.hall/session/.repo-slug'), 'w').write(org_slug)
 print('Target repo: $ORG/$REPO_NAME')
 "
 ```
