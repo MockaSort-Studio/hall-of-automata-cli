@@ -1,12 +1,12 @@
 ---
 name: hall-close
-description: Exit Old Major session mode and clean up session files
+description: Exit Old Major session mode — reconcile, cancel cron, and stop watcher
 allowed-tools: [Bash, Write, CronDelete]
 ---
 
 # /hall:close
 
-Exit Hall session mode. Cleans up session files; leaves plans and persona cache intact.
+Exit Hall session mode. Reconciles board state, cancels the autonomous cron, and stops the watcher.
 
 ## Execution sequence
 
@@ -44,21 +44,7 @@ if [ -f ~/.hall/watcher.pid ]; then
 fi
 ```
 
-### Step 3: Remove session files
-
-```bash
-if [ -n "$SLUG" ]; then
-  rm -f ~/.hall/$SLUG/session/CLAUDE-stack.md
-else
-  rm -f ~/.hall/session/CLAUDE-stack.md
-fi
-rm -f ~/.hall/session/.open_mode
-rm -f ~/.hall/session/.repo-slug
-rm -rf ~/.hall/session/claude-agents/
-echo "Session files cleaned up."
-```
-
-### Step 4: Confirm
+### Step 3: Confirm
 
 Confirm to the user that the session is closed. Note that plans and persona cache are intact for next time.
 
