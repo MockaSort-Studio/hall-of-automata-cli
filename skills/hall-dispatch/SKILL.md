@@ -14,23 +14,9 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 
 ## Execution
 
-### Local mode branch
-
-Read config before any GitHub API call:
-
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-LOCAL_MODE=$(python3 -c "
-import json, os
-try:
-    org = json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org', '')
-    print(json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json'))).get('local_mode', False))
-except: print(False)
-" 2>/dev/null || echo "False")
 ```
-
-`LOCAL_MODE=True` → follow [LOCAL.md](LOCAL.md). Stop — do not continue to Step 0.
-`LOCAL_MODE=False` or config absent → continue to Step 0.
 
 ### Step 0: Determine the ready set
 

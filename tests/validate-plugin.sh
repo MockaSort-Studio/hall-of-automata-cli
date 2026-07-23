@@ -42,8 +42,8 @@ check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
 check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
-check "hall-open-setup.py reads roster-index.json"          "grep -q 'roster-index.json' scripts/hall-open-setup.py"
-check "session-setup.md generates roster-index from json"   "grep -q 'roster-index.json' skills/hall-open/session-setup.md"
+check "hall-open-setup.py reads agent-index.json"           "grep -q 'agent-index.json' scripts/hall-open-setup.py"
+check "session-setup.md generates agent-index from json"    "grep -q 'agent-index.json' skills/hall-open/session-setup.md"
 check "hall-review fetches persona on-demand"               "grep -q 'gh api.*roster' skills/hall-review/SKILL.md"
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 
@@ -63,7 +63,7 @@ check "CLAUDE-stack does not import decomposition.md"       "! grep -q 'decompos
 check "CLAUDE-stack does not import consultation-router.md" "! grep -q 'consultation-router.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import routing-rationale.md"   "! grep -q 'routing-rationale.md' templates/CLAUDE-stack.md.tpl"
 check "CLAUDE-stack does not import session-guard.md"       "! grep -q 'session-guard.md' templates/CLAUDE-stack.md.tpl"
-check "subagent template has PERSONA_PATH"           "grep -q 'PERSONA_PATH' templates/subagent-overlay.md.tpl"
+check "subagent overlay fetches base persona on-demand"     "grep -q 'get_file_contents' templates/subagent-overlay.md.tpl"
 check "templates/dispatch-body-pr.md.tpl exists"     "test -f templates/dispatch-body-pr.md.tpl"
 check "templates/dispatch-body-report.md.tpl exists"  "test -f templates/dispatch-body-report.md.tpl"
 

@@ -5,6 +5,7 @@ root = os.path.expanduser('~/.hall')
 pr = os.environ.get('CLAUDE_PLUGIN_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 slug = ''
+org = ''
 org_slug = ''
 cfg_path = os.path.expanduser('~/.hall/.config.json')
 try:
@@ -12,6 +13,7 @@ try:
     target_repo = cfg_data.get('target_repo', '')
     org_slug = target_repo
     slug = target_repo.split('/')[-1] if target_repo else ''
+    org = target_repo.split('/')[0] if '/' in target_repo else ''
     if slug:
         print(f'Using project from ~/.hall/.config.json: {slug}')
 except Exception:
@@ -31,7 +33,7 @@ else:
 
 at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.yml SHA)
+# Phase 1 — invariant: methodology, overlays, stack (once per session; gated by agents.json SHA)
 phase1_marker = f'{root}/session/.invariant-built'
 current_sha = (open(f'{root}/session/.current-sha').read().strip()
                if os.path.exists(f'{root}/session/.current-sha') else '')
@@ -45,13 +47,13 @@ if cached_sha is None or cached_sha != current_sha or os.environ.get('HALL_REFRE
 
     os.makedirs(f'{root}/session/claude-agents', exist_ok=True)
     open(f'{root}/session/.plugin-root', 'w').write(pr)
-    roster = json.load(open(f'{root}/personas/roster-index.json'))
+    roster = json.load(open(f'{root}/agent-index.json'))
     tpl = open(f'{pr}/templates/subagent-overlay.md.tpl').read()
     for name, data in roster.items():
         desc = data.get('display_name', name)
         open(f'{root}/session/claude-agents/{name}.md', 'w').write(
             tpl.replace('{{SPECIALIST_NAME}}', name).replace('{{SPECIALIST_DESCRIPTION}}', desc)
-               .replace('{{PERSONA_PATH}}', f'{root}/personas/{name}.md')
+               .replace('{{ORG}}', org)
                .replace('{{CACHE_ROOT}}', root))
 
     open(f'{root}/session/CLAUDE-stack-invariant.md', 'w').write(

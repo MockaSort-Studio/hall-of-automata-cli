@@ -69,6 +69,6 @@ All checks must pass before opening a PR.
 |--------|------|
 | Skill files, methodology, templates, hooks | **hall-of-automata-cli** (this repo) |
 | CI workflows, dispatch logic, invoke scripts | **hall-of-automata** |
-| Specialist personas (`roster/*.md`), agent catalog (`agents.yml`) | **hall-of-automata** |
+| Specialist personas (`roster/*.md`), agent catalog (`agents.json`) | **hall-of-automata** |
 
 If you are unsure, open an issue first.

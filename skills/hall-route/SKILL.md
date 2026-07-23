@@ -7,7 +7,7 @@ description: Specialist routing rationale. Old Major reads this when assigning t
 
 ## Specialist roster
 
-The Hall roster is cached at `~/.hall/personas/<name>.md` — fetched from upstream at session open. Read the relevant persona when domain match is uncertain. Index at `~/.hall/session/roster-index.md`.
+Specialist summaries (scope, domain, roles) are in `~/.hall/agent-index.json`, built at session open. When domain match is uncertain, fetch the full persona on-demand: call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`roster/<name>.md`).
 
 Do not hardcode specialist names. Always read the current roster.
 

@@ -1,15 +1,15 @@
 ---
 name: hall-open
-description: Enter Old Major session mode — fetch personas, assemble session stack, activate
+description: Enter Old Major session mode — build agent index, assemble session stack, activate
 argument-hint: [--refresh|--verify]
 allowed-tools: [Bash, Write, AskUserQuestion, CronCreate, mcp__github__get_file_contents, mcp__github__get_me, mcp__github__get_team_members, mcp__github__search_repositories]
 ---
 
 # /hall:open
 
-Enter Hall session mode. Fetches personas, assembles session stack, activates Old Major.
+Enter Hall session mode. Builds agent index, assembles session stack, activates Old Major.
 
-Use `--refresh` to force persona re-fetch even if cache is fresh. Use `--verify` to force invoker re-check.
+Use `--refresh` to force agent-index re-fetch even if SHA matches. Use `--verify` to force invoker re-check.
 
 ## Execution sequence
 
@@ -30,7 +30,7 @@ gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
 # Cache state
-mkdir -p ~/.hall/personas ~/.hall/session
+mkdir -p ~/.hall ~/.hall/session
 CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
 if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   export CLAUDE_PLUGIN_ROOT
@@ -53,28 +53,24 @@ if [ -n "$REPO" ]; then
   mkdir -p ~/.hall/$REPO/plans
   echo -n "$REPO" > ~/.hall/session/.repo-slug
 fi
+echo "ORG=$ORG"
 ```
 
 If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
+Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash
 printf '%s' "<SHA>" > ~/.hall/session/.current-sha
 ```
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
+`# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
 ```bash
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
-CACHED_SHA=$(cat ~/.hall/personas/.agents-yml-sha 2>/dev/null || echo "")
-FETCHED_AT=$(cat ~/.hall/personas/.fetched_at 2>/dev/null || echo "")
-NOW=$(date +%s)
-FETCHED_TS=$([ -n "$FETCHED_AT" ] && date -d "$FETCHED_AT" +%s 2>/dev/null || echo "0")
+CACHED_SHA=$(cat ~/.hall/agent-index.sha 2>/dev/null || echo "")
 
 NEED_FETCH=false
 [ "$CURRENT_SHA" != "$CACHED_SHA" ] && NEED_FETCH=true
-[ $(( NOW - FETCHED_TS )) -gt 86400 ] && NEED_FETCH=true
-[ -z "$FETCHED_AT" ] && NEED_FETCH=true
-python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/personas/roster-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
+python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
@@ -92,39 +88,27 @@ fi
 
 AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
-LOCAL_MODE=$(python3 -c "
-import json, os
-org = '$ORG'
-try:
-    print(json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json'))).get('local_mode', 'missing'))
-except Exception:
-    print('missing')
-" 2>/dev/null || echo "missing")
 
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
+echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL"
 echo "CONTEXT_EXISTS=$([ -f ~/.hall/$REPO/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
 If `REPO` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
-### Step 2: Roster index build (skip if NEED_FETCH=false)
+### Step 2: Agent index build (skip if NEED_FETCH=false)
 
-Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`) and extract `sha`.
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.sha'`
+Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
+`# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
-Call `get_file_contents` MCP: owner=`MockaSort-Studio`, repo=`hall-of-automata`, path=`agents.yml`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
-`# On rate_limit/secondary-rate-limit error: gh api repos/MockaSort-Studio/hall-of-automata/contents/agents.yml --jq '.content' | base64 -d > ~/.hall/personas/.agents-yml`
+Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
+`# On rate_limit/secondary-rate-limit error: BASE64_CONTENT=$(gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.content'); then substitute as <base64-content> below`
 
-```bash
-printf '%s' "<base64-content>" | base64 -d > ~/.hall/personas/.agents-yml
-```
 ```bash
 python3 << 'PYEOF'
-import yaml, json, os
-with open(os.path.expanduser('~/.hall/personas/.agents-yml')) as f:
-    agents_yml = f.read()
-catalog = yaml.safe_load(agents_yml).get('agents', {})
+import json, os, base64
+content_b64 = "<base64-content>"
+catalog = json.loads(base64.b64decode(content_b64)).get('agents', {})
 roster = {}
 for slug, data in catalog.items():
     if slug == 'old-major':
@@ -137,19 +121,17 @@ for slug, data in catalog.items():
         'scope_summary': c.get('scope_summary', '').strip(),
         'model': data.get('model', ''),
     }
-json.dump(roster, open(os.path.expanduser('~/.hall/personas/roster-index.json'), 'w'), indent=2)
-print(f'Roster index: {len(roster)} specialists.')
+json.dump(roster, open(os.path.expanduser('~/.hall/agent-index.json'), 'w'), indent=2)
+print(f'Agent index: {len(roster)} specialists.')
 PYEOF
 ```
 
 ```bash
-gh api repos/MockaSort-Studio/hall-of-automata/contents/agents/automaton_base.md \
-  --jq '.content' | base64 -d > ~/.hall/personas/automaton_base.md
 CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
-**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for persona or methodology changes to apply. See Step 5.
+**`--refresh` limitation:** Stack changes regenerated in `--refresh` don't take effect in the current context window — the @-import chain is evaluated only at conversation start. A fresh `cc` session is required for agent index or methodology changes to apply. See Step 5.
 
 ### Step 3: Setup — methodology, overlays, stack
 
@@ -181,9 +163,9 @@ fi
 
 Read `$STACK_PATH` and each @-imported file in order; apply as operating instructions. Skip if `resume` mode and `--refresh` was not passed — stack already loaded via SessionStart hook. On `--refresh`: always run this step regardless of mode; @-import chains are not re-evaluated mid-session, so the explicit read makes regenerated stack content active immediately.
 
-### Step 6: Invoker detection gate
+### Step 6: Invoker verification gate
 
-Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR (b) `~/.hall/$ORG/invoker.json` exists and contains a valid `mode` (`invoker` or `local`). If neither condition holds, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker detection procedure exactly as specified.
+Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 7.
 
 ### Step 7: Plans + invite
 
