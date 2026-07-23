@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OLD_SLUG="${1:?Usage: session-purge-project.sh <old-slug>}"
-SESSION_DIR="$HOME/.hall/projects/$OLD_SLUG/session"
+OLD_SLUG="${1:?Usage: session-purge-project.sh <org/slug>}"
+SESSION_DIR="$HOME/.hall/$OLD_SLUG/session"
 
 if [ -d "$SESSION_DIR" ]; then
   rm -rf "$SESSION_DIR"
