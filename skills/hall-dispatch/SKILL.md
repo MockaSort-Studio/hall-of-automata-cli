@@ -41,7 +41,7 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 ### Step 1: Check quota
 
 ```bash
-PLAN_DIR=$(ls -d ~/.hall/projects/$SLUG/plans/*/ | sort | tail -1)
+PLAN_DIR=$(ls -d ~/.hall/$SLUG/plans/*/ | sort | tail -1)
 REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")
 ```
 

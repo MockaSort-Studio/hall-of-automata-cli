@@ -35,7 +35,7 @@ inv = json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json')))
 mode = inv.get('mode', '')
 local_mode = inv.get('local_mode', mode == 'local')
 slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
-cfg_path = os.path.expanduser(f'~/.hall/projects/{slug}/config.json')
+cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 auto_level = cfg.get('automation_level', 'missing')
 ```
@@ -56,7 +56,7 @@ Use `AskUserQuestion` with one question:
 - **Question:** `"Are you a Hall invoker? An invoker is a member of the automata-invokers team on GitHub — you have dispatch access and can send tasks to Hall specialists. Non-invokers get local orchestration mode: Old Major plans and implements inline. See: https://mockasort-studio.github.io/hall-codex/how-to-invoke/"`
 - **Options:** `"Yes, I'm an invoker"` / `"No, use local mode"`
 
-**If "No":** write `~/.hall/$ORG/invoker.json` as `{"mode":"local","local_mode":true,"verified_at":"<ISO>","checks":{}}`. Set `automation_level: 0` in `~/.hall/projects/<slug>/config.json` (read slug from `~/.hall/session/.repo-slug`). Skip automation Q&A.
+**If "No":** write `~/.hall/$ORG/invoker.json` as `{"mode":"local","local_mode":true,"verified_at":"<ISO>","checks":{}}`. Set `automation_level: 0` in `~/.hall/<org>/<slug>/config.json` (read org/slug from `~/.hall/session/.repo-slug`). Skip automation Q&A.
 
 **If "Yes":** run verification:
 
@@ -103,13 +103,13 @@ mkdir -p ~/.hall/$ORG
 }
 ```
 
-**Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `automation_level` to `~/.hall/projects/<slug>/config.json` (read slug from `~/.hall/session/.repo-slug`).
+**Automation Q&A (invoker path only):** if `local_mode: false` was just set and `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `automation_level` to `~/.hall/<org>/<slug>/config.json` (read org/slug from `~/.hall/session/.repo-slug`).
 
 For all decision paths, write `automation_level` to config using:
 ```python
 import json, os
 slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
-cfg_path = os.path.expanduser(f'~/.hall/projects/{slug}/config.json')
+cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 cfg['automation_level'] = ...
 json.dump(cfg, open(cfg_path, 'w'), indent=2)

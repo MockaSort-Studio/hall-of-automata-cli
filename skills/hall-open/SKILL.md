@@ -37,28 +37,22 @@ if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
 fi
 
-# Slug derivation — config cache only; picker is the only fallback
-SLUG=$(python3 -c "
+# Path derivation — config cache only; picker is the only fallback
+REPO=$(python3 -c "
 import json, os
 try:
-    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo','').split('/')[-1])
+    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo',''))
 except Exception:
     print('')
 " 2>/dev/null || echo "")
-ORG=$(python3 -c "
-import json, os
-try:
-    print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org',''))
-except Exception:
-    print('')
-" 2>/dev/null || echo "")
-if [ -n "$SLUG" ]; then
+SLUG="${REPO##*/}"
+ORG="${REPO%%/*}"
+if [ -n "$REPO" ]; then
   REPO_NAME="$SLUG"
-  REPO="${ORG:+$ORG/}$SLUG"
   echo "Using project from ~/.hall/.config.json: $SLUG"
-  mkdir -p ~/.hall/projects/$SLUG/plans
-  bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$SLUG"
-  echo -n "$SLUG" > ~/.hall/session/.repo-slug
+  mkdir -p ~/.hall/$REPO/plans
+  bash "$CLAUDE_PLUGIN_ROOT/scripts/session-detect-switch.sh" "$REPO"
+  echo -n "$REPO" > ~/.hall/session/.repo-slug
 fi
 ```
 
@@ -85,19 +79,19 @@ python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/person
   || NEED_FETCH=true
 
 ACTIVE_PLAN=false
-if HALL_SLUG="$SLUG" python3 -c "
+if HALL_REPO="$REPO" python3 -c "
 import json, glob, os, sys
-slug = os.environ.get('HALL_SLUG', '')
+repo = os.environ.get('HALL_REPO', '')
 found = any(
     any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob(os.path.expanduser('~/.hall/projects/' + slug + '/plans/*/plan.json'))
+    for f in glob.glob(os.path.expanduser('~/.hall/' + repo + '/plans/*/plan.json'))
 )
 sys.exit(0 if found else 1)
 " 2>/dev/null; then
   ACTIVE_PLAN=true
 fi
 
-AUTO_LEVEL=$(python3 -c "import json, os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json'))).get('automation_level','missing'))" \
+AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
 LOCAL_MODE=$(python3 -c "
 import json, os
@@ -109,11 +103,11 @@ except Exception:
 " 2>/dev/null || echo "missing")
 
 echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL | LOCAL_MODE=$LOCAL_MODE"
-echo "CONTEXT_EXISTS=$([ -f ~/.hall/projects/$SLUG/context.md ] && echo true || echo false)"
+echo "CONTEXT_EXISTS=$([ -f ~/.hall/$REPO/context.md ] && echo true || echo false)"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
-If `SLUG` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
+If `REPO` is empty (no cached `target_repo`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
 
 ### Step 2: Roster index build (skip if NEED_FETCH=false)
 
@@ -164,10 +158,10 @@ Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`)
 
 ### Step 4: Context synthesis (only if CONTEXT_EXISTS=false)
 
-Read the first 30 lines of `README.md` and synthesise a 2–4 sentence brief. Write it to `~/.hall/projects/$SLUG/context.md` using Bash — the Write tool fails on new files. Use printf or a heredoc:
+Read the first 30 lines of `README.md` and synthesise a 2–4 sentence brief. Write it to `~/.hall/$SLUG/context.md` using Bash — the Write tool fails on new files. Use printf or a heredoc:
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-cat > "$HOME/.hall/projects/$SLUG/context.md" << 'CTXEOF'
+cat > "$HOME/.hall/$SLUG/context.md" << 'CTXEOF'
 <synthesised brief here>
 CTXEOF
 ```
@@ -180,7 +174,7 @@ Call `get_file_contents` MCP (owner=`$ORG`, repo=`$REPO_NAME`, path=`CLAUDE.md`)
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 if [ -n "$SLUG" ]; then
-  STACK_PATH=~/.hall/projects/$SLUG/session/CLAUDE-stack.md
+  STACK_PATH=~/.hall/$SLUG/session/CLAUDE-stack.md
 else
   STACK_PATH=~/.hall/session/CLAUDE-stack.md
 fi
@@ -196,7 +190,7 @@ Skip this step if EITHER condition holds: (a) `LOCAL_MODE` is not `missing`, OR 
 
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-ls ~/.hall/projects/$SLUG/plans/ 2>/dev/null || true
+ls ~/.hall/$SLUG/plans/ 2>/dev/null || true
 ```
 
 List existing plans with status. Ask whether to resume or start fresh. Then ask what the invoker wants to build — one sentence, in character as Old Major.

@@ -4,7 +4,7 @@ Call immediately after filing a new GitHub issue. Never aborts the calling skill
 
 ## Pre-conditions
 
-Skip entirely if `BOARD_ACTIVE` is not `True` or `~/.hall/projects/$SLUG/board.json` does not exist.
+Skip entirely if `BOARD_ACTIVE` is not `True` or `~/.hall/$SLUG/board.json` does not exist.
 
 **Caller must set before invoking:**
 - `ISSUE_NUM` — newly-filed issue number
@@ -17,9 +17,9 @@ Skip entirely if `BOARD_ACTIVE` is not `True` or `~/.hall/projects/$SLUG/board.j
 ```bash
 SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board.json')))['project_id'])")
+  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json')))['project_id'])")
 PROJ_NUM=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/config.json')))['board_project_number'])")
+  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))['board_project_number'])")
 ORG=$(echo "$REPO" | cut -d/ -f1)
 REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
 ```
@@ -41,7 +41,7 @@ If `ITEM_ID` is empty: log and skip Steps 3–5.
 python3 -c "
 import json, os
 slug='$SLUG'
-p = os.path.expanduser(f'~/.hall/projects/{slug}/board.json')
+p = os.path.expanduser(f'~/.hall/{slug}/board.json')
 b = json.load(open(p)) if os.path.exists(p) else {'project_id': '$PROJ_ID', 'items': []}
 b.setdefault('items', []).append({'issue_number': int('$ISSUE_NUM'), 'id': '$ITEM_ID'})
 json.dump(b, open(p, 'w'), indent=2)
@@ -52,15 +52,15 @@ json.dump(b, open(p, 'w'), indent=2)
 
 ```bash
 STATUS_FID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['id'])")
+  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['id'])")
 BACKLOG_OPT=$(python3 -c "
 import json, os; slug='$SLUG'
-opts = json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['Status']['options']
+opts = json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']
 print(opts.get('Backlog') or opts.get('Todo', ''))")
 ITYPE_FID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['ItemType']['id'])")
+  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['ItemType']['id'])")
 ITYPE_OPT=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/projects/{slug}/board-meta.json')))['fields']['ItemType']['options']['$ITEM_TYPE'])")
+  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['ItemType']['options']['$ITEM_TYPE'])")
 
 gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",\
 itemId:\"${ITEM_ID}\",fieldId:\"${STATUS_FID}\",value:{singleSelectOptionId:\"${BACKLOG_OPT}\"}})\
