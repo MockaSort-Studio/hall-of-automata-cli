@@ -6,17 +6,16 @@ allowed-tools: [Bash]
 
 # /hall:prune
 
-Remove all `<org>/<slug>/` project directories from `~/.hall/` and their associated Claude project memory files. No arguments — this is a full clean.
+Remove all `<org>/<slug>/` project directories from `~/.hall/` and all associated Claude memory — project and consultation artifacts. No arguments — this is a full clean.
 
 > To clear invoker state: `hall-open --verify`
 > To re-fetch personas: `hall-open --refresh`
 
 ## What gets cleaned
 
-For each `<org>/<slug>/` directory in `~/.hall/`:
-- The directory itself
-- Claude memory files matching `project_<slug>*.md` in any `~/.claude/projects/*/memory/` directory
-- The parent `<org>/` directory if it becomes empty
+- All `<org>/<slug>/` directories in `~/.hall/` (and empty `<org>/` parents)
+- Claude project memory: `project_<slug>*.md` in any `~/.claude/projects/*/memory/` directory
+- Claude consultation memory: `consultation-*.md` in any `~/.claude/projects/*/memory/` directory
 
 Preserved: `~/.hall/session/`, `~/.hall/agent-index.json`, `~/.hall/agent-index.sha`.
 
@@ -29,10 +28,16 @@ PROJECT_DIRS=$(find ~/.hall -mindepth 2 -maxdepth 2 -type d \
   | grep -v '/.hall/session' | sort)
 ```
 
-For each directory, derive `SLUG="${dir##*/}"` and scan:
+For project memory, derive `SLUG="${dir##*/}"` for each directory and scan:
 
 ```bash
 find ~/.claude/projects/*/memory -name "project_${SLUG}*.md" 2>/dev/null
+```
+
+For consultation memory, scan once across all memory directories:
+
+```bash
+find ~/.claude/projects/*/memory -name "consultation-*.md" 2>/dev/null
 ```
 
 ### 2. Display and confirm
@@ -49,6 +54,6 @@ rm -rf "$dir"
 rmdir --ignore-fail-on-non-empty "${dir%/*}"
 ```
 
-For each matched Claude memory file: `rm -f "$memory_file"`.
+For each matched Claude memory file (project and consultation): `rm -f "$memory_file"`.
 
 Remove deleted entries from the `MEMORY.md` index in each affected memory directory.
