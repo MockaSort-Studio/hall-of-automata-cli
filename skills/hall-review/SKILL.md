@@ -11,7 +11,7 @@ Discover open Hall PRs that need autonomous review from live GitHub state. Exit 
 #### 0a. Collect and filter
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo',''))" 2>/dev/null || echo "")
 ORG="${SLUG%%/*}"
 REPO_NAME="${SLUG##*/}"
 
@@ -39,7 +39,7 @@ If count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — skippi
 **Derive review cycle from prior Hall CHANGES_REQUESTED reviews:**
 ```bash
 REVIEW_CYCLE=$(gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
-  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and (.user.login | endswith("[bot]")))] | length' \
+  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and (.user.login | endswith("[bot]"))) ] | length' \
   2>/dev/null || echo "0")
 ```
 
@@ -131,38 +131,13 @@ For MINOR at `REVIEW_CYCLE == 0`: review body must include the VERDICT line, the
 
 #### 0f. SETTLE
 
-Read `automation_level` from `~/.hall/<org>/<slug>/config.json` (org/slug from `~/.hall/session/.repo-slug`).
+Read `automation_level` from `~/.hall/$ORG/$REPO_NAME/config.json`.
 
 | Verdict | Level | Action |
 |---------|-------|--------|
 | LGTM | 2 | Call `mcp__github__merge_pull_request` (`owner`, `repo`, `pullNumber: <PR>`, `merge_method: "merge"`); `# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <ORG>/<REPO_NAME> <PR_NUMBER>` |
 | LGTM | 0 or 1 | Print: `PR #<N> is LGTM — please review and merge.` |
 | MINOR (ASSESS-2), MAJOR, BLOCKED | any | Print verdict summary and findings. |
-
-After a terminal outcome (merged or escalated), write to the board if `~/.hall/$SLUG/board.json` exists. Resolve board identifiers:
-```bash
-PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json')))['project_id'])")
-FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['id'])")
-ITEM_ID=$(python3 -c "import json,os; slug='$SLUG'; items=json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json'))).get('items',[]); print(next((i['id'] for i in items if i.get('issue_number')==$ISSUE_NUMBER),''))")
-```
-
-If `ITEM_ID` is empty: log `"Board item not found for issue #$ISSUE_NUMBER"` and skip.
-
-For LGTM at level 2 (merged) — set status to Done:
-```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
-gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${OPT}\"}}){projectV2Item{id}}}" \
-  2>/dev/null || echo "WARN: board write failed for issue #$ISSUE_NUMBER"
-```
-
-For MINOR (ASSESS-2), MAJOR, or BLOCKED — set status to Escalated:
-```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['Escalated'])")
-gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",itemId:\"${ITEM_ID}\",fieldId:\"${FIELD_ID}\",value:{singleSelectOptionId:\"${OPT}\"}}){projectV2Item{id}}}" \
-  2>/dev/null || echo "WARN: board write failed for issue #$ISSUE_NUMBER"
-```
-
-Skip board write when LGTM at level 0 or 1 — PR is not yet merged.
 
 #### 0g. Summary
 
