@@ -13,9 +13,6 @@ Run this bash guard first. If it exits 0, gate is complete — do not execute an
 python3 -c "
 import json, os, sys
 org = os.environ.get('ORG', '')
-if not org:
-    try: org = json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org', '')
-    except Exception: pass
 try:
     d = json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json')))
     assert d.get('mode') == 'invoker'
@@ -32,9 +29,9 @@ If `~/.hall/$ORG/invoker.json` exists AND `--verify` was not passed:
 
 ```python
 import json, os
-org = os.environ.get('ORG', '') or json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('org', '')
+org = os.environ.get('ORG', '')
 inv = json.load(open(os.path.expanduser(f'~/.hall/{org}/invoker.json')))
-slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
 cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 auto_level = cfg.get('automation_level', 'missing')
@@ -84,11 +81,11 @@ mkdir -p ~/.hall/$ORG
 }
 ```
 
-**Automation Q&A:** if `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `automation_level` to `~/.hall/<org>/<slug>/config.json` (read org/slug from `~/.hall/session/.repo-slug`).
+**Automation Q&A:** if `AUTO_LEVEL=missing`, use `AskUserQuestion`: Q1 — auto-review after each specialist PR? Q2 (if Q1=Yes) — auto-merge on LGTM? Map to level 0 (manual), 1 (review), 2 (full). Write `automation_level` to `~/.hall/<org>/<slug>/config.json` (read org/slug from `~/.hall/.repo-slug`).
 
 ```python
 import json, os
-slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
 cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 cfg['automation_level'] = ...

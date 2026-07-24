@@ -5,7 +5,7 @@ description: Org and repo resolution fallback — executed from hall-open Step 1
 
 # Org and Repo Resolution — Picker Fallback
 
-Execute when `SLUG` is empty — no `.repo-slug` in `~/.hall/session/`. Resolves the target org and repo,
+Execute when `SLUG` is empty — no `~/.hall/.repo-slug`. Resolves the target org and repo,
 persists the result, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequent `hall-open` steps.
 
 Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
@@ -16,25 +16,7 @@ Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
 mkdir -p "$HOME/.hall/session" "$HOME/.hall/context"
 ```
 
-## Step B: Check for persisted org
-
-```bash
-HALL_CONFIG="$HOME/.hall/.config.json"
-ORG=""
-if [ -f "$HALL_CONFIG" ]; then
-  ORG=$(python3 -c "
-import json, sys
-try:
-    sys.stdout.write(json.load(open('$HOME/.hall/.config.json')).get('org', ''))
-except Exception:
-    pass
-" 2>/dev/null || echo "")
-fi
-```
-
-If `ORG` is non-empty: skip to [Step D: Repo picker](#step-d-repo-picker).
-
-## Step C: Org selection via invoker team membership
+## Step B: Org selection via invoker team membership
 
 ```bash
 ORGS_JSON=$(gh api user/teams --jq '[.[].organization.login] | unique' 2>/dev/null || echo "[]")
@@ -58,20 +40,7 @@ VERIFY_STATUS=$?
 
 If `VERIFY_STATUS != 0`: print `"ERROR: hall-of-automata not found in org $ORG — confirm the Hall app is installed at github.com/organizations/$ORG/settings/installations"` and halt.
 
-**Persist org to global config:**
-
-```bash
-python3 -c "
-import json, os
-path = os.path.expanduser('~/.hall/.config.json')
-d = json.load(open(path)) if os.path.exists(path) else {}
-d['org'] = '$ORG'
-json.dump(d, open(path, 'w'))
-print('Org persisted: $ORG')
-"
-```
-
-## Step D: Repo picker
+## Step C: Repo picker
 
 ```bash
 REPOS_JSON=$(gh api "/orgs/$ORG/repos?per_page=100&sort=updated" \
@@ -100,7 +69,7 @@ org_slug = f'{org}/{slug}'
 proj = os.path.expanduser(f'~/.hall/{org_slug}')
 os.makedirs(proj, exist_ok=True)
 # write org/slug for path resolution
-open(os.path.expanduser('~/.hall/session/.repo-slug'), 'w').write(org_slug)
+open(os.path.expanduser('~/.hall/.repo-slug'), 'w').write(org_slug)
 print('Target repo: $ORG/$REPO_NAME')
 "
 ```
