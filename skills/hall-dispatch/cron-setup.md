@@ -2,7 +2,10 @@
 
 ```bash
 CRON_EXISTS=$([ -f ~/.hall/$SLUG/cron.json ] && echo true || echo false)
-INFLIGHT=$(HALL_SLUG="$SLUG" python3 -c "import json,glob,os; slug=os.environ.get('HALL_SLUG',''); print('true' if any(any(t.get('status') in ('DISPATCHED','IN_PROGRESS') for t in json.load(open(f)).get('tasks',[])) for f in glob.glob(os.path.expanduser('~/.hall/' + slug + '/plans/*/plan.json'))) else 'false'" 2>/dev/null || echo "false")
+INFLIGHT=$(gh issue list --repo "$REPO" --state open \
+  --json labels \
+  --jq '[.[] | select(.labels | any(.name | startswith("hall:")))] | length > 0' \
+  2>/dev/null || echo "false")
 ```
 
 If `CRON_EXISTS=false` and `INFLIGHT=true`: call `CronCreate` with:

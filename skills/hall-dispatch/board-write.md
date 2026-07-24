@@ -36,8 +36,12 @@ Called once per filed issue from hall-dispatch Step 4.
 
 **Board parent append:** If `task["board_parent"]` is a non-null integer, fetch the parent issue body, append `- [ ] #<issue_number> [automaton] <task title>` as a new line, and write it back.
 
-Call `mcp__github__issue_read` with `owner: <ORG>`, `repo: <REPO_NAME>`, `issueNumber: <board_parent>`. Call `mcp__github__issue_write` with `method: update`, `issue_number: <board_parent>`, `body: <updated_body>`.
-`# On rate_limit error: BODY=$(gh issue view <board_parent> --repo <REPO> --json body --jq '.body'); gh issue edit <board_parent> --repo <REPO> --body "$BODY"$'\n''- [ ] #<issue_number> [automaton] <task title>'`
+```bash
+BODY=$(gh issue view <board_parent> --repo "${ORG}/${REPO_NAME}" --json body --jq '.body' 2>/dev/null || echo "")
+[ -n "$BODY" ] && gh issue edit <board_parent> --repo "${ORG}/${REPO_NAME}" \
+  --body "$BODY"$'\n'"- [ ] #<issue_number> [automaton] <task title>" \
+  || echo "WARN: failed to append to board parent #<board_parent>"
+```
 
 On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
 
