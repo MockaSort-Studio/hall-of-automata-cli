@@ -12,7 +12,7 @@ Render the current plan board from live GitHub data.
 ## Setup
 
 ```bash
-SLUG=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 ORG=$(echo "$SLUG" | cut -d/ -f1)
 REPO_NAME=$(echo "$SLUG" | cut -d/ -f2)
 REPO="$ORG/$REPO_NAME"

@@ -21,10 +21,10 @@ All files produced by this skill must stay under 200 lines. Prefer many small, f
 
 ```bash
 set -euo pipefail
-REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+REPO="$SLUG"
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 OWNER_TYPE=$(gh api "repos/${REPO}" --jq '.owner.type')
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 mkdir -p ~/.hall/session ~/.hall/$SLUG
 python3 -c "
 import json, os
@@ -37,7 +37,7 @@ echo "Resolved: OWNER=${OWNER} OWNER_TYPE=${OWNER_TYPE}"
 ### Step 2: Check for existing board
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 BOARD_NUM=$(python3 -c \
   "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/config.json'))).get('board_project_number',''))" \
   2>/dev/null || echo "")
@@ -123,7 +123,7 @@ Read `project_id` from state or `config.json`, then source the lib script.
 
 ```bash
 set -euo pipefail
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
 
 export PROJECT_ID=$(python3 -c "
@@ -177,7 +177,7 @@ done
 
 ```bash
 set -euo pipefail
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner'])")
 OWNER_TYPE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner_type'])")
 PROJECT_NUM=$(python3 -c "
@@ -204,7 +204,7 @@ fi
 python3 << 'PYEOF'
 import json, os
 
-slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
 meta = json.load(open(os.path.expanduser('~/.hall/session/.meta-raw.json')))
 if not meta or 'id' not in meta:
     raise SystemExit('ERROR: GetProjectMeta returned empty — check project number and owner type')
@@ -233,7 +233,7 @@ PYEOF
 ### Step 6.5: Provision Roadmap view
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 PROJECT_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/board-meta.json')))['project_id'])")
 EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on ProjectV2{views(first:20){nodes{name}}}}}" --jq '[.data.node.views.nodes[].name]|index("Roadmap")' 2>/dev/null || echo "null")
 if [ "$EXISTS" != "null" ]; then
@@ -250,7 +250,7 @@ fi
 ```bash
 python3 << 'PYEOF'
 import json, os
-slug = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip()
+slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
 meta = json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))
 cfg = json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))
 state = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
