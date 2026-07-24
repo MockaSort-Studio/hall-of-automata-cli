@@ -35,3 +35,25 @@ Assigned to <Specialist>. Rationale: this task implements <description> with no 
 ```
 
 Do not explain the Hall's mechanics to the specialist — they already know them. Keep routing rationale to why this specialist is right for this work.
+
+## Local consultation overlay
+
+When Old Major invokes a specialist as a local subagent, render their overlay immediately before invocation:
+
+```python
+import os
+plugin_root = (os.environ.get('CLAUDE_PLUGIN_ROOT') or
+               open(os.path.expanduser('~/.hall/plugin-root')).read().strip())
+cache_root = os.path.expanduser('~/.hall')
+org = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip().split('/')[0]
+specialist = '<NAME>'  # substitute the chosen specialist's name
+os.makedirs(f'{cache_root}/claude-agents', exist_ok=True)
+with open(f'{plugin_root}/templates/subagent-overlay.md.tpl') as f:
+    tpl = f.read()
+with open(f'{cache_root}/claude-agents/{specialist}.md', 'w') as f:
+    f.write(tpl.replace('{{SPECIALIST_NAME}}', specialist)
+               .replace('{{ORG}}', org)
+               .replace('{{CACHE_ROOT}}', cache_root))
+```
+
+Run once per specialist needed per session. Safe to re-run; the file is idempotent.

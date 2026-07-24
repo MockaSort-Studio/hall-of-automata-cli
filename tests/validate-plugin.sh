@@ -42,7 +42,7 @@ check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
 check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
-check "hall-open-setup.py reads agent-index.json"           "grep -q 'agent-index.json' scripts/hall-open-setup.py"
+check "hall-route has on-demand overlay render"              "grep -q 'Local consultation overlay' skills/hall-route/SKILL.md"
 check "hall-review fetches persona on-demand"               "grep -q 'gh api.*roster' skills/hall-review/SKILL.md"
 check "skills/hall-open/invoker-gate.md exists"             "test -f skills/hall-open/invoker-gate.md"
 

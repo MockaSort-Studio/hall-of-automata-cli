@@ -10,8 +10,6 @@ trap "rm -rf '$TMP'" EXIT
 make_hall_home() {
   local h="$1"
   mkdir -p "$h/.hall/session" "$h/.hall/personas"
-  echo "test-sha" > "$h/.hall/session/.current-sha"
-  echo "test-sha" > "$h/.hall/session/.invariant-built"
   echo "[]" > "$h/.hall/personas/.advisory-roster.json"
 }
 
