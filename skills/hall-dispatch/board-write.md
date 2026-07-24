@@ -34,7 +34,7 @@ On any error: log and continue. Do not abort the calling skill.
 
 Called once per filed issue from hall-dispatch Step 4.
 
-**Board parent append:** If `task["board_parent"]` is a non-null integer, fetch the parent issue body, append `- [ ] #<issue_number> [automaton] <task title>` as a new line, and write it back. Uses `gh` directly — `mcp__github__issue_read` / `mcp__github__issue_write` were removed when the hall-projects MCP server was retired (#265).
+**Board parent append:** If `task["board_parent"]` is a non-null integer, fetch the parent issue body, append `- [ ] #<issue_number> [automaton] <task title>` as a new line, and write it back.
 
 ```bash
 BODY=$(gh issue view <board_parent> --repo "${ORG}/${REPO_NAME}" --json body --jq '.body' 2>/dev/null || echo "")
