@@ -69,7 +69,7 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-**Origination mode** — check `task["github_issue"]`:
+**Origination mode** — determines whether to create a new issue or route to an existing one. Check `task["github_issue"]` (populated by hall-okr when the issue was pre-filed; absent for CLI-originated tasks):
 
 - **OKR-flow** (field is set): the issue was filed by hall-okr. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <github_issue> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
 - **CLI-flow** (field absent): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Capture the returned number as `ISSUE_NUM`.
