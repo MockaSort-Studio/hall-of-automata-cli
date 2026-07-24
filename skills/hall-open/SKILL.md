@@ -31,10 +31,10 @@ gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; 
 
 # Cache state
 mkdir -p ~/.hall ~/.hall/session
-CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
+CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/plugin-root 2>/dev/null || echo "")}
 if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   export CLAUDE_PLUGIN_ROOT
-  printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/session/.plugin-root
+  printf '%s' "$CLAUDE_PLUGIN_ROOT" > ~/.hall/plugin-root
 fi
 
 # Path derivation — .repo-slug is the source of truth; picker is the only fallback
@@ -49,7 +49,7 @@ fi
 echo "ORG=$ORG"
 ```
 
-If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/session/.plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
+If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
 Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
 ```bash
@@ -90,7 +90,7 @@ If `REPO` is empty (no `.repo-slug`): read `skills/hall-open/standalone-flow.md`
 
 Read `$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md` directly from the plugin and adopt its contents as operating instructions for this session:
 ```bash
-CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/session/.plugin-root 2>/dev/null || echo "")}
+CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/plugin-root 2>/dev/null || echo "")}
 cat "$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md"
 ```
 

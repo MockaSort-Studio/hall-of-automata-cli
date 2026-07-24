@@ -43,14 +43,14 @@ When Old Major invokes a specialist as a local subagent, render their overlay im
 ```python
 import os
 plugin_root = (os.environ.get('CLAUDE_PLUGIN_ROOT') or
-               open(os.path.expanduser('~/.hall/session/.plugin-root')).read().strip())
+               open(os.path.expanduser('~/.hall/plugin-root')).read().strip())
 cache_root = os.path.expanduser('~/.hall')
 org = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip().split('/')[0]
 specialist = '<NAME>'  # substitute the chosen specialist's name
-os.makedirs(f'{cache_root}/session/claude-agents', exist_ok=True)
+os.makedirs(f'{cache_root}/claude-agents', exist_ok=True)
 with open(f'{plugin_root}/templates/subagent-overlay.md.tpl') as f:
     tpl = f.read()
-with open(f'{cache_root}/session/claude-agents/{specialist}.md', 'w') as f:
+with open(f'{cache_root}/claude-agents/{specialist}.md', 'w') as f:
     f.write(tpl.replace('{{SPECIALIST_NAME}}', specialist)
                .replace('{{ORG}}', org)
                .replace('{{CACHE_ROOT}}', cache_root))

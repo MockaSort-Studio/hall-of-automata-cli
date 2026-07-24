@@ -27,7 +27,7 @@ else:
     project_root = f'{root}/session'
 
 os.makedirs(f'{root}/session', exist_ok=True)
-open(f'{root}/session/.plugin-root', 'w').write(pr)
+open(f'{root}/plugin-root', 'w').write(pr)
 
 mode = 'resume' if os.path.exists(f'{root}/session/.open_mode') else 'first_open'
 open(f'{root}/session/.open_mode', 'w').write(mode)

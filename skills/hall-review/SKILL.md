@@ -29,19 +29,19 @@ If the count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — sk
 
 ```bash
 specialist='<SPECIALIST>'  # substitute task['specialist']
-mkdir -p ~/.hall/session/claude-agents
+mkdir -p ~/.hall/claude-agents
 gh api "repos/MockaSort-Studio/hall-of-automata/contents/roster/${specialist}.md" \
   --jq '.content' | base64 -d \
-  > ~/.hall/session/claude-agents/${specialist}-persona.md 2>/dev/null
+  > ~/.hall/claude-agents/${specialist}-persona.md 2>/dev/null
 ```
 
 ```bash
 python3 << 'PYEOF'
 import os
-plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT') or open(os.path.expanduser('~/.hall/session/.plugin-root')).read().strip()
+plugin_root = os.environ.get('CLAUDE_PLUGIN_ROOT') or open(os.path.expanduser('~/.hall/plugin-root')).read().strip()
 cache_root = os.path.expanduser('~/.hall')
 specialist = '<SPECIALIST>'  # substitute task['specialist']
-persona_path = f'{cache_root}/session/claude-agents/{specialist}-persona.md'
+persona_path = f'{cache_root}/claude-agents/{specialist}-persona.md'
 with open(f'{plugin_root}/templates/reviewer-overlay.md.tpl') as f:
     template = f.read()
 with open(persona_path) as f:
@@ -52,14 +52,14 @@ content = (template
     .replace('{{SPECIALIST_DESCRIPTION}}', description)
     .replace('{{PERSONA_PATH}}', persona_path)
     .replace('{{CACHE_ROOT}}', cache_root))
-with open(f'{cache_root}/session/claude-agents/{specialist}-reviewer.md', 'w') as f:
+with open(f'{cache_root}/claude-agents/{specialist}-reviewer.md', 'w') as f:
     f.write(content)
 PYEOF
 ```
 
 #### 0c. Run inline review
 
-Treat `review_cycle` as 1 if absent. Load `~/.hall/session/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy below and produce the structured verdict block.
+Treat `review_cycle` as 1 if absent. Load `~/.hall/claude-agents/<specialist>-reviewer.md` via the Read tool. Run `gh pr diff <PR_NUMBER> --repo <REPO>` and `gh issue view <ISSUE_NUMBER> --repo <REPO>`. Apply the verdict taxonomy below and produce the structured verdict block.
 
 **Verdict taxonomy:**
 - **LGTM** — all acceptance criteria met; no required changes
