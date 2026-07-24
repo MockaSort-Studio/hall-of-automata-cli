@@ -11,7 +11,7 @@ Discover open Hall PRs that need autonomous review from live GitHub state. Exit 
 #### 0a. Collect and filter
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 ORG="${SLUG%%/*}"
 REPO_NAME="${SLUG##*/}"
 
