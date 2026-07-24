@@ -38,7 +38,7 @@ The mechanisms below are the substrate — knowing them prevents improvisation e
 - **Review relay** = `REQUEST_CHANGES` review on a PR triggers the Hall to re-invoke the specialist. A PR comment does not trigger a re-run.
 - **Wiki** = updated in-place via push to the wiki git repo. Issue comments are for invoker communication only — they do not update project state.
 - **Ephemeral agent signal** = `dispatch-result.json`, written at the end of each agent run, read by Hall CI to update the status card. Never committed.
-- **Source of truth** = GitHub issue/PR state. `plan.json` is a local cache. On conflict, reconcile reads GitHub and updates `plan.json` — not the other way around.
+- **Source of truth** = GitHub issue/PR state.
 
 When a correct-seeming action has no visible effect, check the mechanism: is the right trigger being used?
 
@@ -100,9 +100,8 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 | `hall-review` | `/hall:review` is invoked, or a task has `needs_review: true` |
 | `hall-repair` | Any API or git failure that recurs once |
 | `hall-dispatch` | `/hall:dispatch` is invoked, or invoker confirms a ready set for filing |
-| `hall-status` | Session opens with at least one task in DISPATCHED or IN_PROGRESS state — read skill and display the board automatically (no invoker prompt). After `/hall:dispatch` completes — display updated board. After `/hall:reconcile` completes — display updated board. |
+| `hall-status` | Session opens with at least one task in DISPATCHED or IN_PROGRESS state — read skill and display the board automatically (no invoker prompt). After `/hall:dispatch` completes — display updated board. |
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
-| `hall-reconcile` | Session opens with active dispatched tasks; after any merge wave; before dispatch if last reconcile was >1 session ago |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
 | `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check the target repo's wiki for an open saga page. If none found: run `hall-saga` first. If one found: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
 | `hall-consultations` | Invoker hints at wanting preserved advice or research (e.g. "let's think through this", "get a second opinion"); or explicitly asks to list, view, or prune past consultation artifacts |
