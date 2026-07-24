@@ -17,15 +17,14 @@ Remove all `<org>/<slug>/` project directories from `~/.hall/` and all associate
 - Claude project memory: `project_<slug>*.md` in any `~/.claude/projects/*/memory/` directory
 - Claude consultation memory: `consultation-*.md` in any `~/.claude/projects/*/memory/` directory
 
-Preserved: `~/.hall/session/`, `~/.hall/agent-index.json`, `~/.hall/agent-index.sha`.
+Preserved: `~/.hall/agent-index.json`, `~/.hall/agent-index.sha`.
 
 ## Execution
 
 ### 1. Collect candidates
 
 ```bash
-PROJECT_DIRS=$(find ~/.hall -mindepth 2 -maxdepth 2 -type d \
-  | grep -v '/.hall/session' | sort)
+PROJECT_DIRS=$(find ~/.hall -mindepth 2 -maxdepth 2 -type d | sort)
 ```
 
 For project memory, derive `SLUG="${dir##*/}"` for each directory and scan:
