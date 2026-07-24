@@ -11,7 +11,7 @@ Discover open Hall PRs that need autonomous review from live GitHub state. Exit 
 #### 0a. Collect and filter
 
 ```bash
-SLUG=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.hall/.config.json'))).get('target_repo',''))" 2>/dev/null || echo "")
+SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
 ORG="${SLUG%%/*}"
 REPO_NAME="${SLUG##*/}"
 
