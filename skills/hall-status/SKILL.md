@@ -75,7 +75,7 @@ for pr in prs:
 
 def hall_status(issue):
     ls = {l['name'] for l in issue.get('labels', [])}
-    if issue['state'] == 'open':
+    if issue['state'].upper() == 'OPEN':
         if 'hall:awaiting-input' in ls: return 'AWAITING_INPUT'
         if 'hall:invoker-queued' in ls: return 'DISPATCHED'
         if 'hall:in-progress'    in ls: return 'IN_PROGRESS'
@@ -93,9 +93,10 @@ def specialist(issue):
 
 items = []
 for bi in board.get('items', []):
-    if bi.get('type', '').upper() != 'ISSUE':
+    content = bi.get('content', {})
+    if content.get('type', '').upper() != 'ISSUE':
         continue
-    m = re.search(r'/issues/(\d+)$', bi.get('url', ''))
+    m = re.search(r'/issues/(\d+)$', content.get('url', ''))
     if not m:
         continue
     num   = int(m.group(1))

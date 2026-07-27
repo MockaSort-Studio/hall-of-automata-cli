@@ -61,14 +61,18 @@ NEED_FETCH=false
 python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
-AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
-  2>/dev/null || echo "missing")
-
-echo "NEED_FETCH=$NEED_FETCH | AUTO_LEVEL=$AUTO_LEVEL"
+echo "NEED_FETCH=$NEED_FETCH"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
-If `REPO` is empty (no `.repo-slug`): read `skills/hall-open/standalone-flow.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
+If `REPO` is empty (no `.repo-slug`): read `skills/hall-open/repo-picker.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the org/repo resolution procedure exactly as specified. On completion, `ORG`, `REPO_NAME`, `REPO`, and `SLUG` are set.
+
+Only now is `$REPO` guaranteed resolved — read `AUTO_LEVEL` here, never earlier (an empty `$REPO` would resolve to a hall-root `config.json`, which must never exist):
+```bash
+AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
+  2>/dev/null || echo "missing")
+echo "AUTO_LEVEL=$AUTO_LEVEL"
+```
 
 Read `$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md` directly from the plugin and adopt its contents as operating instructions for this session:
 ```bash
@@ -123,6 +127,23 @@ Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker
 
 Check Claude memory for any notes saved about `$REPO` and surface relevant context before proceeding.
 
-Read `skills/hall-status/SKILL.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and render the live board if `board_project_number` is set in `config.json`.
+`config.json`'s `board_project_number` is a cached anchor, not the source of truth — GitHub is. Verify live whether the repo actually has a linked Projects v2 board and a wiki, rather than concluding "no board" from an empty or missing local key:
+
+```bash
+LIVE_BOARD=$(gh api graphql -f query='
+  query($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) {
+      projectsV2(first: 5) { nodes { number title } }
+    }
+  }' -f owner="$ORG" -f repo="$SLUG" --jq '.data.repository.projectsV2.nodes[0].number // empty' 2>/dev/null)
+HAS_WIKI=$(gh api "repos/$REPO" --jq '.has_wiki' 2>/dev/null || echo "false")
+echo "LIVE_BOARD=$LIVE_BOARD | HAS_WIKI=$HAS_WIKI"
+```
+
+If `$LIVE_BOARD` is non-empty and differs from (or is missing from) `config.json`'s `board_project_number`, backfill `config.json` from the live value before rendering — the cache should mirror GitHub, never override it. If `$LIVE_BOARD` is empty, there is no board regardless of what `config.json` says; do not render one.
+
+If `$LIVE_BOARD` is non-empty: read `skills/hall-status/SKILL.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and render the live board.
+
+If `$HAS_WIKI` is `false`: note in the greeting that no saga wiki exists yet for this repo — `hall-saga` will offer to enable it when initiative-sized work comes up.
 
 Ask what the invoker wants to build — one sentence, in character as Old Major.

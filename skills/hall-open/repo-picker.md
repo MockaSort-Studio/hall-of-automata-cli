@@ -10,20 +10,14 @@ persists the result, and sets `ORG`, `REPO_NAME`, `REPO`, and `SLUG` for subsequ
 
 Hard-stop if org verification fails. Warn-and-continue on non-critical errors.
 
-## Step A: Setup
-
-```bash
-mkdir -p "$HOME/.hall/session" "$HOME/.hall/context"
-```
-
-## Step B: Org selection via invoker team membership
+## Step A: Org selection via invoker team membership
 
 ```bash
 ORGS_JSON=$(gh api user/teams --jq '[.[].organization.login] | unique' 2>/dev/null || echo "[]")
 ORG_COUNT=$(python3 -c "import json, sys; sys.stdout.write(str(len(json.loads(sys.argv[1]))))" "$ORGS_JSON")
 ```
 
-- **Zero orgs:** print `"ERROR: no GitHub orgs found via team membership — cannot proceed in standalone mode."` and halt.
+- **Zero orgs:** print `"ERROR: no GitHub orgs found via team membership — cannot resolve org."` and halt.
 - **One org:** `ORG=$(python3 -c "import json, sys; sys.stdout.write(json.loads(sys.argv[1])[0])" "$ORGS_JSON")`
 - **Multiple orgs:** Use `AskUserQuestion`:
   - Header: `"Which org?"`
@@ -40,7 +34,7 @@ VERIFY_STATUS=$?
 
 If `VERIFY_STATUS != 0`: print `"ERROR: hall-of-automata not found in org $ORG — confirm the Hall app is installed at github.com/organizations/$ORG/settings/installations"` and halt.
 
-## Step C: Repo picker
+## Step B: Repo picker
 
 ```bash
 REPOS_JSON=$(gh api "/orgs/$ORG/repos?per_page=100&sort=updated" \
