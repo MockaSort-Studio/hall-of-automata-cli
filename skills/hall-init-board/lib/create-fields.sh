@@ -81,7 +81,7 @@ create_fields() {
 
   local board_was_created
   board_was_created=$("$PYTHON3" -c \
-    "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json'))).get('board_was_created', False))" \
+    "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json'))).get('board_was_created', False))" \
     2>/dev/null || echo "False")
   if [ "$board_was_created" = "True" ]; then
     echo "Updating Status options (fresh board)..."

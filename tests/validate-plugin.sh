@@ -22,7 +22,6 @@ check "mcp.json has sequential-thinking" "python3 -c \"import json,sys; d=json.l
 check "mcp.json has fetch"      "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'fetch' in d else 1)\""
 check "mcp.json has github"        "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'github' in d else 1)\""
 check "mcp.json has google-drive"  "python3 -c \"import json,sys; d=json.load(open('.mcp.json')); sys.exit(0 if 'google-drive' in d else 1)\""
-check "plan.json.schema is valid JSON"  "python3 -m json.tool templates/plan.json.schema"
 
 # Skills
 for CMD in hall-open hall-close hall-status hall-dispatch hall-reply hall-consultations hall-prune; do
@@ -40,7 +39,6 @@ check "skills/hall-review/SKILL.md has allowed-tools field" "grep -q '^allowed-t
 check "skills/hall-dispatch/SKILL.md is under 200 lines"    "[ \$(wc -l < skills/hall-dispatch/SKILL.md) -le 200 ]"
 check "skills/hall-open/SKILL.md is under 200 lines"        "[ \$(wc -l < skills/hall-open/SKILL.md) -le 200 ]"
 check "scripts/hall-open-setup.py exists"                   "test -f scripts/hall-open-setup.py"
-check "scripts/format-board-context.py exists"              "test -f scripts/format-board-context.py"
 check "scripts/verify-personas.py exists"                   "test -f scripts/verify-personas.py"
 check "hall-route has on-demand overlay render"              "grep -q 'Local consultation overlay' skills/hall-route/SKILL.md"
 check "hall-review fetches persona on-demand"               "grep -q 'gh api.*roster' skills/hall-review/SKILL.md"
@@ -55,7 +53,6 @@ check "no orphaned methodology files" \
 
 # Templates
 check "templates/subagent-overlay.md.tpl exists"    "test -f templates/subagent-overlay.md.tpl"
-check "templates/plan.json.schema exists"            "test -f templates/plan.json.schema"
 check "subagent overlay fetches base persona on-demand"     "grep -q 'get_file_contents' templates/subagent-overlay.md.tpl"
 check "templates/dispatch-body-pr.md.tpl exists"     "test -f templates/dispatch-body-pr.md.tpl"
 check "templates/dispatch-body-report.md.tpl exists"  "test -f templates/dispatch-body-report.md.tpl"
@@ -69,8 +66,11 @@ done
 # Hooks
 check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks.json"
 check "hooks/scripts/guard-writes.sh exists"   "test -f hooks/scripts/guard-writes.sh"
-check "hooks/scripts/session-start.sh exists"  "test -f hooks/scripts/session-start.sh"
 check "guard-writes.sh is executable"          "test -x hooks/scripts/guard-writes.sh"
+check "no dangling /hall:reconcile references" \
+  "! grep -rlE 'hall-reconcile|hall:reconcile' --include='*.md' --include='*.sh' --include='*.py' . 2>/dev/null | grep -qv '^\./tests/'"
+check "no dangling board-context.md references" \
+  "! grep -rl 'board-context\.md' --include='*.md' --include='*.sh' --include='*.py' . 2>/dev/null | grep -qv '^\./tests/'"
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

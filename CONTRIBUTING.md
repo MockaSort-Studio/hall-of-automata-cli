@@ -28,8 +28,7 @@ To load permanently during development, add to `~/.claude/settings.json`:
 ```bash
 bash tests/validate-plugin.sh              # plugin structure
 bash tests/hooks/test-guard-writes.sh      # guard-writes hook
-bash tests/hooks/test-session-start.sh     # session-start hook
-bash tests/hooks/test-watcher.sh           # watcher daemon
+bash tests/hooks/test-skill-guard.sh       # skill-guard hook
 ```
 
 All checks must pass before opening a PR.
@@ -53,7 +52,7 @@ All checks must pass before opening a PR.
 - Quote all variable expansions: `"$VAR"`, `"${VAR}"`.
 - Comments explain *why*, not *what*. Rename before you comment.
 
-### Python (`mcp/*.py`)
+### Python (`scripts/*.py`)
 
 - Python 3.11+.
 - Type annotations on all function signatures.

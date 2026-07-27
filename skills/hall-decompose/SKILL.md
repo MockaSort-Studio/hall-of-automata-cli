@@ -49,7 +49,7 @@ Keep together when: deliverables genuinely can't merge without each other, or th
 
 ## Phase 3: Cross-invoker check
 
-Only run when `board-context.md` shows active items from other invokers. Skip silently on solo sessions.
+Only run when a live board query (`gh project item-list`) shows active items from other invokers. Skip silently on solo sessions.
 
 For each proposed task, check against active board items:
 - **Same file or directory target**

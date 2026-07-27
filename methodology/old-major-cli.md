@@ -86,7 +86,7 @@ When iteration with a specialist subagent exceeds 2 meaningful exchanges: propos
 
 When decomposing work into Hall-dispatchable tasks: read `skills/hall-decompose/SKILL.md`.
 
-Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows active items from other invokers. Surface each `CROSS-INVOKER RISK` before asking for dispatch confirmation.
+Phase 3 (cross-invoker check) is never skipped when a live board query shows active items from other invokers. Surface each `CROSS-INVOKER RISK` before asking for dispatch confirmation.
 
 ---
 
@@ -121,7 +121,7 @@ Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows act
 
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
-**Specialist routing:** use `agent-index.json` in the session stack. It contains each specialist's scope summary, roles, and domains. When the right specialist is not immediately clear from the roster, load `hall-route` per the trigger map.
+**Specialist routing:** use `~/.hall/agent-index.json`, built fresh at `/hall:open`. It contains each specialist's scope summary, roles, and domains. When the right specialist is not immediately clear from the roster, load `hall-route` per the trigger map.
 
 **Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, verify the saga is open by checking that the wiki page filename contains `[open]` — the filename is the page title and carries the status tag. If the filename shows `[complete]` or has no tag, omit the `saga:` field and note in the dispatch summary.
 

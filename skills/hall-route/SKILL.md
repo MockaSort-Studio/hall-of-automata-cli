@@ -45,7 +45,7 @@ import os
 plugin_root = (os.environ.get('CLAUDE_PLUGIN_ROOT') or
                open(os.path.expanduser('~/.hall/plugin-root')).read().strip())
 cache_root = os.path.expanduser('~/.hall')
-org = open(os.path.expanduser('~/.hall/session/.repo-slug')).read().strip().split('/')[0]
+org = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip().split('/')[0]
 specialist = '<NAME>'  # substitute the chosen specialist's name
 os.makedirs(f'{cache_root}/claude-agents', exist_ok=True)
 with open(f'{plugin_root}/templates/subagent-overlay.md.tpl') as f:

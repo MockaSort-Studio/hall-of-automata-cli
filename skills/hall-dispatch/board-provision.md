@@ -2,9 +2,11 @@
 
 Call immediately after filing a new GitHub issue. Never aborts the calling skill — log errors and continue.
 
+No local board cache — every call resolves field/option IDs live via `gh project`. `board_project_number` in `config.json` is the only persisted anchor.
+
 ## Pre-conditions
 
-Skip entirely if `BOARD_ACTIVE` is not `True` or `~/.hall/$SLUG/board.json` does not exist.
+Skip entirely if `BOARD_ACTIVE` is not `True` or `board_project_number` is absent from `config.json`.
 
 **Caller must set before invoking:**
 - `ISSUE_NUM` — newly-filed issue number
@@ -15,21 +17,17 @@ Skip entirely if `BOARD_ACTIVE` is not `True` or `~/.hall/$SLUG/board.json` does
 ## Step 1 — Resolve identifiers
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json')))['project_id'])")
-PROJ_NUM=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))['board_project_number'])")
-ORG=$(echo "$REPO" | cut -d/ -f1)
-REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+ORG="${REPO%%/*}"
+REPO_NAME="${REPO##*/}"
+BOARD_NUM=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('$HOME/.hall/$REPO/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
+[ -z "$BOARD_NUM" ] && { echo "No board provisioned — skipping."; exit 0; }
 ```
 
-`REPO` (`<org>/<repo>`) is inherited from the calling skill's context.
-
-## Step 2 — Add to board and update board.json
+## Step 2 — Add to board
 
 ```bash
-ITEM_ID=$(gh project item-add "$PROJ_NUM" --owner "$ORG" \
+ITEM_ID=$(gh project item-add "$BOARD_NUM" --owner "$ORG" \
   --url "https://github.com/${ORG}/${REPO_NAME}/issues/${ISSUE_NUM}" \
   --format json --jq '.id' 2>&1) \
   || { echo "WARN: board item-add #${ISSUE_NUM} failed — ${ITEM_ID}"; ITEM_ID=""; }
@@ -37,30 +35,15 @@ ITEM_ID=$(gh project item-add "$PROJ_NUM" --owner "$ORG" \
 
 If `ITEM_ID` is empty: log and skip Steps 3–5.
 
-```bash
-python3 -c "
-import json, os
-slug='$SLUG'
-p = os.path.expanduser(f'~/.hall/{slug}/board.json')
-b = json.load(open(p)) if os.path.exists(p) else {'project_id': '$PROJ_ID', 'items': []}
-b.setdefault('items', []).append({'issue_number': int('$ISSUE_NUM'), 'id': '$ITEM_ID'})
-json.dump(b, open(p, 'w'), indent=2)
-"
-```
-
 ## Step 3 — Set Status=Backlog and ItemType
 
 ```bash
-STATUS_FID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['id'])")
-BACKLOG_OPT=$(python3 -c "
-import json, os; slug='$SLUG'
-opts = json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']
-print(opts.get('Backlog') or opts.get('Todo', ''))")
-ITYPE_FID=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['ItemType']['id'])")
-ITYPE_OPT=$(python3 -c "import json,os; slug='$SLUG'; \
-  print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['ItemType']['options']['$ITEM_TYPE'])")
+PROJ_ID=$(gh project view "$BOARD_NUM" --owner "$ORG" --format json --jq '.id')
+FIELDS_JSON=$(gh project field-list "$BOARD_NUM" --owner "$ORG" --format json)
+STATUS_FID=$(echo "$FIELDS_JSON" | jq -r '.fields[] | select(.name=="Status") | .id')
+BACKLOG_OPT=$(echo "$FIELDS_JSON" | jq -r '.fields[] | select(.name=="Status") | .options[] | select(.name=="Backlog" or .name=="Todo") | .id' | head -1)
+ITYPE_FID=$(echo "$FIELDS_JSON" | jq -r '.fields[] | select(.name=="ItemType") | .id')
+ITYPE_OPT=$(echo "$FIELDS_JSON" | jq -r --arg t "$ITEM_TYPE" '.fields[] | select(.name=="ItemType") | .options[] | select(.name==$t) | .id')
 
 gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"${PROJ_ID}\",\
 itemId:\"${ITEM_ID}\",fieldId:\"${STATUS_FID}\",value:{singleSelectOptionId:\"${BACKLOG_OPT}\"}})\

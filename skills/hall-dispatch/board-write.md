@@ -1,26 +1,33 @@
 # board-write — Board State Machine
 
-Shared board resolution code. Called by hall-dispatch (In Progress transition) and hall-reconcile (Done transition). Never aborts the calling skill — log errors and continue.
+Shared board resolution code. Called by `hall-dispatch` (In Progress transition) and `hall-review` (Done transition on merge). Never aborts the calling skill — log errors and continue.
+
+No local board cache — every call resolves project, field, option, and item IDs live via `gh project`. `board_project_number` in `config.json` is the only persisted anchor.
 
 ## State machine
 
 ```
-Todo → In Progress   (dispatch-write, triggered by hall-dispatch)
-In Progress → Done   (reconcile-write, triggered by hall-reconcile)
+Backlog → In Progress   (dispatch-write, triggered by hall-dispatch)
+In Progress → Done      (settle-write, triggered by hall-review on merge)
 ```
 
 ## Resolution pattern
 
-Prerequisite: `BOARD_ACTIVE` must be `True` and `~/.hall/$SLUG/board.json` must exist. Skip entirely if either condition fails.
-
-Resolve identifiers:
+Prerequisite: `BOARD_ACTIVE` must be `True`. Skip entirely if `board_project_number` is absent from `config.json`.
 
 ```bash
-PROJ_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board.json')))['project_id'])")
-FIELD_ID=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['id'])")
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+ORG="${REPO%%/*}"
+BOARD_NUM=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('$HOME/.hall/$REPO/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
+[ -z "$BOARD_NUM" ] && { echo "No board provisioned — skipping board write."; exit 0; }
+
+FIELD_ID=$(gh project field-list "$BOARD_NUM" --owner "$ORG" --format json --jq '.fields[] | select(.name=="Status") | .id')
+OPT=$(gh project field-list "$BOARD_NUM" --owner "$ORG" --format json --jq --arg o "<TARGET_STATUS>" '.fields[] | select(.name=="Status") | .options[] | select(.name==$o) | .id')
+PROJ_ID=$(gh project view "$BOARD_NUM" --owner "$ORG" --format json --jq '.id')
+ITEM_ID=$(gh project item-list "$BOARD_NUM" --owner "$ORG" --format json --jq --arg n "<ISSUE_NUM>" '.items[] | select(.content.number == ($n|tonumber)) | .id')
 ```
 
-Find item in `board.json` where `issue_number` matches the task's `github_issue`. If absent: log `"Board item not found for issue #N"` and skip. Set `ITEM_ID` to the matched item's `id`.
+If `ITEM_ID` is empty: log `"Board item not found for issue #<N>"` and skip.
 
 `singleSelectOptionId` must be a literal in the query — GitHub Projects API rejects GraphQL variables for this field. Resolve the option value, then inline it:
 
@@ -32,7 +39,7 @@ On any error: log and continue. Do not abort the calling skill.
 
 ## Procedure: dispatch-write
 
-Called once per filed issue from hall-dispatch Step 4.
+Called once per filed issue from `hall-dispatch` Step 4. `<TARGET_STATUS>` = `In Progress`.
 
 **Board parent append:** If `task["board_parent"]` is a non-null integer, fetch the parent issue body, append `- [ ] #<issue_number> [automaton] <task title>` as a new line, and write it back.
 
@@ -45,22 +52,10 @@ BODY=$(gh issue view <board_parent> --repo "${ORG}/${REPO_NAME}" --json body --j
 
 On any error: log `"WARN: failed to update board parent #<board_parent> — <error>"` and continue. If `board_parent` is absent or null: skip silently.
 
-**Board status — set In Progress:**
+Execute the resolution pattern above with `<TARGET_STATUS>=In Progress`. Log `"Board item #<N> → In Progress"` on success.
 
-```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['In Progress'])")
-```
+## Procedure: settle-write
 
-Execute the resolution pattern above. Log `"Board item #<N> → In Progress"` on success.
+Called from `hall-review` SETTLE (0f) immediately after a PR merges. `<TARGET_STATUS>` = `Done`.
 
-## Procedure: reconcile-write
-
-Called from hall-reconcile for each task that newly transitioned to MERGED or DONE during the reconcile pass. Only process tasks present in `plan.json`; skip board-only items (OKR/KR).
-
-**Board status — set Done:**
-
-```bash
-OPT=$(python3 -c "import json,os; slug='$SLUG'; print(json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))['fields']['Status']['options']['Done'])")
-```
-
-Execute the resolution pattern above. Log `"Board item #<N> → Done"` on success.
+Execute the resolution pattern above with `<TARGET_STATUS>=Done`. Log `"Board item #<N> → Done"` on success.

@@ -9,7 +9,7 @@ allowed-tools: [Bash]
 
 Provisions the GitHub Projects v2 board for Hall cross-invoker coordination. Safe to re-run — skips anything that already exists. Pass `--force` to bypass the cached board number and re-run creation.
 
-State flows through `~/.hall/session/.board-init-state.json`. Hard-stop on any unhandled error.
+State flows through `~/.hall/.board-init-state.json` — scratch state for this run only, not a persisted artifact. Hard-stop on any unhandled error.
 
 ## Code quality
 
@@ -25,11 +25,11 @@ SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 REPO="$SLUG"
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 OWNER_TYPE=$(gh api "repos/${REPO}" --jq '.owner.type')
-mkdir -p ~/.hall/session ~/.hall/$SLUG
+mkdir -p ~/.hall/$SLUG
 python3 -c "
 import json, os
 json.dump({'owner':'${OWNER}','owner_type':'${OWNER_TYPE}','repo':'${REPO}'},
-  open(os.path.expanduser('~/.hall/session/.board-init-state.json'),'w'), indent=2)
+  open(os.path.expanduser('~/.hall/.board-init-state.json'),'w'), indent=2)
 "
 echo "Resolved: OWNER=${OWNER} OWNER_TYPE=${OWNER_TYPE}"
 ```
@@ -45,9 +45,9 @@ if [ -n "$BOARD_NUM" ]; then
   echo "Board #${BOARD_NUM} already provisioned — skipping Step 3."
   python3 -c "
 import json, os
-s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
+s = json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))
 s['board_was_created'] = False
-json.dump(s, open(os.path.expanduser('~/.hall/session/.board-init-state.json'),'w'), indent=2)
+json.dump(s, open(os.path.expanduser('~/.hall/.board-init-state.json'),'w'), indent=2)
 "
 else
   echo "No board cached — will create."
@@ -62,9 +62,9 @@ Skip if `BOARD_NUM` is set (from Step 2) and `--force` was not passed.
 
 ```bash
 set -euo pipefail
-OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner'])")
-OWNER_TYPE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner_type'])")
-REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['repo'])")
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
+OWNER_TYPE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner_type'])")
+REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['repo'])")
 REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
 
 if [ "$OWNER_TYPE" = "Organization" ]; then
@@ -96,11 +96,10 @@ echo "Board linked to repository ${REPO}."
 
 python3 -c "
 import json, os
-s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
-s['project_id'] = '${PROJECT_ID}'
+s = json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))
 s['project_num'] = int('${PROJECT_NUM}')
 s['board_was_created'] = True
-json.dump(s, open(os.path.expanduser('~/.hall/session/.board-init-state.json'),'w'), indent=2)
+json.dump(s, open(os.path.expanduser('~/.hall/.board-init-state.json'),'w'), indent=2)
 "
 echo "Created ${REPO_NAME} board #${PROJECT_NUM} (${PROJECT_ID})"
 ```
@@ -111,28 +110,29 @@ echo "Created ${REPO_NAME} board #${PROJECT_NUM} (${PROJECT_ID})"
 
 ```bash
 set -euo pipefail
-OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner'])")
-REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['repo'])")
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
+REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['repo'])")
 REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
 echo "view-filter: repo:${OWNER}/${REPO_NAME}"
 ```
 
 ### Step 4: Create custom fields
 
-Read `project_id` from state or `config.json`, then source the lib script.
+Read `project_id` live, then source the lib script.
 
 ```bash
 set -euo pipefail
 SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
-
-export PROJECT_ID=$(python3 -c "
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
+BOARD_NUM=$(python3 -c "
 import json, os
-s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
+s = json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))
 cfg_path = os.path.expanduser('~/.hall/$SLUG/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
-print(s.get('project_id') or cfg.get('board_project_id',''))
+print(s.get('project_num') or cfg.get('board_project_number',''))
 ")
+export PROJECT_ID=$(gh project view "$BOARD_NUM" --owner "$OWNER" --format json --jq '.id')
 
 # shellcheck source=skills/hall-init-board/lib/create-fields.sh
 source "${PLUGIN_ROOT}/skills/hall-init-board/lib/create-fields.sh"
@@ -142,7 +142,7 @@ create_fields
 ### Step 5: Create labels
 
 ```bash
-export REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['repo'])")
+export REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['repo'])")
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT must be set}"
 
 # shellcheck source=skills/hall-init-board/lib/create-labels.sh
@@ -153,7 +153,7 @@ create_labels
 ### Step 5.5: Push issue templates
 
 ```bash
-REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['repo'])")
+REPO=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['repo'])")
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:?}"
 
 echo "Pushing issue templates..."
@@ -173,68 +173,41 @@ for tpl in okr kr item; do
 done
 ```
 
-### Step 6: Run GetProjectMeta and persist
+### Step 6: Verify fields and persist board number
+
+No local field/option ID cache is kept — `hall-dispatch`, `hall-decompose`, and `hall-review` resolve field and option IDs live via `gh project field-list` at write time. This step only confirms the board is queryable and persists the one number `config.json` needs.
 
 ```bash
 set -euo pipefail
 SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
-OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner'])")
-OWNER_TYPE=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))['owner_type'])")
-PROJECT_NUM=$(python3 -c "
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
+BOARD_NUM=$(python3 -c "
 import json, os
-s = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
+s = json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))
 cfg_path = os.path.expanduser('~/.hall/$SLUG/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 print(s.get('project_num') or cfg.get('board_project_number',''))
 ")
+FIELD_COUNT=$(gh project field-list "$BOARD_NUM" --owner "$OWNER" --format json --jq '.fields | length')
+[ "$FIELD_COUNT" -gt 0 ] || { echo "ERROR: board fields unreadable — check board number and permissions"; exit 1; }
 
-FIELDS_FRAG='fields(first:50){nodes{...on ProjectV2Field{id name}...on ProjectV2SingleSelectField{id name options{id name}}}}'
-if [ "$OWNER_TYPE" = "Organization" ]; then
-  gh api graphql \
-    -f query="query(\$o:String!,\$n:Int!){organization(login:\$o){projectV2(number:\$n){id number ${FIELDS_FRAG}}}}" \
-    -F o="$OWNER" -F n="$PROJECT_NUM" --jq '.data.organization.projectV2' \
-    > ~/.hall/session/.meta-raw.json
-else
-  gh api graphql \
-    -f query="query(\$o:String!,\$n:Int!){user(login:\$o){projectV2(number:\$n){id number ${FIELDS_FRAG}}}}" \
-    -F o="$OWNER" -F n="$PROJECT_NUM" --jq '.data.user.projectV2' \
-    > ~/.hall/session/.meta-raw.json
-fi
-
-python3 << 'PYEOF'
+python3 -c "
 import json, os
-
-slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
-meta = json.load(open(os.path.expanduser('~/.hall/session/.meta-raw.json')))
-if not meta or 'id' not in meta:
-    raise SystemExit('ERROR: GetProjectMeta returned empty — check project number and owner type')
-
-fields_out = {}
-for node in meta.get('fields', {}).get('nodes', []):
-    if not node or 'id' not in node:
-        continue
-    entry = {'id': node['id']}
-    if 'options' in node:
-        entry['options'] = {o['name']: o['id'] for o in node['options']}
-    fields_out[node['name']] = entry
-
-json.dump({'project_id': meta['id'], 'fields': fields_out},
-          open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json'), 'w'), indent=2)
-
-cfg_path = os.path.expanduser(f'~/.hall/{slug}/config.json')
+cfg_path = os.path.expanduser('~/.hall/$SLUG/config.json')
 cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
-cfg['board_project_number'] = str(meta.get('number', ''))
-cfg['board_project_id'] = meta['id']
+cfg['board_project_number'] = '$BOARD_NUM'
 json.dump(cfg, open(cfg_path, 'w'), indent=2)
-print(f"Resolved {len(fields_out)} fields. Persisted board-meta.json and config.json.")
-PYEOF
+"
+echo "Resolved ${FIELD_COUNT} fields live. Persisted board_project_number to config.json."
 ```
 
 ### Step 6.5: Provision Roadmap view
 
 ```bash
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
 SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
-PROJECT_ID=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/board-meta.json')))['project_id'])")
+BOARD_NUM=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/config.json'))).get('board_project_number',''))")
+PROJECT_ID=$(gh project view "$BOARD_NUM" --owner "$OWNER" --format json --jq '.id')
 EXISTS=$(gh api graphql -f query="query{node(id:\"${PROJECT_ID}\"){...on ProjectV2{views(first:20){nodes{name}}}}}" --jq '[.data.node.views.nodes[].name]|index("Roadmap")' 2>/dev/null || echo "null")
 if [ "$EXISTS" != "null" ]; then
   echo "skip: Roadmap view already exists"
@@ -248,25 +221,26 @@ fi
 ### Step 7: Confirm
 
 ```bash
-python3 << 'PYEOF'
+SLUG=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+OWNER=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))['owner'])")
+BOARD_NUM=$(python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.hall/$SLUG/config.json'))).get('board_project_number','?'))")
+FIELD_COUNT=$(gh project field-list "$BOARD_NUM" --owner "$OWNER" --format json --jq '.fields | length')
+python3 << PYEOF
 import json, os
-slug = open(os.path.expanduser('~/.hall/.repo-slug')).read().strip()
-meta = json.load(open(os.path.expanduser(f'~/.hall/{slug}/board-meta.json')))
-cfg = json.load(open(os.path.expanduser(f'~/.hall/{slug}/config.json')))
-state = json.load(open(os.path.expanduser('~/.hall/session/.board-init-state.json')))
-board_num = cfg.get('board_project_number', '?')
+state = json.load(open(os.path.expanduser('~/.hall/.board-init-state.json')))
 owner = state['owner']
 repo = state['repo']
 url_seg = 'orgs' if state.get('owner_type', 'Organization') == 'Organization' else 'users'
-print(f"Hall Board #{board_num} ready — {len(meta.get('fields', {}))} fields resolved, labels provisioned.")
+print(f"Hall Board #$BOARD_NUM ready — $FIELD_COUNT fields resolved, labels provisioned.")
 print(f"\n⚠️  Manual steps required:")
 if state.get('board_was_created', False):
     print(f"   1. Default repository → set to {repo}")
-    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/settings")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/$BOARD_NUM/settings")
     print(f"   2. Default view filter → set to: repo:{owner}/{repo}")
-    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/views/1")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/$BOARD_NUM/views/1")
 else:
     print(f"   1. Default view filter → set to: repo:{owner}/{repo}")
-    print(f"      https://github.com/{url_seg}/{owner}/projects/{board_num}/views/1")
+    print(f"      https://github.com/{url_seg}/{owner}/projects/$BOARD_NUM/views/1")
 PYEOF
+rm -f ~/.hall/.board-init-state.json
 ```
