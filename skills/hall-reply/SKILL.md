@@ -1,27 +1,31 @@
 ---
 name: hall-reply
 description: Post a reply on a task awaiting input, providing info the specialist needs
-argument-hint: <task_id> <message>
-allowed-tools: [Bash, Read]
+argument-hint: <issue_number> <message>
+allowed-tools: [Bash]
 ---
 
-# /hall:reply <task_id> <message>
+# /hall:reply <issue_number> <message>
 
 Post a reply on a Hall issue that is carrying `hall:awaiting-input`, providing the information the specialist asked for. This triggers the specialist to re-run.
 
 ## Execution
 
-Find the task by ID in the active plan. Retrieve the `github_issue` number.
-Also read `repo` from `plan.json`: `REPO=$(python3 -c "import json; print(json.load(open(PLAN_FILE))['repo'])")`. Substitute for `<ORG/REPO>` in the gh command below.
+```bash
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+gh issue view <issue_number> --repo "$REPO" --json labels --jq '[.labels[].name] | any(. == "hall:awaiting-input")'
+```
+
+If the issue does not carry `hall:awaiting-input`: warn that this issue isn't waiting on invoker input and confirm before proceeding anyway.
 
 ```bash
-gh issue comment <ISSUE_NUMBER> \
-  --repo <ORG/REPO> \
+gh issue comment <issue_number> \
+  --repo "$REPO" \
   --body "<message>
 
 — [🦅 Old Major (Session Mode)]"
+
+gh issue edit <issue_number> --repo "$REPO" --remove-label "hall:awaiting-input"
 ```
 
-Update task status in `plan.json` from AWAITING_INPUT back to IN_PROGRESS.
-
-Confirm: `Replied to issue #N. The specialist will resume on next dispatch cycle.`
+Confirm: `Replied to issue #<issue_number>. The specialist will resume on next dispatch cycle.`

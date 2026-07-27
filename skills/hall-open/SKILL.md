@@ -29,8 +29,7 @@ gh auth status &>/dev/null || { echo "ERROR: gh not authenticated" >&2; exit 1; 
 
 [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] || echo "WARN: GITHUB_PERSONAL_ACCESS_TOKEN not set — MCP unavailable."
 
-# Cache state
-mkdir -p ~/.hall ~/.hall/session
+mkdir -p ~/.hall
 CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-$(cat ~/.hall/plugin-root 2>/dev/null || echo "")}
 if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
   export CLAUDE_PLUGIN_ROOT
@@ -38,27 +37,23 @@ if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
 fi
 
 # Path derivation — .repo-slug is the source of truth; picker is the only fallback
-REPO=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 SLUG="${REPO##*/}"
 ORG="${REPO%%/*}"
-if [ -n "$REPO" ]; then
-  REPO_NAME="$SLUG"
-  echo "Using project: $SLUG"
-  mkdir -p ~/.hall/$REPO/plans
-fi
+[ -n "$REPO" ] && REPO_NAME="$SLUG" && echo "Using project: $SLUG"
 echo "ORG=$ORG"
 ```
 
 If `CLAUDE_PLUGIN_ROOT` is still empty, find the harness-injected `Base directory for this skill: <path>` line, strip `/skills/hall-open`, then `printf '%s' "<path>" > ~/.hall/plugin-root && export CLAUDE_PLUGIN_ROOT="<path>"`. If absent: `echo "WARN: CLAUDE_PLUGIN_ROOT could not be derived — run /hall:open from within the plugin repo or after setup.py has run once."`
 
-Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value):
+Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `sha` → `CURRENT_SHA`. After extracting the SHA from the MCP response, write it to disk immediately using a single bash command (substitute `<SHA>` with the actual value) — this is scratch state to carry the value across tool calls within this run, not a persisted artifact:
 ```bash
-printf '%s' "<SHA>" > ~/.hall/session/.current-sha
+printf '%s' "<SHA>" > ~/.hall/.current-sha
 ```
 `# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
 ```bash
-CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
+CURRENT_SHA=$(cat ~/.hall/.current-sha 2>/dev/null || echo "")
 CACHED_SHA=$(cat ~/.hall/agent-index.sha 2>/dev/null || echo "")
 
 NEED_FETCH=false
@@ -66,23 +61,10 @@ NEED_FETCH=false
 python3 -c "import json, os; d=json.load(open(os.path.expanduser('~/.hall/agent-index.json'))); assert isinstance(d,dict)" 2>/dev/null \
   || NEED_FETCH=true
 
-ACTIVE_PLAN=false
-if HALL_REPO="$REPO" python3 -c "
-import json, glob, os, sys
-repo = os.environ.get('HALL_REPO', '')
-found = any(
-    any(t.get('status') in ('DISPATCHED', 'IN_PROGRESS') for t in json.load(open(f)).get('tasks', []))
-    for f in glob.glob(os.path.expanduser('~/.hall/' + repo + '/plans/*/plan.json'))
-)
-sys.exit(0 if found else 1)
-" 2>/dev/null; then
-  ACTIVE_PLAN=true
-fi
-
 AUTO_LEVEL=$(python3 -c "import json, os; repo='$REPO'; print(json.load(open(os.path.expanduser(f'~/.hall/{repo}/config.json'))).get('automation_level','missing'))" \
   2>/dev/null || echo "missing")
 
-echo "NEED_FETCH=$NEED_FETCH | ACTIVE_PLAN=$ACTIVE_PLAN | AUTO_LEVEL=$AUTO_LEVEL"
+echo "NEED_FETCH=$NEED_FETCH | AUTO_LEVEL=$AUTO_LEVEL"
 echo "SHA=${CURRENT_SHA:0:8}"
 ```
 
@@ -96,7 +78,7 @@ cat "$CLAUDE_PLUGIN_ROOT/methodology/old-major-cli.md"
 
 ### Step 2: Agent index build (skip if NEED_FETCH=false)
 
-Read `CURRENT_SHA` from `~/.hall/session/.current-sha`; if absent, call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
+Read `CURRENT_SHA` from `~/.hall/.current-sha`; if absent, call `get_file_contents` MCP (owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`) and extract `sha`.
 `# On rate_limit/secondary-rate-limit error: gh api repos/$ORG/hall-of-automata/contents/agents.json --jq '.sha'`
 
 Call `get_file_contents` MCP: owner=`$ORG`, repo=`hall-of-automata`, path=`agents.json`. Extract `content` (base64-encoded). Substitute `<base64-content>` and run:
@@ -125,13 +107,11 @@ PYEOF
 ```
 
 ```bash
-CURRENT_SHA=$(cat ~/.hall/session/.current-sha 2>/dev/null || echo "")
+CURRENT_SHA=$(cat ~/.hall/.current-sha 2>/dev/null || echo "")
 CURRENT_SHA="$CURRENT_SHA" python3 "$CLAUDE_PLUGIN_ROOT/scripts/verify-personas.py"
 ```
 
-**`--refresh` limitation:** A fresh `cc` session is required for agent index or methodology changes to apply — the @-import chain is evaluated only at conversation start.
-
-### Step 3: Setup — methodology, cron
+### Step 3: Setup — project directory, cron
 
 Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the session setup procedure exactly as specified.
 
@@ -139,13 +119,10 @@ Read `skills/hall-open/session-setup.md` (resolve against `$CLAUDE_PLUGIN_ROOT`)
 
 Skip this step if `~/.hall/$ORG/invoker.json` exists and contains `mode: invoker`. Otherwise, read `skills/hall-open/invoker-gate.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the invoker verification procedure exactly as specified. If verification fails, `/hall:open` halts there — do not proceed to Step 5.
 
-### Step 5: Plans + invite
+### Step 5: Board + invite
 
 Check Claude memory for any notes saved about `$REPO` and surface relevant context before proceeding.
 
-```bash
-REPO=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
-ls ~/.hall/$REPO/plans/ 2>/dev/null || true
-```
+Read `skills/hall-status/SKILL.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and render the live board if `board_project_number` is set in `config.json`.
 
-List existing plans with status. Ask whether to resume or start fresh. Then ask what the invoker wants to build — one sentence, in character as Old Major.
+Ask what the invoker wants to build — one sentence, in character as Old Major.

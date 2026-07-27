@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A Claude Code plugin for the `claude-plugins-official` marketplace. The `plugin-dev` plugin (installed) has comprehensive skills for plugin structure, hooks, MCP integration, skill writing, and command development — use those for architecture guidance.
+A Claude Code plugin distributed via the `MockaSort-Studio/marketplace` (not the official Claude Code marketplace). The `plugin-dev` plugin (installed) has comprehensive skills for plugin structure, hooks, MCP integration, skill writing, and command development — use those for architecture guidance.
 
 ## Code quality
 
@@ -16,7 +16,7 @@ This applies to everything in this repo: shell scripts, markdown skill files, te
 
 ```bash
 # Test the plugin locally
-cc --plugin-dir /home/mike/Workspace/hall-of-automata-cli
+cc --plugin-dir .
 
 # Debug plugin loading, hooks, MCP
 cc --plugin-dir . --debug
@@ -27,7 +27,7 @@ bash tests/validate-plugin.sh
 # Run hook unit tests
 bash tests/hooks/test-guard-writes.sh
 bash tests/hooks/test-session-start.sh
-bash tests/hooks/test-watcher.sh
+bash tests/hooks/test-skill-guard.sh
 ```
 
 

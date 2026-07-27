@@ -25,30 +25,29 @@ run_hook "blocks edit to README.md" \
   '{"tool":"Edit","tool_input":{"file_path":"README.md","old_string":"a","new_string":"b"}}' 1
 
 # Should ALLOW writes inside ~/.hall/ (absolute-path check fires before normalization)
-run_hook "allows write to ~/.hall/test-org/test-repo/plans/" \
-  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/test-org/test-repo/plans/2026-05-14-test/plan.md","content":"# Plan"}}' 0
+run_hook "allows write to ~/.hall/test-org/test-repo/config.json" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/test-org/test-repo/config.json","content":"{}"}}' 0
 
-run_hook "allows write to ~/.hall/test-org/test-project/session/" \
-  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/test-org/test-project/session/CLAUDE-stack.md","content":"stack"}}' 0
+run_hook "allows write to ~/.hall/agent-index.json" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/agent-index.json","content":"{}"}}' 0
 
-run_hook "allows write to ~/.hall/personas/" \
-  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/personas/old-major.md","content":"persona"}}' 0
+run_hook "allows write to ~/.hall/.repo-slug" \
+  '{"tool":"Write","tool_input":{"file_path":"'"$HOME"'/.hall/.repo-slug","content":"org/repo"}}' 0
 
 # Explicit test: absolute path that would normalise to ../../.hall/... must still be allowed
 run_hook "allows absolute ~/.hall/ path (pre-normalization check)" \
-  '{"tool":"Write","tool_input":{"file_path":"'"$(realpath -m "$HOME/.hall/session/config.json")"'","content":"cfg"}}' 0
+  '{"tool":"Write","tool_input":{"file_path":"'"$(realpath -m "$HOME/.hall/test-org/test-repo/config.json")"'","content":"cfg"}}' 0
 
-# Should ALLOW writes to .gitignore (initial setup)
-run_hook "allows write to .gitignore" \
-  '{"tool":"Write","tool_input":{"file_path":".gitignore","content":".hall-cache/"}}' 0
+# Should BLOCK everything outside ~/.hall/, including repo-adjacent config
+run_hook "blocks write to .gitignore" \
+  '{"tool":"Write","tool_input":{"file_path":".gitignore","content":"foo"}}' 1
 
-# Migration fallback: .hall-cache/* still permitted
-run_hook "allows write to .hall-cache/ (migration fallback)" \
-  '{"tool":"Write","tool_input":{"file_path":".hall-cache/session/CLAUDE-stack.md","content":"stack"}}' 0
+run_hook "blocks write to .hall-cache/ (retired path)" \
+  '{"tool":"Write","tool_input":{"file_path":".hall-cache/config.json","content":"{}"}}' 1
 
 # Should BLOCK path traversal attempts
-run_hook "blocks path traversal via .hall-cache/../src" \
-  '{"tool":"Write","tool_input":{"file_path":".hall-cache/../src/evil.py","content":"pwned"}}' 1
+run_hook "blocks path traversal via ../.hall/../src" \
+  '{"tool":"Write","tool_input":{"file_path":"../src/evil.py","content":"pwned"}}' 1
 
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

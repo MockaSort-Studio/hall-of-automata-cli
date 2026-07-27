@@ -15,23 +15,34 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 ## Execution
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
+ORG="${REPO%%/*}"
+REPO_NAME="${REPO##*/}"
 ```
 
 ### Step 0: Determine the ready set
 
-Tasks with status READY (deferred) or PLANNED whose `depends_on` entries are all MERGED.
+No local plan file — the ready set is derived live from GitHub. A candidate is an open issue with no `hall:<specialist>` label yet (undispatched):
 
-If `--single` is specified, use only that task (verify it's in a dispatchable state).
+```bash
+gh issue list --repo "$REPO" --state open --json number,title,labels,milestone --limit 200 \
+  --jq '[.[] | select([.labels[].name] | any(startswith("hall:")) | not)]' \
+  > /tmp/hall-candidates.json
+```
+
+For each candidate, check whether it is still blocked:
+
+```bash
+gh api "repos/$REPO/issues/<N>/dependencies/blocked_by" --jq '[.[] | select(.state=="open")] | length'
+```
+
+`0` → ready. `> 0` → still blocked, note the blocking issue numbers for the report in Step 5.
+
+If `--single` is specified, use only that task (verify it's in a dispatchable state — not already labeled, not blocked).
 
 ### Step 1: Check quota
 
-```bash
-PLAN_DIR=$(ls -d ~/.hall/$SLUG/plans/*/ | sort | tail -1)
-REPO=$(python3 -c "import json; print(json.load(open('$PLAN_DIR/plan.json'))['repo'])")
-```
-
-Substitute `$REPO` for `<ORG/REPO>` throughout. Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.
+Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.
 `# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:in-progress" --json number | jq length`
 
 If the ready set exceeds estimated available capacity, display:
@@ -69,14 +80,14 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 For each task in dispatch order, spaced 15 seconds apart:
 
-**Origination mode** — determines whether to create a new issue or route to an existing one. Check `task["github_issue"]` (the GitHub issue number on the project board item, set by hall-okr when the issue was pre-filed; absent for CLI-originated tasks):
+**Origination mode** — determines whether to create a new issue or route to an existing one:
 
-- **OKR-flow** (field is set): the issue was filed by hall-okr. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <github_issue> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
-- **CLI-flow** (field absent): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Capture the returned number as `ISSUE_NUM`.
+- **Board-sourced** (from Step 0's ready set): the issue was already filed by `hall-okr`/`hall-decompose`. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <issue_num> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
+- **Ad-hoc** (a bugfix/hotfix Old Major is dispatching directly from conversation, per the OKR gate — no pre-filed issue exists): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Capture the returned number as `ISSUE_NUM`.
   `# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
   After filing: read `skills/hall-dispatch/board-provision.md` and execute with `ISSUE_NUM=<returned number>`,
   `ITEM_TYPE=Bug`, `SAGA_MILESTONE_TITLE=<saga name from dispatch-context if saga is linked; otherwise "">`,
-  `BLOCKED_BY_LIST=<issue numbers from task.depends_on cross-references; otherwise "">`.
+  `BLOCKED_BY_LIST=<dependent issue numbers named in conversation; otherwise "">`.
   Run board-provision before board-write below.
 
 **Issue body** — load by `task_type`:

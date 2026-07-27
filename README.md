@@ -4,9 +4,9 @@ Most AI coding tools work file by file, one change at a time. **Hall of Automata
 
 You open a session, describe what you want to build, and Old Major — an orchestrator running entirely inside Claude Code — designs the work, breaks it into tasks, and dispatches each task to a specialist AI agent. Every agent runs in its own autonomous Claude session, opens a pull request when done, and Old Major reviews and merges it. While agents are working, you can keep building. When they finish, Old Major syncs, unblocks the next wave, and keeps going.
 
-This plugin brings that loop to completion: persistent session state, GitHub Issues as the coordination layer, automated review and merge, cross-invoker board sync, Google Drive context ingestion, and fully unattended operation. It is the bridge between a human team's intent and an AI team's execution — a methodology, not just a tool.
+This plugin brings that loop to completion: GitHub Issues as the coordination layer, automated review and merge, cross-invoker board sync, Google Drive context ingestion, and fully unattended operation. It is the bridge between a human team's intent and an AI team's execution — a methodology, not just a tool.
 
-> **Dispatch mode requires a Hall of Automata instance** — a GitHub org with the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) installed. Without one, Hall runs in **local mode**: Old Major plans and implements inline, inside your current Claude session, with no external agents.
+> **Requires a Hall of Automata instance** — a GitHub org with the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) installed, and invoker team membership in that org. There is no local fallback: if the Hall isn't installed or you're not a verified invoker, `/hall:open` halts with instructions rather than degrading to inline implementation.
 
 ---
 
@@ -81,9 +81,7 @@ Save and restart Claude Code.
 
 ### 4. Hall of Automata GitHub App
 
-For dispatch mode, the [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) must be installed on the GitHub organisation that owns your target repository. An org owner can install it from the Marketplace page in a few clicks.
-
-Skip this step if you are using local mode only.
+The [Hall of Automata GitHub App](https://github.com/marketplace/hall-of-automata) must be installed on the GitHub organisation that owns your target repository, and you must be a member of that org's `automata-invokers` team. An org owner can install the app from the Marketplace page in a few clicks and add you to the team.
 
 ---
 
@@ -102,18 +100,18 @@ Works in the desktop app, VS Code, JetBrains, and the CLI — no terminal or git
 
 ## Working with Hall
 
-Hall is built around a **session** — an active working context that you open at the start of your work and close when you are done. Opening a session is intentional: it pulls personas, assembles the instruction stack, and syncs any in-flight tasks. It is not a fire-and-forget operation, and it is not meant to be opened and closed repeatedly.
+Hall is built around a **session** — an active working context that you open at the start of your work and close when you are done. Opening a session is intentional: Old Major reads the agent registry and his own methodology fresh, verifies you're a Hall invoker, and picks up any board activity already in flight. Nothing is pre-assembled or cached beyond that — GitHub is the source of truth for every plan, task, and board state.
 
 **The typical flow:**
 
 1. Open Claude Code in your project folder.
-2. Run `/hall:open` — Old Major introduces himself and asks what you are building (or resumes a plan already in progress).
+2. Run `/hall:open` — Old Major introduces himself and asks what you are building (or shows you the live board if work is already in flight).
 3. Have a conversation. Old Major helps you decompose the work, routes design questions to the right specialist, and proposes a dispatch plan.
 4. Approve the dispatch. When you ask Old Major to execute the plan, he asks what autonomy level to use (0 = you review and merge manually; 1 = auto-review; 2 = auto-review and auto-merge). Hall files GitHub Issues for each task. Agents pick them up and start working.
-5. Keep working on other things. Hall runs a background cron that automatically syncs task states, triggers reviews, and dispatches newly unblocked tasks.
-6. Run `/hall:close` when you are done for the day. Hall cancels the cron and cleans up session files.
+5. Keep working on other things. Hall runs a background cron that automatically triggers reviews and dispatches newly unblocked tasks.
+6. Run `/hall:close` when you are done for the day. Hall cancels the cron — there's nothing else to clean up, since nothing was cached locally.
 
-**The commands most users need most of the time are `/hall:open` and `/hall:close`.** Everything else — status, reconcile, reply, prune — is there for fine-grained control when you want it.
+**The commands most users need most of the time are `/hall:open` and `/hall:close`.** Everything else — status, reply, prune — is there for fine-grained control when you want it.
 
 ---
 
@@ -133,16 +131,16 @@ Hall is built around a **session** — an active working context that you open a
 
 | Command | What it does |
 |---|---|
-| `/hall:open` | Start a session: load Old Major, pull personas and methodology, sync in-flight tasks |
+| `/hall:open` | Start a session: load Old Major, build the agent index, verify invoker status, check for in-flight work |
+| `/hall:saga` | Guided design conversation producing a saga wiki page for a new dev cycle |
 | `/hall:dispatch` | File GitHub Issues for ready tasks |
-| `/hall:status` | Show current task states and board summary |
-| `/hall:reconcile` | Sync task states with GitHub — picks up label changes, PR merges, new reviews |
+| `/hall:status` | Show current task states and board summary, rendered live from GitHub |
 | `/hall:review` | Run the inline review loop — assess open PRs and settle or escalate |
 | `/hall:init-board` | Provision the GitHub Projects v2 board, custom fields, and labels on the target repo |
 | `/hall:consultations` | List, view, or prune saved consultation memories |
 | `/hall:reply` | Route a reply to a specialist waiting for invoker input |
-| `/hall:prune` | Remove completed or stale plan directories |
-| `/hall:close` | End the session — cancel cron, clean up session files |
+| `/hall:prune` | Remove stale project directories from `~/.hall/` and associated Claude memory |
+| `/hall:close` | End the session — cancel the autonomous cron |
 
 ---
 

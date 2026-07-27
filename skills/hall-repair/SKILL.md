@@ -18,7 +18,7 @@ Complete all items before taking any action. Do not retry the failing operation 
   git log --oneline -10
   ```
 - Identify the exact error message and the operation that produced it
-- State the failure class (one of: PR conflict, CI failure, branch mess, plan/board desync) before proceeding
+- State the failure class (one of: PR conflict, CI failure, branch mess, board field drift) before proceeding
 
 Do not create branches, push files, or retry any operation until Step 0 is complete.
 
@@ -83,17 +83,18 @@ Decision tree:
 
 ---
 
-## Failure class 4 — Plan/board desync
+## Failure class 4 — Board field drift
+
+There is no local plan cache to desync from — GitHub is the sole record. This class covers the GitHub Projects board's own `Status`/`ItemType` fields showing something stale (e.g. an item still `In Progress` after its PR merged).
 
 Decision tree:
 
-1. **Run `/hall:reconcile` first** — it reads GitHub state and updates `plan.json`.
+1. **Run `/hall:status` first** — it renders live from issue/PR state, independent of the board's own `Status` field. Confirm whether the *functional* state (open/closed, labels, PR) is actually correct — if so, this is cosmetic board drift only.
 
-2. **If reconcile shows mismatches:** update `plan.json` to reflect GitHub state — not the other way around.
+2. **If the board item is missing from GitHub Projects entirely:** re-add via `skills/hall-dispatch/board-provision.md`.
 
-3. **If board items are missing from GitHub Projects:** re-add via board write.
-   **If board shows items not in plan:** add them to plan as MERGED or DONE.
+3. **If the board's `Status` field is stale:** read `skills/hall-dispatch/board-write.md` and run the resolution pattern directly with the correct target status (`In Progress` or `Done`) for that issue.
 
-4. **After reconcile:** run `hall-status` to confirm sync.
+4. **After fixing:** run `/hall:status` again to confirm.
 
 // Snowball 🐷 — state inventory first; every wrong action in the PR #198 audit trail had this step missing

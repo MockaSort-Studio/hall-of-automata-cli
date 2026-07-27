@@ -1,28 +1,22 @@
 ---
 name: hall-close
-description: Exit Old Major session mode — reconcile, cancel cron, and stop watcher
-allowed-tools: [Bash, Write, CronDelete]
+description: Exit Old Major session mode — cancel the autonomous cron
+allowed-tools: [Bash, CronDelete]
 ---
 
 # /hall:close
 
-Exit Hall session mode. Reconciles board state, cancels the autonomous cron, and stops the watcher.
+Exit Hall session mode. Cancels the autonomous cron. GitHub remains the source of truth for everything else, so there is nothing else to reconcile or clean up.
 
 ## Execution sequence
 
-### Step 0.5: Reconcile before close
-
-Run the reconcile procedure from `/hall:reconcile` before clearing session files. This ensures in-flight tasks have their board state updated before the session ends.
-
-If reconcile errors: log the error and continue — do not abort close.
-
-### Step 1: Cancel autonomous reconcile cron
+### Step 1: Cancel autonomous cron
 
 ```bash
-SLUG=$(cat ~/.hall/session/.repo-slug 2>/dev/null || echo "")
+REPO=$(cat ~/.hall/.repo-slug 2>/dev/null || echo "")
 CRON_ID=""
-if [ -n "$SLUG" ] && [ -f ~/.hall/$SLUG/cron.json ]; then
-  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/$SLUG/cron.json'))['cron_id'])")
+if [ -n "$REPO" ] && [ -f ~/.hall/$REPO/cron.json ]; then
+  CRON_ID=$(python3 -c "import json; print(json.load(open('$HOME/.hall/$REPO/cron.json'))['cron_id'])")
   echo "CRON_ID=${CRON_ID}"
 fi
 ```
@@ -30,22 +24,12 @@ fi
 If `CRON_ID` is non-empty: call `CronDelete` with id=`$CRON_ID`.
 
 ```bash
-rm -f ~/.hall/$SLUG/cron.json
+rm -f ~/.hall/$REPO/cron.json
 echo "Autonomous cron cancelled."
 ```
 
-### Step 2: Kill watcher daemon
+### Step 2: Confirm
 
-```bash
-if [ -f ~/.hall/watcher.pid ]; then
-  PID=$(cat ~/.hall/watcher.pid)
-  kill "$PID" 2>/dev/null && echo "Stopped watcher (PID $PID)." || echo "Watcher was not running."
-  rm ~/.hall/watcher.pid
-fi
-```
-
-### Step 3: Confirm
-
-Confirm to the user that the session is closed. Note that plans and persona cache are intact for next time.
+Confirm to the user that the session is closed. Nothing else needs cleanup — plan state lives on GitHub, and the agent index is preserved for next time.
 
 Return to normal Claude Code operation.

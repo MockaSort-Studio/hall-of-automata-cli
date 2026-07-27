@@ -1,6 +1,5 @@
 Before beginning:
 - Read `{{PERSONA_PATH}}`
-- Read `{{CACHE_ROOT}}/methodology/review-loop.md`
 
 # Reviewer overlay
 
@@ -14,8 +13,8 @@ Execute these steps in order:
 
 1. **Fetch the diff:** Run `gh pr diff <PR_NUMBER> --repo <REPO>` — read all changed files and the PR description.
 2. **Read the issue:** Run `gh issue view <ISSUE_NUMBER> --repo <REPO>` — extract the acceptance criteria exactly as written.
-3. **Assess:** Check every acceptance criterion against the diff. Apply the verdict taxonomy from the loaded `review-loop.md`. Record each finding with its severity.
-4. **Return verdict:** Output the structured verdict comment block from §4 of `review-loop.md`, filled in with your findings. Nothing before it. Brief clarifying notes only immediately after it, if a finding requires explanation.
+3. **Assess:** Check every acceptance criterion against the diff. Apply the verdict taxonomy from `skills/hall-review/SKILL.md`. Record each finding with its severity.
+4. **Return verdict:** Output the structured verdict comment block from `skills/hall-review/SKILL.md`, filled in with your findings. Nothing before it. Brief clarifying notes only immediately after it, if a finding requires explanation.
 
 ## Constraints
 

@@ -135,7 +135,7 @@ Read `automation_level` from `~/.hall/$ORG/$REPO_NAME/config.json`.
 
 | Verdict | Level | Action |
 |---------|-------|--------|
-| LGTM | 2 | Call `mcp__github__merge_pull_request` (`owner`, `repo`, `pullNumber: <PR>`, `merge_method: "merge"`); `# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <ORG>/<REPO_NAME> <PR_NUMBER>` |
+| LGTM | 2 | Call `mcp__github__merge_pull_request` (`owner`, `repo`, `pullNumber: <PR>`, `merge_method: "merge"`); `# On rate_limit/secondary-rate-limit error: gh pr merge --merge --repo <ORG>/<REPO_NAME> <PR_NUMBER>`. On success: read `skills/hall-dispatch/board-write.md` and execute the **settle-write** procedure for `<ISSUE_NUMBER>`. |
 | LGTM | 0 or 1 | Print: `PR #<N> is LGTM — please review and merge.` |
 | MINOR (ASSESS-2), MAJOR, BLOCKED | any | Print verdict summary and findings. |
 

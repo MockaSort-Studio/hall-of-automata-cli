@@ -19,8 +19,5 @@ jobs:
       - name: Hook — guard writes
         run: bash tests/hooks/test-guard-writes.sh
 
-      - name: Hook — session start
-        run: bash tests/hooks/test-session-start.sh
-
       - name: Setup — slug derivation
         run: bash tests/scripts/test-hall-open-setup.sh

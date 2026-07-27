@@ -86,7 +86,7 @@ When iteration with a specialist subagent exceeds 2 meaningful exchanges: propos
 
 When decomposing work into Hall-dispatchable tasks: read `skills/hall-decompose/SKILL.md`.
 
-Phase 3 (cross-invoker check) is never skipped when `board-context.md` shows active items from other invokers. Surface each `CROSS-INVOKER RISK` before asking for dispatch confirmation.
+Phase 3 (cross-invoker check) is never skipped when a live board query shows active items from other invokers. Surface each `CROSS-INVOKER RISK` before asking for dispatch confirmation.
 
 ---
 

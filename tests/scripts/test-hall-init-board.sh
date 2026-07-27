@@ -112,8 +112,8 @@ echo "=== create-fields.sh ==="
 BIN_FEXISTS="$TMP/bin-fexists"
 make_mock_gh "$BIN_FEXISTS" false true
 HALL1="$TMP/hall1"
-mkdir -p "$HALL1/.hall/session"
-echo '{"board_was_created": false}' > "$HALL1/.hall/session/.board-init-state.json"
+mkdir -p "$HALL1/.hall"
+echo '{"board_was_created": false}' > "$HALL1/.hall/.board-init-state.json"
 
 check_output "all fields exist: all skipped, Fields done printed" \
   "bash -c 'PATH=$BIN_FEXISTS:\$PATH; HOME=$HALL1; PROJECT_ID=PVT_test; source $PLUGIN_ROOT/skills/hall-init-board/lib/create-fields.sh; create_fields'" \
@@ -126,8 +126,8 @@ check_no_output "all fields exist: no creates" \
 BIN_FFRESH="$TMP/bin-ffresh"
 make_mock_gh "$BIN_FFRESH" false false
 HALL2="$TMP/hall2"
-mkdir -p "$HALL2/.hall/session"
-echo '{"board_was_created": true}' > "$HALL2/.hall/session/.board-init-state.json"
+mkdir -p "$HALL2/.hall"
+echo '{"board_was_created": true}' > "$HALL2/.hall/.board-init-state.json"
 
 check_output "fresh board: Status options updated" \
   "bash -c 'PATH=$BIN_FFRESH:\$PATH; HOME=$HALL2; PROJECT_ID=PVT_test; source $PLUGIN_ROOT/skills/hall-init-board/lib/create-fields.sh; create_fields'" \
