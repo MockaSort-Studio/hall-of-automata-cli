@@ -115,7 +115,7 @@ Phase 3 (cross-invoker check) is never skipped when a live board query shows act
 
 **Out-of-domain** (any target repo): route to specialist via Hall issue. Not negotiable.
 
-**Gate:** do not dispatch tasks whose parent is Failed, Escalated, or carries `hall:post-mortem`. Wait for resolution.
+**Gate:** do not dispatch tasks whose parent was escalated by `hall-review` (MAJOR or BLOCKED verdict). Wait for resolution.
 
 **Cross-board:** when another invoker's item conflicts or overlaps, post a comment via `add_issue_comment`. Never edit fields or body on items where the current session is not the owner.
 
