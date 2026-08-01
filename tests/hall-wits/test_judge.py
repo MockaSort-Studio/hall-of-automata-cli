@@ -63,7 +63,18 @@ class TestCheckCalibrationAgreement(unittest.TestCase):
 
     def test_unknown_dimension_skipped(self):
         dims = [{"id": "nonexistent", "score": 1}]
-        self.assertEqual(judge.check_calibration_agreement(dims, CALIBRATION), [])
+        # nonexistent is not in calibration, but calibration dims ARE missing -> 2 mismatches
+        mismatches = judge.check_calibration_agreement(dims, CALIBRATION)
+        self.assertEqual(len(mismatches), 2)
+        ids = " ".join(mismatches)
+        self.assertIn("adaptability", ids)
+        self.assertIn("okr_gate", ids)
+
+    def test_missing_calibration_dimension_flags(self):
+        dims = [{"id": "adaptability", "score": 4}]  # okr_gate absent from judge response
+        mismatches = judge.check_calibration_agreement(dims, CALIBRATION)
+        self.assertEqual(len(mismatches), 1)
+        self.assertIn("okr_gate", mismatches[0])
 
     def test_low_direction_inverts_check(self):
         cal = {"dimensions": [{"id": "foo", "direction": "low", "expected_score_min": 3}]}

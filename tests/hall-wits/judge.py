@@ -144,7 +144,9 @@ def verify_model_integrity(judge_model, test_model):
 
 
 def check_calibration_agreement(dims, calibration):
-    cal_map = {d["id"]: d for d in calibration.get("dimensions", [])}
+    cal_dims = calibration.get("dimensions", [])
+    cal_map = {d["id"]: d for d in cal_dims}
+    dim_ids = {dim["id"] for dim in dims}
     mismatches = []
     for dim in dims:
         cal = cal_map.get(dim["id"])
@@ -158,6 +160,9 @@ def check_calibration_agreement(dims, calibration):
                 f'{dim["id"]}: scored {dim["score"]}, '
                 f'expected {direction} (min {min_s})'
             )
+    for cal_dim in cal_dims:
+        if cal_dim["id"] not in dim_ids:
+            mismatches.append(f'{cal_dim["id"]}: missing from judge response')
     return mismatches
 
 
