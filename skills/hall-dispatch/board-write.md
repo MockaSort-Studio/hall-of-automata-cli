@@ -21,11 +21,22 @@ ORG="${REPO%%/*}"
 BOARD_NUM=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('$HOME/.hall/$REPO/config.json'))).get('board_project_number',''))" 2>/dev/null || echo "")
 [ -z "$BOARD_NUM" ] && { echo "No board provisioned — skipping board write."; exit 0; }
 
-FIELD_ID=$(gh project field-list "$BOARD_NUM" --owner "$ORG" --format json --jq '.fields[] | select(.name=="Status") | .id')
-OPT=$(gh project field-list "$BOARD_NUM" --owner "$ORG" --format json --jq --arg o "<TARGET_STATUS>" '.fields[] | select(.name=="Status") | .options[] | select(.name==$o) | .id')
+# gh's --jq flag takes exactly one filter argument — it cannot carry jq's own
+# --arg mechanism. Resolve each query to a temp file, then filter with the
+# local jq binary. Files, not `echo "$VAR" | jq`: under zsh, `echo` expands
+# backslash escapes by default, corrupting any \n embedded in an issue body.
+FIELDS_TMP=$(mktemp) && ITEMS_TMP=$(mktemp)
+gh project field-list "$BOARD_NUM" --owner "$ORG" --format json > "$FIELDS_TMP"
+gh project item-list "$BOARD_NUM" --owner "$ORG" --format json --limit 200 > "$ITEMS_TMP"
+
+FIELD_ID=$(jq -r '.fields[] | select(.name=="Status") | .id' "$FIELDS_TMP")
+OPT=$(jq -r --arg o "<TARGET_STATUS>" '.fields[] | select(.name=="Status") | .options[] | select(.name==$o) | .id' "$FIELDS_TMP")
 PROJ_ID=$(gh project view "$BOARD_NUM" --owner "$ORG" --format json --jq '.id')
-ITEM_ID=$(gh project item-list "$BOARD_NUM" --owner "$ORG" --format json --jq --arg n "<ISSUE_NUM>" '.items[] | select(.content.number == ($n|tonumber)) | .id')
+ITEM_ID=$(jq -r --arg n "<ISSUE_NUM>" '.items[] | select(.content.number == ($n|tonumber)) | .id' "$ITEMS_TMP")
+rm -f "$FIELDS_TMP" "$ITEMS_TMP"
 ```
+
+`--limit 200` on `item-list`: the board carries 90+ items and `gh`'s default limit is 30 — without an explicit limit, resolution silently fails for any item outside the first page.
 
 If `ITEM_ID` is empty: log `"Board item not found for issue #<N>"` and skip.
 
