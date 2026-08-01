@@ -12,7 +12,6 @@ Token: HALL_WITS_ARENA_TOKEN env var (admin-scoped PAT for hall-wits-arena)
 """
 import argparse
 import base64
-import datetime
 import json
 import os
 import sys
@@ -95,7 +94,6 @@ def provision(fixture_path, run_id, out_dir, token):
     seed           = task["seed_state"]
 
     ensure_label(token, run_label)
-    provisioned_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def L(*extra):
         return [run_label] + list(extra)
