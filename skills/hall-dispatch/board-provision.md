@@ -79,16 +79,15 @@ fi
 
 Skip if `BLOCKED_BY_LIST` is empty. Only wire genuine prerequisites — not soft ordering or thematic grouping.
 
+GitHub has no `addIssueRelationship` GraphQL mutation — issue dependencies are REST-only, keyed by the issue's numeric `id` (not its number, not its GraphQL node id).
+
 ```bash
 for blocker_num in $BLOCKED_BY_LIST; do
-  SUBJECT_ID=$(gh issue view "${ISSUE_NUM}" --repo "${ORG}/${REPO_NAME}" \
-    --json id --jq '.id' 2>/dev/null || echo "")
-  OBJECT_ID=$(gh issue view "${blocker_num}" --repo "${ORG}/${REPO_NAME}" \
-    --json id --jq '.id' 2>/dev/null || echo "")
-  [ -n "$SUBJECT_ID" ] && [ -n "$OBJECT_ID" ] \
-    && gh api graphql -f query="mutation{addIssueRelationship(input:{\
-subjectIssueId:\"${SUBJECT_ID}\",objectIssueId:\"${OBJECT_ID}\",\
-relationshipType:BLOCKED_BY}){relationship{type}}}" > /dev/null \
+  BLOCKER_ID=$(gh api "repos/${ORG}/${REPO_NAME}/issues/${blocker_num}" \
+    --jq '.id' 2>/dev/null || echo "")
+  [ -n "$BLOCKER_ID" ] \
+    && gh api "repos/${ORG}/${REPO_NAME}/issues/${ISSUE_NUM}/dependencies/blocked_by" \
+         -X POST -F issue_id="${BLOCKER_ID}" > /dev/null \
     && echo "#${ISSUE_NUM} BLOCKED_BY #${blocker_num}" \
     || echo "WARN: BLOCKED_BY edge failed #${ISSUE_NUM} ← #${blocker_num}"
 done

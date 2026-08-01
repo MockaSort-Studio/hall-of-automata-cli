@@ -42,8 +42,8 @@ If `--single` is specified, use only that task (verify it's in a dispatchable st
 
 ### Step 1: Check quota
 
-Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:in-progress"]`. Count the returned items.
-`# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:in-progress" --json number | jq length`
+Call `mcp__github__list_issues` with `owner: <ORG>`, `repo: <REPO_NAME>`, `labels: ["hall:queue"]`. Count the returned items.
+`# On rate_limit/secondary-rate-limit error: gh issue list --repo <ORG/REPO> --label "hall:queue" --json number | jq length`
 
 If the ready set exceeds estimated available capacity, display:
 > "N tasks ready, estimated pool capacity is M. Recommend filing M now and holding N-M as deferred. Proceed with recommendation, or file all N?"

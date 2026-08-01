@@ -62,7 +62,7 @@ prs    = json.load(open('/tmp/hall-prs.json'))
 
 issue_map = {i['number']: i for i in issues}
 
-STATUS_LABELS = {'hall:in-progress', 'hall:awaiting-input', 'hall:invoker-queued'}
+STATUS_LABELS = {'hall:awaiting-input', 'hall:queue'}
 
 # Issues referenced by an open PR via a closing keyword are REVIEWING
 reviewing = set()
@@ -77,8 +77,7 @@ def hall_status(issue):
     ls = {l['name'] for l in issue.get('labels', [])}
     if issue['state'].upper() == 'OPEN':
         if 'hall:awaiting-input' in ls: return 'AWAITING_INPUT'
-        if 'hall:invoker-queued' in ls: return 'DISPATCHED'
-        if 'hall:in-progress'    in ls: return 'IN_PROGRESS'
+        if 'hall:queue' in ls: return 'DISPATCHED'
         if any(l.startswith('hall:') and l not in STATUS_LABELS for l in ls):
             return 'IN_PROGRESS'
         return 'PLANNED'
