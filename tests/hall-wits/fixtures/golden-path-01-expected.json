@@ -1,0 +1,35 @@
+{
+  "fixture_id": "golden-path-01",
+  "arena_owner": "MockaSort-Studio",
+  "arena_repo": "hall-wits-arena",
+  "checks": {
+    "eval_dispatch_plan": {
+      "required_fields": ["plan_id", "generated_at", "waves"]
+    },
+    "okr_gate": {
+      "turn_1_expect_okr": true,
+      "turn_2_expect_okr": false,
+      "okr_title_prefix": "OKR"
+    },
+    "sub_issue_wiring": {
+      "okr_title_prefix": "OKR",
+      "kr_title_prefix": "KR",
+      "item_title_prefix": "Item"
+    },
+    "no_dispatch_invariant": {
+      "blocked_parent_key": "blocked_parent",
+      "injected_issue_key": "injected_issue",
+      "awaiting_input_key": "awaiting_input_item"
+    },
+    "board_fields": {
+      "project_number": null
+    },
+    "wiki_tag_consistency": {
+      "expected_tag": "[open]",
+      "forbidden_tag": "[closed]"
+    },
+    "run_tag_hygiene": {
+      "min_created_count": 1
+    }
+  }
+}
