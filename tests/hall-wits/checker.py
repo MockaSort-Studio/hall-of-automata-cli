@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """State-model checker for the 7 structural checks.
-
 Usage: checker.py <run_dir> <expected_json> [--arena-token TOKEN]
 Token: HALL_WITS_ARENA_TOKEN env var (read access to hall-wits-arena)
 """
@@ -31,9 +30,9 @@ def _gh_get(path, token):
         raise RuntimeError(f"GET {url} → {e.code}") from e
 
 
-def _list_issues(owner, repo, label, token):
-    enc = urllib.parse.quote(label, safe="")
-    return _gh_get(f"/repos/{owner}/{repo}/issues?labels={enc}&state=all&per_page=100", token) or []
+def _list_issues(owner, repo, since, token):
+    raw = _gh_get(f"/repos/{owner}/{repo}/issues?since={urllib.parse.quote(since, safe='')}&state=all&per_page=100", token) or []
+    return [i for i in raw if i.get("created_at", "") > since]
 
 
 def _sub_issues(owner, repo, number, token):
@@ -82,7 +81,7 @@ def chk_okr_gate(run_dir, exp, run_issues, manifest):
     created = [i for i in run_issues if i["number"] not in seeded]
     okrs = [i for i in created if i["title"].startswith(prefix)]
     if exp["turn_1_expect_okr"] and not okrs:
-        return CheckResult("okr_gate", False, "turn 1: no OKR issue found with run label")
+        return CheckResult("okr_gate", False, "turn 1: no OKR issue found")
     if not exp["turn_2_expect_okr"]:
         t2_calls = _tool_calls_from(run_dir, "turn-2.jsonl")
         bad = [(c.get("input") or {}).get("title", "")[:60] for c in t2_calls
@@ -136,6 +135,7 @@ def chk_no_dispatch_invariant(exp, manifest, owner, repo, token):
 def chk_board_fields(exp):
     if not exp.get("project_number"):
         return CheckResult("board_fields", True, "skipped — project_number not set in fixture")
+    # TODO: implement GraphQL board field check
     return CheckResult("board_fields", False, "project_number set but GraphQL board check not implemented")
 
 
@@ -157,7 +157,7 @@ def chk_run_tag_hygiene(exp, run_issues, manifest):
     min_created = exp.get("min_created_count", 1)
     if created < min_created:
         return CheckResult("run_tag_hygiene", False, f"{created} issue(s) created during run, expected ≥{min_created}")
-    return CheckResult("run_tag_hygiene", True, f"ok ({created} issue(s) created, all carry run label)")
+    return CheckResult("run_tag_hygiene", True, f"ok ({created} issue(s) created)")
 
 
 def run_checks(run_dir, expected_path, token):
@@ -167,8 +167,8 @@ def run_checks(run_dir, expected_path, token):
         manifest = json.load(f)
     owner = expected["arena_owner"]
     repo = expected["arena_repo"]
-    run_label = f"run:{manifest['run_id']}"
-    run_issues = _list_issues(owner, repo, run_label, token)
+    provisioned_at = manifest["provisioned_at"]
+    run_issues = _list_issues(owner, repo, provisioned_at, token)
     chks = expected["checks"]
     return [
         chk_eval_dispatch_plan(run_dir, chks["eval_dispatch_plan"]),

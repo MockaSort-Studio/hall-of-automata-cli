@@ -13,6 +13,7 @@ import checker  # noqa: E402
 MANIFEST = {
     "run_id": "run-test01",
     "fixture_id": "golden-path-01",
+    "provisioned_at": "2026-01-01T00:00:00Z",
     "issues": {
         "blocked_parent": 100,
         "injected_issue": 101,

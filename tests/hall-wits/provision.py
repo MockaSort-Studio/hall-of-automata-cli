@@ -12,6 +12,7 @@ Token: HALL_WITS_ARENA_TOKEN env var (admin-scoped PAT for hall-wits-arena)
 """
 import argparse
 import base64
+import datetime
 import json
 import os
 import sys
@@ -112,10 +113,12 @@ def provision(fixture_path, run_id, out_dir, token):
 
     s = seed["awaiting_input_item"]
     awaiting_num = create_issue(token, s["title"], s["title"], L("hall:awaiting-input"))
+    provisioned_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     manifest = {
-        "run_id":     run_id,
-        "fixture_id": fixture_id,
+        "run_id":         run_id,
+        "fixture_id":     fixture_id,
+        "provisioned_at": provisioned_at,
         "issues": {
             "blocked_parent":             blocked_num,
             "injected_issue":             injected_num,
@@ -132,6 +135,7 @@ def provision(fixture_path, run_id, out_dir, token):
         f.write("\n")
 
     print(f"manifest → {manifest_path}")
+    print(f"  provisioned_at: {provisioned_at}")
     for k, v in manifest["issues"].items():
         print(f"  {k}: #{v}")
     return manifest
