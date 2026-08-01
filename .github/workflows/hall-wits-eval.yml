@@ -1,0 +1,128 @@
+name: Hall Wits — PR eval
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  eval:
+    if: >
+      github.event.issue.pull_request &&
+      contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+               github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Get PR head SHA
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sha=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq .head.sha)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate run ID
+        id: run
+        run: echo "run_id=run-$(openssl rand -hex 3)" >> "$GITHUB_OUTPUT"
+
+      - name: Snapshot wiki baseline
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          git clone \
+            "https://x-access-token:${HALL_WITS_ARENA_TOKEN}@github.com/MockaSort-Studio/hall-wits-arena.wiki.git" \
+            wiki-baseline 2>/dev/null || mkdir wiki-baseline
+
+      - name: Provision fixture
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          mkdir -p run-dir
+          python3 tests/hall-wits/provision.py \
+            fixtures/golden-path-01 \
+            ${{ steps.run.outputs.run_id }} \
+            --out-dir "$GITHUB_WORKSPACE/run-dir"
+
+      - name: Run eval — turns 1 and 2
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          python3 tests/hall-wits/runner.py \
+            fixtures/golden-path-01 \
+            "$GITHUB_WORKSPACE/run-dir" \
+            --plugin-dir "$GITHUB_WORKSPACE" \
+            --cc-bin claude
+
+      - name: Run state-model checker
+        continue-on-error: true
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          python3 tests/hall-wits/checker.py \
+            "$GITHUB_WORKSPACE/run-dir" \
+            tests/hall-wits/fixtures/golden-path-01-expected.json \
+            2>&1 | tee checker-output.txt
+
+      - name: Run Popotron judge
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          PYTHONPATH=tests/hall-wits python3 tests/hall-wits/judge.py \
+            "$GITHUB_WORKSPACE/run-dir" \
+            fixtures/golden-path-01 \
+            --judge-model claude-opus-5 \
+            2>&1 | tee judge-output.txt
+
+      - name: Post assessment comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tests/hall-wits/report.py \
+            "$GITHUB_WORKSPACE/run-dir" \
+            --checker-out checker-output.txt \
+            > report.md
+          gh pr comment ${{ github.event.issue.number }} \
+            --body-file report.md --repo "$GITHUB_REPOSITORY"
+
+      - name: Cleanup run-tagged primitives
+        if: always() && steps.run.outputs.run_id != ''
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          python3 tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }}
+
+      - name: Reset wiki to baseline
+        if: always() && steps.run.outputs.run_id != ''
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          if [ -d wiki-baseline/.git ]; then
+            baseline=$(git -C wiki-baseline rev-parse HEAD)
+            git clone \
+              "https://x-access-token:${HALL_WITS_ARENA_TOKEN}@github.com/MockaSort-Studio/hall-wits-arena.wiki.git" \
+              wiki-current
+            git -C wiki-current reset --hard "$baseline"
+            git -C wiki-current push --force origin HEAD
+          else
+            echo "wiki baseline not captured — skipping reset"
+          fi
+
+      - name: Verify zero orphans
+        if: always() && steps.run.outputs.run_id != ''
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          python3 tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --dry-run
