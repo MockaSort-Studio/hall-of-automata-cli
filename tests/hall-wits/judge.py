@@ -127,7 +127,7 @@ def prepare_phase(args, token, run_dir):
     print(f"judge-prompt.txt written ({len(user_prompt)} chars)")
 
 
-def collect_phase(args, token, run_dir):
+def collect_phase(args, run_dir):
     with open(os.path.join(run_dir, "judge-context.json")) as f:
         context = json.load(f)
 
@@ -193,7 +193,7 @@ def main():
             sys.exit("error: HALL_WITS_ARENA_TOKEN not set")
         prepare_phase(args, token, run_dir)
     else:
-        collect_phase(args, None, run_dir)
+        collect_phase(args, run_dir)
 
 
 if __name__ == "__main__":
