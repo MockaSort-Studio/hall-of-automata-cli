@@ -5,7 +5,7 @@ on:
     types: [created]
 
 jobs:
-  eval:
+  gate:
     if: >
       github.event.issue.pull_request &&
       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
@@ -15,7 +15,10 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
-
+    outputs:
+      triggered: ${{ steps.trigger.outputs.triggered }}
+      head-sha: ${{ steps.trigger.outputs.head-sha }}
+      check-run-id: ${{ steps.trigger.outputs.check-run-id }}
     steps:
       - name: Start trigger + check run
         id: trigger
@@ -28,163 +31,40 @@ jobs:
           ack-comment: ":crystal_ball: Popotron stirs... running the golden task."
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Harness scripts (secret access) always come from master — never from
-      # PR-controlled content. Only the plugin code under test comes from the
-      # PR head. See the "Run eval" step's --plugin-dir.
-      - name: Checkout PR plugin code
-        if: steps.trigger.outputs.triggered == 'true'
-        uses: actions/checkout@v4
+  pipeline:
+    needs: gate
+    if: needs.gate.outputs.triggered == 'true'
+    uses: ./.github/workflows/hall-wits-eval-core.yml
+    with:
+      plugin-sha: ${{ needs.gate.outputs.head-sha }}
+    secrets: inherit
+
+  finish:
+    needs: [gate, pipeline]
+    if: always() && needs.gate.outputs.triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Download report
+        if: needs.pipeline.outputs.run-id != ''
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ steps.trigger.outputs.head-sha }}
-          path: pr-plugin
-
-      - name: Checkout test harness from master
-        if: steps.trigger.outputs.triggered == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          path: scripts
-
-      - name: Install Claude Code
-        if: steps.trigger.outputs.triggered == 'true'
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Generate run ID
-        id: run
-        if: steps.trigger.outputs.triggered == 'true'
-        run: echo "run_id=run-$(openssl rand -hex 3)" >> "$GITHUB_OUTPUT"
-
-      - name: Snapshot wiki baseline
-        if: steps.trigger.outputs.triggered == 'true'
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          git clone \
-            "https://x-access-token:${HALL_WITS_ARENA_TOKEN}@github.com/MockaSort-Studio/hall-wits-arena.wiki.git" \
-            wiki-baseline
-
-      # fixture_path below is a path *within hall-wits-arena*, resolved via
-      # the GitHub Contents API — not a local checkout path. It must stay
-      # unprefixed even though the scripts that consume it now live under
-      # scripts/.
-      - name: Provision fixture
-        if: steps.trigger.outputs.triggered == 'true'
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          mkdir -p run-dir
-          python3 scripts/tests/hall-wits/provision.py \
-            fixtures/golden-path-01 \
-            ${{ steps.run.outputs.run_id }} \
-            --out-dir "$GITHUB_WORKSPACE/run-dir"
-
-      - name: Run eval — turns 1 and 2
-        if: steps.trigger.outputs.triggered == 'true'
-        continue-on-error: true
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          python3 scripts/tests/hall-wits/runner.py \
-            fixtures/golden-path-01 \
-            "$GITHUB_WORKSPACE/run-dir" \
-            --plugin-dir "$GITHUB_WORKSPACE/pr-plugin" \
-            --cc-bin claude
-
-      - name: Run state-model checker
-        if: steps.trigger.outputs.triggered == 'true'
-        continue-on-error: true
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          python3 scripts/tests/hall-wits/checker.py \
-            "$GITHUB_WORKSPACE/run-dir" \
-            scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
-            2>&1 | tee checker-output.txt
-
-      - name: Run Popotron judge
-        if: steps.trigger.outputs.triggered == 'true'
-        continue-on-error: true
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          PYTHONPATH=scripts/tests/hall-wits python3 scripts/tests/hall-wits/judge.py \
-            "$GITHUB_WORKSPACE/run-dir" \
-            fixtures/golden-path-01 \
-            --judge-model claude-opus-5 \
-            2>&1 | tee judge-output.txt
-
-      - name: Upload run artifacts
-        if: always() && steps.run.outputs.run_id != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: hall-wits-run-${{ steps.run.outputs.run_id }}
-          path: |
-            run-dir/
-            checker-output.txt
-            judge-output.txt
-          if-no-files-found: warn
+          name: hall-wits-run-${{ needs.pipeline.outputs.run-id }}
 
       - name: Post assessment comment
-        if: always() && steps.trigger.outputs.triggered == 'true'
+        if: needs.pipeline.outputs.run-id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/tests/hall-wits/report.py \
-            "$GITHUB_WORKSPACE/run-dir" \
-            --checker-out checker-output.txt \
-            > report.md
           gh pr comment ${{ github.event.issue.number }} \
             --body-file report.md --repo "$GITHUB_REPOSITORY"
 
-      - name: Close run-tagged issues
-        if: always() && steps.run.outputs.run_id != ''
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }}
-
-      - name: Verify zero orphans
-        if: always() && steps.run.outputs.run_id != ''
-        id: verify-orphans
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --dry-run
-
-      - name: Delete run label
-        # Only once verification confirms nothing is still open under it —
-        # deleting the label first would strip it from any missed issue,
-        # making this check permanently blind to exactly the failure it
-        # exists to catch.
-        if: always() && steps.run.outputs.run_id != '' && steps.verify-orphans.outcome == 'success'
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --delete-label
-
-      - name: Reset wiki to baseline
-        if: always() && steps.run.outputs.run_id != ''
-        env:
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        run: |
-          if [ -d wiki-baseline/.git ]; then
-            baseline=$(git -C wiki-baseline rev-parse HEAD)
-            git clone \
-              "https://x-access-token:${HALL_WITS_ARENA_TOKEN}@github.com/MockaSort-Studio/hall-wits-arena.wiki.git" \
-              wiki-current
-            git -C wiki-current reset --hard "$baseline"
-            git -C wiki-current push --force origin HEAD
-          else
-            echo "::error::wiki baseline was never captured — cannot verify a clean reset"
-            exit 1
-          fi
-
       - name: Finish trigger + check run
-        if: always() && steps.trigger.outputs.triggered == 'true'
+        if: always()
         uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/finish@b6c0f11851bc3df2a9bf7f9e3f335082c466874a
         with:
-          check-run-id: ${{ steps.trigger.outputs.check-run-id }}
-          status: ${{ job.status }}
+          check-run-id: ${{ needs.gate.outputs.check-run-id }}
+          status: ${{ needs.pipeline.result }}
           token: ${{ secrets.GITHUB_TOKEN }}
