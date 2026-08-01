@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+    paths: ['.claude-plugin/plugin.json']
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      changed: ${{ steps.tag-check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse version from plugin.json
+        id: parse
+        run: |
+          version=$(jq -r '.version' .claude-plugin/plugin.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether tag already exists
+        id: tag-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v${VERSION}" > /dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  eval:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    uses: ./.github/workflows/hall-wits-eval-core.yml
+    with:
+      plugin-sha: ${{ github.sha }}
+    secrets: inherit
+
+  release:
+    needs: [check-version, eval]
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download eval artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hall-wits-run-${{ needs.eval.outputs.run-id }}
+
+      - name: Verify eval verdict
+        run: |
+          if grep -q '❌' checker-output.txt; then
+            echo "::error::Checker reported failures — release blocked"
+            exit 1
+          fi
+          cal_ok=$(jq -r '.calibration_agreement' run-dir/judge-scores.json 2>/dev/null || echo "false")
+          if [ "$cal_ok" != "true" ]; then
+            echo "::error::Judge calibration mismatch — release blocked"
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --target "${{ github.sha }}" \
+            --notes-file report.md \
+            --repo "$GITHUB_REPOSITORY"
