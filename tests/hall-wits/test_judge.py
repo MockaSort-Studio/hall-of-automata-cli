@@ -185,7 +185,7 @@ class TestCollectPhase(unittest.TestCase):
             run_dir = self._setup_run_dir(tmpdir, CALIBRATION)
             args = SimpleNamespace(judge_model="", test_model="", fixture_path="")
             with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
-                judge.collect_phase(args, None, run_dir)
+                judge.collect_phase(args, run_dir)
             scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
             self.assertTrue(scores["calibration_agreement"])
             self.assertAlmostEqual(scores["overall"], 4.5)
@@ -198,7 +198,7 @@ class TestCollectPhase(unittest.TestCase):
             env = {k: v for k, v in os.environ.items() if k != "JUDGE_STRUCTURED_OUTPUT"}
             with patch.dict(os.environ, env, clear=True):
                 with self.assertRaises(SystemExit):
-                    judge.collect_phase(args, None, run_dir)
+                    judge.collect_phase(args, run_dir)
 
 
 if __name__ == "__main__":
