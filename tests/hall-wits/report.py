@@ -30,6 +30,17 @@ def format_judge_section(scores_path):
         for d in dims
     )
     table = "| Dimension | Score | Justification |\n|---|---|---|\n" + rows if rows else "(no dimensions scored)"
+
+    derivation_blocks = []
+    for d in dims:
+        derivation = d.get("derivation", "").strip()
+        if derivation:
+            derivation_blocks.append(
+                f"<details>\n<summary><code>{d.get('id', '?')}</code> — full derivation</summary>\n\n{derivation}\n\n</details>"
+            )
+    if derivation_blocks:
+        table = table + "\n\n" + "\n\n".join(derivation_blocks)
+
     overall  = s.get("overall", "?")
     cal_ok   = s.get("calibration_agreement", False)
     cal_mark = "✅" if cal_ok else "⚠️ mismatch"

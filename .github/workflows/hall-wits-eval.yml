@@ -12,6 +12,7 @@ jobs:
                github.event.comment.author_association)
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
 
     steps:
@@ -20,12 +21,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sha=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq .head.sha)
+          sha=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq .head.sha) \
+            || { echo "failed to resolve PR SHA"; exit 1; }
+          if [ -z "$sha" ]; then
+            echo "failed to resolve PR SHA: empty response"
+            exit 1
+          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - name: Checkout PR plugin code
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.sha }}
+          path: pr-plugin
+
+      - name: Checkout test harness from master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: scripts
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
@@ -40,15 +54,15 @@ jobs:
         run: |
           git clone \
             "https://x-access-token:${HALL_WITS_ARENA_TOKEN}@github.com/MockaSort-Studio/hall-wits-arena.wiki.git" \
-            wiki-baseline 2>/dev/null || mkdir wiki-baseline
+            wiki-baseline
 
       - name: Provision fixture
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
           mkdir -p run-dir
-          python3 tests/hall-wits/provision.py \
-            fixtures/golden-path-01 \
+          python3 scripts/tests/hall-wits/provision.py \
+            scripts/fixtures/golden-path-01 \
             ${{ steps.run.outputs.run_id }} \
             --out-dir "$GITHUB_WORKSPACE/run-dir"
 
@@ -58,10 +72,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 tests/hall-wits/runner.py \
-            fixtures/golden-path-01 \
+          python3 scripts/tests/hall-wits/runner.py \
+            scripts/fixtures/golden-path-01 \
             "$GITHUB_WORKSPACE/run-dir" \
-            --plugin-dir "$GITHUB_WORKSPACE" \
+            --plugin-dir "$GITHUB_WORKSPACE/pr-plugin" \
             --cc-bin claude
 
       - name: Run state-model checker
@@ -69,9 +83,9 @@ jobs:
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 tests/hall-wits/checker.py \
+          python3 scripts/tests/hall-wits/checker.py \
             "$GITHUB_WORKSPACE/run-dir" \
-            tests/hall-wits/fixtures/golden-path-01-expected.json \
+            scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
             2>&1 | tee checker-output.txt
 
       - name: Run Popotron judge
@@ -80,9 +94,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          PYTHONPATH=tests/hall-wits python3 tests/hall-wits/judge.py \
+          PYTHONPATH=scripts/tests/hall-wits python3 scripts/tests/hall-wits/judge.py \
             "$GITHUB_WORKSPACE/run-dir" \
-            fixtures/golden-path-01 \
+            scripts/fixtures/golden-path-01 \
             --judge-model claude-opus-5 \
             2>&1 | tee judge-output.txt
 
@@ -90,19 +104,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 tests/hall-wits/report.py \
+          python3 scripts/tests/hall-wits/report.py \
             "$GITHUB_WORKSPACE/run-dir" \
             --checker-out checker-output.txt \
             > report.md
           gh pr comment ${{ github.event.issue.number }} \
             --body-file report.md --repo "$GITHUB_REPOSITORY"
 
+      - name: Upload run artifacts
+        if: always() && steps.run.outputs.run_id != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: hall-wits-run-${{ steps.run.outputs.run_id }}
+          path: |
+            run-dir/
+            checker-output.txt
+            judge-output.txt
+          if-no-files-found: warn
+
       - name: Cleanup run-tagged primitives
         if: always() && steps.run.outputs.run_id != ''
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }}
+          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }}
 
       - name: Reset wiki to baseline
         if: always() && steps.run.outputs.run_id != ''
@@ -125,4 +150,4 @@ jobs:
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --dry-run
+          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --dry-run

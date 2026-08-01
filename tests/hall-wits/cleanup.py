@@ -44,9 +44,17 @@ def gh(method, path, token, body=None):
 
 def list_issues(label, token):
     enc = urllib.parse.quote(label, safe="")
-    return gh("GET",
-              f"/repos/{OWNER}/{REPO}/issues?labels={enc}&state=all&per_page=100",
-              token) or []
+    all_issues = []
+    page = 1
+    while True:
+        batch = gh("GET",
+                   f"/repos/{OWNER}/{REPO}/issues?labels={enc}&state=all&per_page=100&page={page}",
+                   token) or []
+        if not batch:
+            break
+        all_issues.extend(batch)
+        page += 1
+    return all_issues
 
 
 def main():
