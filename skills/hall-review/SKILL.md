@@ -28,10 +28,12 @@ ISSUE_NUMBER=$(echo "<branch>" | sed 's/.*issue-//')
 
 Skip any PR whose branch does not match `hall/<specialist>/issue-<N>` format.
 
+Hall-authored reviews are indistinguishable from a real human's at the account level — `pull_request_review_write` posts under the invoker's own GitHub identity (personal PAT), not a distinct bot/app account, so `.user.type`/`.user.login` cannot tell them apart. Every Hall verdict body is structured and always starts with `VERDICT:` (§0c format); a real human typing a review does not. Use that instead.
+
 **Human review guard:**
 ```bash
 gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
-  --jq '[.[] | select(.state != "PENDING" and .user.type != "Bot" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | length' \
+  --jq '[.[] | select(.state != "PENDING" and ((.body // "") | startswith("VERDICT:") | not) and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | length' \
   2>/dev/null || echo "0"
 ```
 If count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — skipping."` and move to next PR.
@@ -39,14 +41,14 @@ If count is `> 0`: print `"PR #<PR_NUMBER> already has a human review — skippi
 **Derive review cycle from prior Hall CHANGES_REQUESTED reviews:**
 ```bash
 REVIEW_CYCLE=$(gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
-  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and (.user.login | endswith("[bot]"))) ] | length' \
+  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and ((.body // "") | startswith("VERDICT:")))] | length' \
   2>/dev/null || echo "0")
 ```
 
 If `REVIEW_CYCLE >= 1`, check whether the specialist has pushed a fix since the last review:
 ```bash
 LAST_REVIEWED_SHA=$(gh api repos/<ORG>/<REPO_NAME>/pulls/<PR_NUMBER>/reviews \
-  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and (.user.login | endswith("[bot]")))] | last | .commit_id' \
+  --jq '[.[] | select(.state == "CHANGES_REQUESTED" and ((.body // "") | startswith("VERDICT:")))] | last | .commit_id' \
   2>/dev/null || echo "")
 ```
 If `HEAD_SHA == LAST_REVIEWED_SHA`: print `"PR #<PR_NUMBER> awaiting fix commit — skipping."` and move to next PR.
