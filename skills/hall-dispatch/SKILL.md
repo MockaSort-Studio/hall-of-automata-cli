@@ -1,7 +1,7 @@
 ---
 name: hall-dispatch
 description: Dispatch ready tasks to the Hall as GitHub Issues with quota stewardship
-argument-hint: "[--single <task_id>] [--dry-run]"
+argument-hint: "[--single <task_id>] [--dry-run] [--eval-dispatch]"
 allowed-tools: [Bash, Read, Write, CronCreate, mcp__github__*]
 ---
 
@@ -11,6 +11,7 @@ Dispatch ready tasks to the Hall. Old Major normally proposes this in conversati
 
 - `--single <task_id>`: dispatch one specific task regardless of ready-set state
 - `--dry-run`: preview the issues that would be created without filing them
+- `--eval-dispatch`: run the full dispatch flow but redirect every `hall:<specialist>` label write to `eval-dispatch-plan.json`; all other writes (issue creation, sub-issue wiring, board fields) proceed as normal
 
 ## Execution
 
@@ -78,23 +79,42 @@ If `--dry-run`, show the confirmation summary and the issue bodies that would be
 
 ### Step 4: File issues
 
+**Under `--eval-dispatch`:** initialize `WAVE_ITEMS = []` before processing any task.
+
 For each task in dispatch order, spaced 15 seconds apart:
 
 **Origination mode** — determines whether to create a new issue or route to an existing one:
 
-- **Board-sourced** (from Step 0's ready set): the issue was already filed by `hall-okr`/`hall-decompose`. Apply `hall:<specialist>` label to the existing issue: `gh issue edit <issue_num> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
-- **Ad-hoc** (a bugfix/hotfix Old Major is dispatching directly from conversation, per the OKR gate — no pre-filed issue exists): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]`, `body: "<issue body>"`. Capture the returned number as `ISSUE_NUM`.
+- **Board-sourced** (from Step 0's ready set): the issue was already filed by `hall-okr`/`hall-decompose`.
+  - Default: Apply `hall:<specialist>` label to the existing issue: `gh issue edit <issue_num> --repo <ORG/REPO> --add-label "hall:<specialist>"`. Skip issue creation.
+  - **Under `--eval-dispatch`:** skip the label write. Append `{ "item": "#<issue_num>", "specialist": "<slug>", "rationale": "<routing rationale from Step 3>" }` to `WAVE_ITEMS`.
+- **Ad-hoc** (a bugfix/hotfix Old Major is dispatching directly from conversation, per the OKR gate — no pre-filed issue exists): create the issue via `mcp__github__issue_write` with `owner: <ORG>`, `repo: <REPO_NAME>`, `method: create`, `title: "<task title>"`, `labels: ["hall:<specialist>"]` (omit under `--eval-dispatch`), `body: "<issue body>"`. Capture the returned number as `ISSUE_NUM`.
   `# On rate_limit/secondary-rate-limit error: gh api repos/<ORG>/<REPO>/issues -f title="<task title>" -f body="<issue body>" -f 'labels[]=hall:<specialist>' --jq '.number'`
+  (Under `--eval-dispatch`, omit the `labels[]` parameter in the fallback command too.)
   After filing: read `skills/hall-dispatch/board-provision.md` and execute with `ISSUE_NUM=<returned number>`,
   `ITEM_TYPE=Bug`, `SAGA_MILESTONE_TITLE=<saga name from dispatch-context if saga is linked; otherwise "">`,
   `BLOCKED_BY_LIST=<dependent issue numbers named in conversation; otherwise "">`.
   Run board-provision before board-write below.
+  **Under `--eval-dispatch`:** also append `{ "item": "#<ISSUE_NUM>", "specialist": "<slug>", "rationale": "<routing rationale from Step 3>" }` to `WAVE_ITEMS`.
 
 **Issue body** — load by `task_type`:
 - `task_type: "pr"` (or absent): Read `templates/dispatch-body-pr.md.tpl` (resolve against `$CLAUDE_PLUGIN_ROOT`). Substitute all placeholders before filing.
 - `task_type: "report"`: Read `templates/dispatch-body-report.md.tpl` (resolve against `$CLAUDE_PLUGIN_ROOT`). Substitute all placeholders before filing.
 
 **Board write:** Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **dispatch-write** procedure. For CLI-flow issues, this transitions the board item from Backlog (set by board-provision) to In Progress.
+
+**Under `--eval-dispatch`:** after all tasks are processed, write `eval-dispatch-plan.json` to the working directory. `plan_id` uses UTC timestamp format `eval-YYYYMMDD-HHMMSS`; `saga` is the saga wiki URL from dispatch context (empty string if none):
+
+```json
+{
+  "plan_id": "eval-<YYYYMMDD-HHMMSS>",
+  "generated_at": "<ISO 8601 timestamp>",
+  "saga": "<saga wiki URL or empty string>",
+  "waves": [
+    { "wave": 1, "items": [ ...WAVE_ITEMS ], "cross_invoker_risks": [] }
+  ]
+}
+```
 
 ### Step 5: Report
 
@@ -105,6 +125,8 @@ Dispatched N tasks:
 
 M tasks remain blocked on: [dependency list]
 ```
+
+If `--eval-dispatch`: append `eval-dispatch-plan.json written — N wave items recorded.`
 
 ### Step 6: Schedule autonomous advancement cron (first dispatch only)
 
