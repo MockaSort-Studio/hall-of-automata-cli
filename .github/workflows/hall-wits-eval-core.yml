@@ -63,7 +63,7 @@ jobs:
       - name: Run eval — turns 1 and 2
         continue-on-error: true
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
           python3 scripts/tests/hall-wits/runner.py \
@@ -82,16 +82,45 @@ jobs:
             scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
             2>&1 | tee checker-output.txt
 
-      - name: Run Popotron judge
-        continue-on-error: true
+      - name: Prepare Popotron judge
+        id: judge-prep
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
           PYTHONPATH=scripts/tests/hall-wits python3 scripts/tests/hall-wits/judge.py \
             "$GITHUB_WORKSPACE/run-dir" \
             fixtures/golden-path-01 \
             --judge-model claude-opus-5 \
+            --prepare
+          {
+            echo 'user_prompt<<POPOTRON_EOF'
+            cat "$GITHUB_WORKSPACE/run-dir/judge-prompt.txt"
+            echo 'POPOTRON_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Popotron judge
+        id: popotron
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: >-
+            --dangerously-skip-permissions
+            --model claude-opus-5
+            --json-schema {"type":"object","properties":{"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"}},"required":["id","score","justification"]}}},"required":["dimensions"]}
+          prompt: ${{ steps.judge-prep.outputs.user_prompt }}
+
+      - name: Collect Popotron scores
+        continue-on-error: true
+        env:
+          JUDGE_STRUCTURED_OUTPUT: ${{ steps.popotron.outputs.structured_output }}
+        run: |
+          PYTHONPATH=scripts/tests/hall-wits python3 scripts/tests/hall-wits/judge.py \
+            "$GITHUB_WORKSPACE/run-dir" \
+            fixtures/golden-path-01 \
+            --judge-model claude-opus-5 \
+            --collect \
             2>&1 | tee judge-output.txt
 
       - name: Generate report

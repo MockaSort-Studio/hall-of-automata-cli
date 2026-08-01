@@ -5,6 +5,8 @@ import os
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(__file__))
 import judge
@@ -63,7 +65,6 @@ class TestCheckCalibrationAgreement(unittest.TestCase):
 
     def test_unknown_dimension_skipped(self):
         dims = [{"id": "nonexistent", "score": 1}]
-        # nonexistent is not in calibration, but calibration dims ARE missing -> 2 mismatches
         mismatches = judge.check_calibration_agreement(dims, CALIBRATION)
         self.assertEqual(len(mismatches), 2)
         ids = " ".join(mismatches)
@@ -71,7 +72,7 @@ class TestCheckCalibrationAgreement(unittest.TestCase):
         self.assertIn("okr_gate", ids)
 
     def test_missing_calibration_dimension_flags(self):
-        dims = [{"id": "adaptability", "score": 4}]  # okr_gate absent from judge response
+        dims = [{"id": "adaptability", "score": 4}]
         mismatches = judge.check_calibration_agreement(dims, CALIBRATION)
         self.assertEqual(len(mismatches), 1)
         self.assertIn("okr_gate", mismatches[0])
@@ -87,27 +88,6 @@ class TestCheckCalibrationAgreement(unittest.TestCase):
             {"id": "okr_gate",     "score": 2},
         ]
         self.assertEqual(len(judge.check_calibration_agreement(dims, CALIBRATION)), 2)
-
-
-class TestExtractJsonBlock(unittest.TestCase):
-    def test_plain_json(self):
-        text = '{"dimensions": []}'
-        self.assertEqual(json.loads(judge.extract_json_block(text)), {"dimensions": []})
-
-    def test_fenced_json(self):
-        text = '```json\n{"dimensions": []}\n```'
-        self.assertEqual(json.loads(judge.extract_json_block(text)), {"dimensions": []})
-
-    def test_fenced_without_language(self):
-        text = '```\n{"dimensions": []}\n```'
-        self.assertEqual(json.loads(judge.extract_json_block(text)), {"dimensions": []})
-
-    def test_returns_empty_on_no_json(self):
-        self.assertEqual(judge.extract_json_block("no json here"), "")
-
-    def test_json_with_surrounding_text(self):
-        text = 'Here is my assessment:\n{"dimensions": []}\nEnd.'
-        self.assertEqual(json.loads(judge.extract_json_block(text)), {"dimensions": []})
 
 
 class TestExtractAssistantText(unittest.TestCase):
@@ -151,6 +131,74 @@ class TestExtractAssistantText(unittest.TestCase):
             self.assertEqual(judge.extract_assistant_text(path), "")
         finally:
             os.unlink(path)
+
+
+class TestPreparePhase(unittest.TestCase):
+    @patch("judge.fetch_arena_text")
+    def test_writes_required_files(self, mock_fetch):
+        mock_fetch.side_effect = lambda path, token: {
+            "judge/popotron.md": "# Popotron persona",
+            "fixtures/t/groundtruth/calibration.json": json.dumps(CALIBRATION),
+            "fixtures/t/task.json": json.dumps({"fixture_id": "t", "turns": []}),
+        }[path]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = os.path.join(tmpdir, "run")
+            os.makedirs(run_dir)
+            with open(os.path.join(run_dir, "manifest.json"), "w") as f:
+                json.dump({"run_id": "r", "fixture_id": "t"}, f)
+            args = SimpleNamespace(
+                judge_model="claude-opus-5",
+                test_model="claude-sonnet-4-6",
+                fixture_path="fixtures/t",
+            )
+            prev = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                judge.prepare_phase(args, "tok", run_dir)
+            finally:
+                os.chdir(prev)
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "CLAUDE.md")))
+            self.assertTrue(os.path.exists(os.path.join(run_dir, "judge-prompt.txt")))
+            ctx = json.loads(open(os.path.join(run_dir, "judge-context.json")).read())
+            self.assertEqual(ctx["judge_model"], "claude-opus-5")
+            self.assertEqual(ctx["calibration"], CALIBRATION)
+
+
+class TestCollectPhase(unittest.TestCase):
+    def _setup_run_dir(self, tmpdir, calibration):
+        run_dir = os.path.join(tmpdir, "run")
+        os.makedirs(run_dir)
+        with open(os.path.join(run_dir, "manifest.json"), "w") as f:
+            json.dump({"run_id": "r1", "fixture_id": "f1"}, f)
+        ctx = {"judge_model": "claude-opus-5", "test_model": "claude-sonnet-4-6",
+               "calibration": calibration}
+        with open(os.path.join(run_dir, "judge-context.json"), "w") as f:
+            json.dump(ctx, f)
+        return run_dir
+
+    def test_writes_judge_scores(self):
+        structured = json.dumps({"dimensions": [
+            {"id": "adaptability", "score": 4, "justification": "Good"},
+            {"id": "okr_gate",     "score": 5, "justification": "Excellent"},
+        ]})
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = self._setup_run_dir(tmpdir, CALIBRATION)
+            args = SimpleNamespace(judge_model="", test_model="", fixture_path="")
+            with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
+                judge.collect_phase(args, None, run_dir)
+            scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
+            self.assertTrue(scores["calibration_agreement"])
+            self.assertAlmostEqual(scores["overall"], 4.5)
+            self.assertEqual(len(scores["dimensions"]), 2)
+
+    def test_missing_env_var_exits(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = self._setup_run_dir(tmpdir, {"dimensions": []})
+            args = SimpleNamespace(judge_model="", test_model="", fixture_path="")
+            env = {k: v for k, v in os.environ.items() if k != "JUDGE_STRUCTURED_OUTPUT"}
+            with patch.dict(os.environ, env, clear=True):
+                with self.assertRaises(SystemExit):
+                    judge.collect_phase(args, None, run_dir)
 
 
 if __name__ == "__main__":
