@@ -18,6 +18,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 
 OWNER = "MockaSort-Studio"
 REPO  = "hall-wits-arena"
@@ -86,10 +87,11 @@ def add_comment(token, number, body):
 
 
 def provision(fixture_path, run_id, out_dir, token):
-    fixture_id = fixture_path.rstrip("/").split("/")[-1]
-    run_label  = f"run:{run_id}"
-    task       = fetch_task_json(fixture_path, token)
-    seed       = task["seed_state"]
+    fixture_id     = fixture_path.rstrip("/").split("/")[-1]
+    run_label      = f"run:{run_id}"
+    provisioned_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    task           = fetch_task_json(fixture_path, token)
+    seed           = task["seed_state"]
 
     ensure_label(token, run_label)
 
@@ -114,8 +116,9 @@ def provision(fixture_path, run_id, out_dir, token):
     awaiting_num = create_issue(token, s["title"], s["title"], L("hall:awaiting-input"))
 
     manifest = {
-        "run_id":     run_id,
-        "fixture_id": fixture_id,
+        "run_id":         run_id,
+        "fixture_id":     fixture_id,
+        "provisioned_at": provisioned_at,
         "issues": {
             "blocked_parent":             blocked_num,
             "injected_issue":             injected_num,
