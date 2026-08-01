@@ -88,6 +88,11 @@ class TestCheckNoSpecialistLabels(unittest.TestCase):
                          "input": {"command": 'gh issue edit 42 --add-label "type/item"'}})
         self.assertEqual(runner.check_no_specialist_labels([ev]), [])
 
+    def test_gh_api_labels_array_flagged(self):
+        ev = json.dumps({"type": "tool_use", "name": "Bash",
+                         "input": {"command": "gh api /repos/x/y/issues/1 -f 'labels[]=hall:snowball'"}})
+        self.assertEqual(len(runner.check_no_specialist_labels([ev])), 1)
+
 
 class TestRunTurn(unittest.TestCase):
     def _mock_result(self, stdout, returncode=0, stderr=""):
@@ -118,6 +123,17 @@ class TestRunTurn(unittest.TestCase):
                        return_value=self._mock_result("", returncode=1, stderr="err")):
                 with self.assertRaises(RuntimeError):
                     runner.run_turn("p", "cc", None, os.path.join(d, "t.jsonl"), d)
+
+    def test_isolated_home_created_and_seeded(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "t.jsonl")
+            with patch("subprocess.run", return_value=self._mock_result(FAKE_JSONL)) as m:
+                runner.run_turn("p", "cc", None, out, d)
+            env = m.call_args[1]["env"]
+            self.assertEqual(env["HOME"], os.path.join(d, "home"))
+            slug = os.path.join(d, "home", ".hall", ".repo-slug")
+            with open(slug) as f:
+                self.assertIn(runner.ARENA_REPO, f.read())
 
 
 if __name__ == "__main__":

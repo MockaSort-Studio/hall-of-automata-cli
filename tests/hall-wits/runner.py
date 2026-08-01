@@ -24,10 +24,8 @@ import urllib.request
 ARENA_OWNER = "MockaSort-Studio"
 ARENA_REPO  = "hall-wits-arena"
 NON_SPECIALIST_LABELS = {"hall:queue", "hall:awaiting-input"}
-EVAL_DISPATCH_DIRECTIVE = (
-    "[EVAL HARNESS] --eval-dispatch is active for this session. "
-    "Pass --eval-dispatch to any /hall:dispatch invocation.\n\n"
-)
+EVAL_DISPATCH_DIRECTIVE = ("[EVAL HARNESS] --eval-dispatch is active for this session. "
+                           "Pass --eval-dispatch to any /hall:dispatch invocation.\n\n")
 
 
 def _gh_get(path, token):
@@ -56,12 +54,18 @@ def fetch_prompts(fixture_path, token):
 
 
 def run_turn(prompt, cc_bin, plugin_dir, out_path, run_dir, session_id=None):
+    home = os.path.join(run_dir, "home")
+    slug = os.path.join(home, ".hall", ".repo-slug")
+    os.makedirs(os.path.dirname(slug), exist_ok=True)
+    if not os.path.exists(slug):
+        open(slug, "w").write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
+    env = {**os.environ, "HOME": home}
     cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json"]
     if plugin_dir:
         cmd += ["--plugin-dir", os.path.abspath(plugin_dir)]
     if session_id:
         cmd += ["--resume", session_id]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=run_dir)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=run_dir, env=env)
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
     with open(out_path, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -101,10 +105,7 @@ def parse_metrics(lines):
 
 
 def _has_specialist_label(text):
-    return any(
-        m not in NON_SPECIALIST_LABELS
-        for m in re.findall(r"hall:[a-z][a-z\-]+", text)
-    )
+    return bool(set(re.findall(r"hall:[a-z][a-z\-]+", text)) - NON_SPECIALIST_LABELS)
 
 
 def check_no_specialist_labels(lines):
@@ -121,7 +122,7 @@ def check_no_specialist_labels(lines):
         inp  = ev.get("input", {})
         if name == "Bash":
             cmd = inp.get("command", "")
-            if "--add-label" in cmd and _has_specialist_label(cmd):
+            if ("--add-label" in cmd or "labels[]=" in cmd) and _has_specialist_label(cmd):
                 violations.append(cmd[:120])
         elif "github" in name.lower():
             labels = str(inp.get("labels", inp.get("label", "")))
@@ -177,8 +178,7 @@ def main():
         "per_turn":   {"turn_1": m1, "turn_2": m2},
     }
     with open(os.path.join(run_dir, "metrics.json"), "w") as f:
-        json.dump(metrics, f, indent=2)
-        f.write("\n")
+        f.write(json.dumps(metrics, indent=2) + "\n")
     print(f"metrics → {run_dir}/metrics.json")
 
     plan_path = os.path.join(run_dir, "eval-dispatch-plan.json")
