@@ -70,3 +70,37 @@ Execute the resolution pattern above with `<TARGET_STATUS>=In Progress`. Log `"B
 Called from `hall-review` SETTLE (0f) immediately after a PR merges. `<TARGET_STATUS>` = `Done`.
 
 Execute the resolution pattern above with `<TARGET_STATUS>=Done`. Log `"Board item #<N> → Done"` on success.
+
+After a successful Item settle, run **cascade-settle** below for `<ISSUE_NUM>`.
+
+## Procedure: cascade-settle
+
+Closing an Item's own board status does not touch its parent KR or grandparent OKR — nothing else does either, so without this step a KR/OKR can sit at `Backlog`/open indefinitely after every child under it is actually done. Don't rely on GitHub Projects' own built-in automation for this (unverified whether it's configured, and not something this methodology should depend on implicitly) — make it explicit.
+
+Walk up the parent chain one level at a time, stopping as soon as a level isn't fully complete:
+
+```bash
+CURRENT="<ISSUE_NUM>"
+while true; do
+  PARENT_URL=$(gh api "repos/${ORG}/${REPO_NAME}/issues/${CURRENT}" --jq '.parent_issue_url // empty' 2>/dev/null)
+  [ -z "$PARENT_URL" ] && break
+  PARENT_NUM="${PARENT_URL##*/}"
+
+  PCT=$(gh api "repos/${ORG}/${REPO_NAME}/issues/${PARENT_NUM}" --jq '.sub_issues_summary.percent_completed // 0' 2>/dev/null)
+  [ "$PCT" != "100" ] && break
+
+  # Board Status → Done (resolution pattern above, ISSUE_NUM=PARENT_NUM, TARGET_STATUS=Done)
+
+  STATE=$(gh api "repos/${ORG}/${REPO_NAME}/issues/${PARENT_NUM}" --jq '.state' 2>/dev/null)
+  if [ "$STATE" = "open" ]; then
+    gh api "repos/${ORG}/${REPO_NAME}/issues/${PARENT_NUM}" -X PATCH \
+      -f state="closed" -f state_reason="completed" > /dev/null \
+      && echo "#${PARENT_NUM} closed — all sub-issues complete" \
+      || echo "WARN: failed to close #${PARENT_NUM}"
+  fi
+
+  CURRENT="$PARENT_NUM"
+done
+```
+
+On any error at any step: log and continue — never abort the calling skill over a cascade failure.
