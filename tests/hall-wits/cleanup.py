@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Close run-tagged issues and delete the run label from hall-wits-arena.
+"""Close run-tagged issues in hall-wits-arena; verify and delete the run label.
 
-Usage: cleanup.py <run_id> [--dry-run]
+Usage: cleanup.py <run_id> [--dry-run | --delete-label]
 
-    run_id    short run identifier (e.g. run-a3f9c1)
-    --dry-run list open orphan issues without closing them; exit 1 if any found
+    run_id          short run identifier (e.g. run-a3f9c1)
+    --dry-run       verify zero open issues under the run label; exit 1 if any found
+    --delete-label  delete the run label — only call after --dry-run confirms clean
+
+Bare invocation (no flags) closes all open run-tagged issues. Deleting the
+label before verifying strips it from any issue the close pass missed,
+making a later --dry-run check permanently blind — always dry-run before
+delete-label.
 
 Token: HALL_WITS_ARENA_TOKEN env var
 """
@@ -57,10 +63,41 @@ def list_issues(label, token):
     return all_issues
 
 
+def close_all(label, token):
+    issues = list_issues(label, token)
+    open_issues = [i for i in issues if i.get("state") == "open"]
+    for issue in open_issues:
+        gh("PATCH", f"/repos/{OWNER}/{REPO}/issues/{issue['number']}", token,
+           {"state": "closed", "state_reason": "completed"})
+        print(f"  closed #{issue['number']}: {issue['title'][:60]}")
+    print(f"cleanup: {len(open_issues)} issue(s) closed")
+
+
+def verify_clean(label, token):
+    issues = list_issues(label, token)
+    open_issues = [i for i in issues if i.get("state") == "open"]
+    if open_issues:
+        print(f"ORPHANS: {len(open_issues)} open issue(s) with label '{label}':")
+        for i in open_issues:
+            print(f"  #{i['number']}: {i['title'][:80]}")
+        return False
+    print(f"zero orphans — label '{label}' is clean")
+    return True
+
+
+def delete_label(label, token):
+    label_path = f"/repos/{OWNER}/{REPO}/labels/{urllib.parse.quote(label, safe='')}"
+    gh("DELETE", label_path, token)
+    print(f"  label '{label}' deleted")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("run_id")
-    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--dry-run", action="store_true",
+                    help="verify zero open issues under the run label; exit 1 if any found")
+    p.add_argument("--delete-label", action="store_true",
+                    help="delete the run label — only call after --dry-run confirms clean")
     args = p.parse_args()
 
     token = os.environ.get("HALL_WITS_ARENA_TOKEN")
@@ -68,27 +105,15 @@ def main():
         sys.exit("error: HALL_WITS_ARENA_TOKEN not set")
 
     label = f"run:{args.run_id}"
-    issues = list_issues(label, token)
-    open_issues = [i for i in issues if i.get("state") == "open"]
 
     if args.dry_run:
-        if open_issues:
-            print(f"ORPHANS: {len(open_issues)} open issue(s) with label '{label}':")
-            for i in open_issues:
-                print(f"  #{i['number']}: {i['title'][:80]}")
-            sys.exit(1)
-        print(f"zero orphans — label '{label}' is clean")
+        sys.exit(0 if verify_clean(label, token) else 1)
+
+    if args.delete_label:
+        delete_label(label, token)
         return
 
-    for issue in open_issues:
-        gh("PATCH", f"/repos/{OWNER}/{REPO}/issues/{issue['number']}", token,
-           {"state": "closed", "state_reason": "completed"})
-        print(f"  closed #{issue['number']}: {issue['title'][:60]}")
-
-    label_path = f"/repos/{OWNER}/{REPO}/labels/{urllib.parse.quote(label, safe='')}"
-    gh("DELETE", label_path, token)
-    print(f"  label '{label}' deleted")
-    print(f"cleanup: {len(open_issues)} issue(s) closed, label removed")
+    close_all(label, token)
 
 
 if __name__ == "__main__":
