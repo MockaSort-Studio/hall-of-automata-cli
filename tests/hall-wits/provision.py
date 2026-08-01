@@ -93,6 +93,7 @@ def provision(fixture_path, run_id, out_dir, token):
     seed       = task["seed_state"]
 
     ensure_label(token, run_label)
+    provisioned_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def L(*extra):
         return [run_label] + list(extra)
@@ -113,7 +114,6 @@ def provision(fixture_path, run_id, out_dir, token):
 
     s = seed["awaiting_input_item"]
     awaiting_num = create_issue(token, s["title"], s["title"], L("hall:awaiting-input"))
-    provisioned_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     manifest = {
         "run_id":         run_id,
