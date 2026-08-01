@@ -23,7 +23,6 @@ from datetime import datetime, timezone
 OWNER = "MockaSort-Studio"
 REPO  = "hall-wits-arena"
 
-# Matches the hall-review VERDICT format that the dispatch gate reads.
 MAJOR_VERDICT_COMMENT = (
     "VERDICT: MAJOR\n"
     "---\n"
