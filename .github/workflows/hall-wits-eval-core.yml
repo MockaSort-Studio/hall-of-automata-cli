@@ -82,6 +82,15 @@ jobs:
             scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
             2>&1 | tee checker-output.txt
 
+      - name: Checkout repo root for Claude Code Action
+        # claude-code-action shells out to git (user.name config, rev-parse,
+        # etc.) against $GITHUB_WORKSPACE. Neither prior checkout targets the
+        # workspace root, so without this the action fails with
+        # "fatal: not a git repository".
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
       - name: Prepare Popotron judge
         id: judge-prep
         env:
