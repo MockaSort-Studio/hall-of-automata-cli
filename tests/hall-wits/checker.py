@@ -7,12 +7,23 @@ import argparse
 import collections
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 
 CheckResult = collections.namedtuple("CheckResult", "name passed detail")
+
+
+def title_matches(title, prefix):
+    """Tolerant match for issue-type prefixes: optional leading bracket and
+    whitespace, then the prefix as a whole word, case-insensitive. Matches
+    "[OKR 1] ...", "OKR 1:", "okr:" alike — a literal str.startswith() on an
+    exact string (e.g. "OKR" vs the real "[OKR N]" format hall-okr/SKILL.md
+    documents) turns one missing bracket into a silent false negative."""
+    pattern = r"^\[?\s*" + re.escape(prefix) + r"\b"
+    return re.match(pattern, title, re.IGNORECASE) is not None
 
 
 def _gh_get(path, token):
@@ -144,13 +155,13 @@ def chk_okr_gate(run_dir, exp, run_issues, manifest):
     seeded = set(manifest["issues"].values())
     prefix = exp["okr_title_prefix"]
     created = [i for i in run_issues if i["number"] not in seeded]
-    okrs = [i for i in created if i["title"].startswith(prefix)]
+    okrs = [i for i in created if title_matches(i["title"], prefix)]
     if exp["turn_1_expect_okr"] and not okrs:
         return CheckResult("okr_gate", False, "turn 1: no OKR issue found")
     if not exp["turn_2_expect_okr"]:
         t2_calls = _tool_calls_from(run_dir, "turn-2.jsonl")
         bad = [(c.get("input") or {}).get("title", "")[:60] for c in t2_calls
-               if (c.get("input") or {}).get("title", "").startswith(prefix)]
+               if title_matches((c.get("input") or {}).get("title", ""), prefix)]
         if bad:
             return CheckResult("okr_gate", False, f"turn 2 created OKR(s): {bad}")
     return CheckResult("okr_gate", True, f"ok (okrs={len(okrs)})")
@@ -159,9 +170,9 @@ def chk_okr_gate(run_dir, exp, run_issues, manifest):
 def chk_sub_issue_wiring(exp, run_issues, manifest, owner, repo, token):
     seeded = set(manifest["issues"].values())
     created = [i for i in run_issues if i["number"] not in seeded]
-    okrs = [i for i in created if i["title"].startswith(exp["okr_title_prefix"])]
-    krs = [i for i in created if i["title"].startswith(exp["kr_title_prefix"])]
-    items = [i for i in created if i["title"].startswith(exp["item_title_prefix"])]
+    okrs = [i for i in created if title_matches(i["title"], exp["okr_title_prefix"])]
+    krs = [i for i in created if title_matches(i["title"], exp["kr_title_prefix"])]
+    items = [i for i in created if title_matches(i["title"], exp["item_title_prefix"])]
     if not okrs and not krs and not items:
         return CheckResult("sub_issue_wiring", True, "skipped — no OKR/KR/Item created this run")
     item_nums = {i["number"] for i in items}

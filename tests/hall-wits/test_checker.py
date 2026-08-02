@@ -10,6 +10,27 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(__file__))
 import checker  # noqa: E402
 
+
+class TestTitleMatches(unittest.TestCase):
+    def test_matches_bracketed_real_format(self):
+        self.assertTrue(checker.title_matches("[OKR 1] Invokers can archive...", "OKR"))
+
+    def test_matches_bare_prefix(self):
+        self.assertTrue(checker.title_matches("OKR: Documentation Overhaul", "OKR"))
+
+    def test_matches_case_insensitive(self):
+        self.assertTrue(checker.title_matches("[okr 1] lowercase", "OKR"))
+
+    def test_rejects_coincidental_substring(self):
+        self.assertFalse(checker.title_matches("OKRoger integration bug", "OKR"))
+
+    def test_rejects_prefix_not_at_start(self):
+        self.assertFalse(checker.title_matches("Fix the [OKR 1] wiring", "OKR"))
+
+    def test_kr_does_not_match_okr(self):
+        self.assertFalse(checker.title_matches("[OKR 1] Objective", "KR"))
+
+
 MANIFEST = {
     "run_id": "run-test01",
     "fixture_id": "golden-path-01",
