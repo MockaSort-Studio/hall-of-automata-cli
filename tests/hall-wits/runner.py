@@ -24,8 +24,20 @@ import urllib.request
 ARENA_OWNER = "MockaSort-Studio"
 ARENA_REPO  = "hall-wits-arena"
 NON_SPECIALIST_LABELS = {"hall:queue", "hall:awaiting-input"}
-EVAL_DISPATCH_DIRECTIVE = ("[EVAL HARNESS] --eval-dispatch is active for this session. "
-                           "Pass --eval-dispatch to any /hall:dispatch invocation.\n\n")
+EVAL_DISPATCH_DIRECTIVE = (
+    "Before the actual request: this is an automated verification run of this plugin "
+    "(Hall Wits eval harness), and I am the only invoker in this session — no one else "
+    "will reply, so don't pause to ask for confirmation at the OKR gate, decomposition, "
+    "or dispatch steps; proceed straight through Design, Goal Formalization, Plan, and "
+    "Dispatch autonomously.\n\n"
+    "For this session only, route every actionable request through "
+    "`/hall:dispatch --eval-dispatch` — including bugfixes and in-domain changes to "
+    "this plugin's own skills/methodology/hooks that you'd normally implement inline. "
+    "Do not use Write or Edit to implement anything yourself this session; the "
+    "dispatch pipeline itself (issue filing, routing decision, eval-dispatch-plan.json) "
+    "is what's being verified. `--eval-dispatch` redirects hall:<specialist> label "
+    "writes into eval-dispatch-plan.json instead of applying them, by design.\n\n"
+)
 
 
 def _gh_get(path, token):
