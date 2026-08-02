@@ -53,13 +53,45 @@ def fetch_prompts(fixture_path, token):
             for t in task["turns"]]
 
 
+def _seed_hall_state(home):
+    """Pre-seed ~/.hall/ so /hall:open's repo-picker, invoker gate, and
+    automation-level Q&A all resolve without interaction — none of them
+    are what golden-path fixtures are testing, and AskUserQuestion has no
+    one to answer it in a --print sandbox."""
+    hall = os.path.join(home, ".hall")
+    os.makedirs(hall, exist_ok=True)
+
+    slug_path = os.path.join(hall, ".repo-slug")
+    if not os.path.exists(slug_path):
+        open(slug_path, "w").write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
+
+    invoker_dir = os.path.join(hall, ARENA_OWNER)
+    os.makedirs(invoker_dir, exist_ok=True)
+    invoker_path = os.path.join(invoker_dir, "invoker.json")
+    if not os.path.exists(invoker_path):
+        with open(invoker_path, "w") as f:
+            json.dump({
+                "mode": "invoker",
+                "verified_at": "2026-01-01T00:00:00Z",
+                "checks": {"hall_repo": True, "team_member": True},
+            }, f, indent=2)
+
+    project_dir = os.path.join(hall, ARENA_OWNER, ARENA_REPO)
+    os.makedirs(project_dir, exist_ok=True)
+    config_path = os.path.join(project_dir, "config.json")
+    if not os.path.exists(config_path):
+        with open(config_path, "w") as f:
+            json.dump({"automation_level": 0}, f, indent=2)
+
+
 def run_turn(prompt, cc_bin, plugin_dir, out_path, run_dir, session_id=None):
     home = os.path.join(run_dir, "home")
-    slug = os.path.join(home, ".hall", ".repo-slug")
-    os.makedirs(os.path.dirname(slug), exist_ok=True)
-    if not os.path.exists(slug):
-        open(slug, "w").write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
+    _seed_hall_state(home)
     env = {**os.environ, "HOME": home}
+    arena_token = env.get("HALL_WITS_ARENA_TOKEN", "")
+    env["GH_TOKEN"] = arena_token
+    env["GITHUB_TOKEN"] = arena_token
+    env["GITHUB_PERSONAL_ACCESS_TOKEN"] = arena_token
     cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json", "--verbose"]
     if plugin_dir:
         cmd += ["--plugin-dir", os.path.abspath(plugin_dir)]
@@ -149,15 +181,24 @@ def main():
     prompts = fetch_prompts(args.fixture_path, token)
     print(f"loaded {len(prompts)} turn prompts")
 
+    open_path = os.path.join(run_dir, "turn-0-open.jsonl")
+    print("running /hall:open (session bootstrap)...")
+    open_lines = run_turn(
+        "/hall:open",
+        args.cc_bin, args.plugin_dir, open_path, run_dir,
+    )
+    session_id = extract_session_id(open_lines)
+    if not session_id:
+        sys.exit("error: could not extract session_id from /hall:open bootstrap")
+    print(f"  session: {session_id}")
+
     t1_path  = os.path.join(run_dir, "turn-1.jsonl")
     print("running turn 1...")
     t1_lines = run_turn(
         EVAL_DISPATCH_DIRECTIVE + prompts[0],
-        args.cc_bin, args.plugin_dir, t1_path, run_dir,
+        args.cc_bin, args.plugin_dir, t1_path, run_dir, session_id,
     )
-    session_id = extract_session_id(t1_lines)
-    if not session_id:
-        sys.exit("error: could not extract session_id from turn-1 transcript")
+    session_id = extract_session_id(t1_lines) or session_id
     print(f"  session: {session_id}")
 
     t2_path  = os.path.join(run_dir, "turn-2.jsonl")
@@ -168,6 +209,7 @@ def main():
 
     with open(os.path.join(run_dir, "manifest.json")) as f:
         manifest = json.load(f)
+    m0 = parse_metrics(open_lines)
     m1, m2  = parse_metrics(t1_lines), parse_metrics(t2_lines)
     metrics = {
         "run_id":     manifest["run_id"],
@@ -175,7 +217,7 @@ def main():
         "turns":      m1["turns"] + m2["turns"],
         "tool_calls": m1["tool_calls"] + m2["tool_calls"],
         "tokens":     m1["tokens"] + m2["tokens"],
-        "per_turn":   {"turn_1": m1, "turn_2": m2},
+        "per_turn":   {"turn_0_open": m0, "turn_1": m1, "turn_2": m2},
     }
     with open(os.path.join(run_dir, "metrics.json"), "w") as f:
         f.write(json.dumps(metrics, indent=2) + "\n")
