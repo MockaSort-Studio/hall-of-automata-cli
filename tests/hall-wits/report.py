@@ -90,7 +90,7 @@ def main():
 {judge_summary}
 
 ---
-*// Mergio \U0001f918 — pipeline sealed*""")
+*// Popotron \U0001f52e — pipeline sealed*""")
 
 
 if __name__ == "__main__":
