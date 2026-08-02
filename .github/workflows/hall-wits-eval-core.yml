@@ -188,7 +188,8 @@ jobs:
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }}
+          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} \
+            "$GITHUB_WORKSPACE/run-dir"
 
       - name: Verify zero orphans
         if: always() && steps.run.outputs.run_id != ''
@@ -196,7 +197,8 @@ jobs:
         env:
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} --dry-run
+          python3 scripts/tests/hall-wits/cleanup.py ${{ steps.run.outputs.run_id }} \
+            "$GITHUB_WORKSPACE/run-dir" --dry-run
 
       - name: Delete run label
         # Only after orphan verification — deleting first strips the label from
