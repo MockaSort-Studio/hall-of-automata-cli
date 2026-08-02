@@ -90,6 +90,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: master
+          clean: false
 
       - name: Prepare Popotron judge
         id: judge-prep
