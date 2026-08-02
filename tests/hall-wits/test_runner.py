@@ -135,6 +135,57 @@ class TestRunTurn(unittest.TestCase):
             with open(slug) as f:
                 self.assertIn(runner.ARENA_REPO, f.read())
 
+    def test_gh_tokens_set_from_arena_token(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "t.jsonl")
+            with patch.dict(os.environ, {"HALL_WITS_ARENA_TOKEN": "tok-123"}), \
+                 patch("subprocess.run", return_value=self._mock_result(FAKE_JSONL)) as m:
+                runner.run_turn("p", "cc", None, out, d)
+            env = m.call_args[1]["env"]
+            self.assertEqual(env["GH_TOKEN"], "tok-123")
+            self.assertEqual(env["GITHUB_TOKEN"], "tok-123")
+            self.assertEqual(env["GITHUB_PERSONAL_ACCESS_TOKEN"], "tok-123")
+
+    def test_skip_permissions_flag_present(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "t.jsonl")
+            with patch("subprocess.run", return_value=self._mock_result(FAKE_JSONL)) as m:
+                runner.run_turn("p", "cc", None, out, d)
+            cmd = m.call_args[0][0]
+            self.assertIn("--dangerously-skip-permissions", cmd)
+
+
+class TestSeedHallState(unittest.TestCase):
+    def test_seeds_invoker_and_board_config(self):
+        with tempfile.TemporaryDirectory() as home:
+            runner._seed_hall_state(home)
+
+            invoker_path = os.path.join(home, ".hall", runner.ARENA_OWNER, "invoker.json")
+            with open(invoker_path) as f:
+                invoker = json.load(f)
+            self.assertEqual(invoker["mode"], "invoker")
+
+            config_path = os.path.join(
+                home, ".hall", runner.ARENA_OWNER, runner.ARENA_REPO, "config.json")
+            with open(config_path) as f:
+                config = json.load(f)
+            self.assertEqual(config["board_project_number"], str(runner.ARENA_BOARD_NUMBER))
+            self.assertEqual(config["automation_level"], 0)
+
+    def test_idempotent_does_not_overwrite_existing(self):
+        with tempfile.TemporaryDirectory() as home:
+            runner._seed_hall_state(home)
+            config_path = os.path.join(
+                home, ".hall", runner.ARENA_OWNER, runner.ARENA_REPO, "config.json")
+            with open(config_path, "w") as f:
+                json.dump({"automation_level": 2}, f)
+
+            runner._seed_hall_state(home)
+
+            with open(config_path) as f:
+                config = json.load(f)
+            self.assertEqual(config["automation_level"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

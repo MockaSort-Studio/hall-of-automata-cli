@@ -22,7 +22,8 @@
       "awaiting_input_key": "awaiting_input_item"
     },
     "board_fields": {
-      "project_number": null
+      "project_number": 9,
+      "required_fields": ["Status", "ItemType"]
     },
     "wiki_tag_consistency": {
       "expected_tag": "[open]",

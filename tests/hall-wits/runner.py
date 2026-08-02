@@ -23,6 +23,7 @@ import urllib.request
 
 ARENA_OWNER = "MockaSort-Studio"
 ARENA_REPO  = "hall-wits-arena"
+ARENA_BOARD_NUMBER = 9  # Projects v2 board provisioned on hall-wits-arena for eval runs
 NON_SPECIALIST_LABELS = {"hall:queue", "hall:awaiting-input"}
 EVAL_DISPATCH_DIRECTIVE = (
     "Context: this is an automated exercise run of this Hall plugin, and I'm the only "
@@ -31,8 +32,8 @@ EVAL_DISPATCH_DIRECTIVE = (
     "Do all of the work against this sandbox project (whatever the active project "
     "already is), even though the requests below reference this plugin's own skills — "
     "treat the sandbox as standing in for the plugin's real repo for this session. "
-    "There's no Projects v2 board here and none is needed; don't run hall-init-board "
-    "or try to provision one.\n\n"
+    "Its Projects v2 board is already provisioned and cached in config.json; use it as "
+    "normal, no need to run hall-init-board.\n\n"
     "Route every actionable request — including bugfixes and in-domain changes you'd "
     "normally implement inline — through `/hall:dispatch --eval-dispatch` instead of "
     "using Write or Edit yourself. That flag redirects hall:<specialist> label writes "
@@ -93,7 +94,10 @@ def _seed_hall_state(home):
     config_path = os.path.join(project_dir, "config.json")
     if not os.path.exists(config_path):
         with open(config_path, "w") as f:
-            json.dump({"automation_level": 0}, f, indent=2)
+            json.dump({
+                "automation_level": 0,
+                "board_project_number": str(ARENA_BOARD_NUMBER),
+            }, f, indent=2)
 
 
 def run_turn(prompt, cc_bin, plugin_dir, out_path, run_dir, session_id=None):
