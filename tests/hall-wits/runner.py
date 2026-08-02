@@ -182,9 +182,9 @@ def main():
     print(f"loaded {len(prompts)} turn prompts")
 
     open_path = os.path.join(run_dir, "turn-0-open.jsonl")
-    print("running /hall:open (session bootstrap)...")
+    print("running /hall-of-automata-cli:hall-open (session bootstrap)...")
     open_lines = run_turn(
-        "/hall:open",
+        "/hall-of-automata-cli:hall-open",
         args.cc_bin, args.plugin_dir, open_path, run_dir,
     )
     session_id = extract_session_id(open_lines)

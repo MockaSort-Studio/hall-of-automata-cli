@@ -282,7 +282,11 @@ def main():
     results = run_checks(args.run_dir, args.expected_json, token)
     passed = all(r.passed for r in results)
     for r in results:
-        print(f"{'✅' if r.passed else '❌'} {r.name}: {r.detail}")
+        if r.detail.startswith("skipped"):
+            symbol = "⏭️"
+        else:
+            symbol = "✅" if r.passed else "❌"
+        print(f"{symbol} {r.name}: {r.detail}")
     sys.exit(0 if passed else 1)
 
 if __name__ == "__main__":
