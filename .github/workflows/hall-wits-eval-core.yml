@@ -79,7 +79,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
-          python3 scripts/tests/hall-wits/runner.py \
+          python3 -u scripts/tests/hall-wits/runner.py \
             fixtures/golden-path-01 \
             "$GITHUB_WORKSPACE/run-dir" \
             --plugin-dir "$GITHUB_WORKSPACE/pr-plugin" \
