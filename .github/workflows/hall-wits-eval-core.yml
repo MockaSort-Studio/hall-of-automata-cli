@@ -63,7 +63,7 @@ jobs:
       - name: Run eval — turns 1 and 2
         continue-on-error: true
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
           python3 scripts/tests/hall-wits/runner.py \
@@ -82,16 +82,72 @@ jobs:
             scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
             2>&1 | tee checker-output.txt
 
+      - name: Prepare Popotron judge
+        id: judge-prep
+        env:
+          GH_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          ARENA="repos/MockaSort-Studio/hall-wits-arena/contents"
+          FIXTURE="fixtures/golden-path-01"
+          RUN_DIR="$GITHUB_WORKSPACE/run-dir"
+
+          gh api "$ARENA/judge/popotron.md" --jq '.content' | base64 -d > CLAUDE.md
+          gh api "$ARENA/$FIXTURE/groundtruth/calibration.json" --jq '.content' \
+            | base64 -d | jq '.' > "$RUN_DIR/calibration.json"
+          gh api "$ARENA/$FIXTURE/task.json" --jq '.content' \
+            | base64 -d | jq '.' > "$RUN_DIR/task.json"
+
+          turn1=$(jq -rs '[.[] | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text] | join("\n\n")' \
+            "$RUN_DIR/turn-1.jsonl" 2>/dev/null)
+          [ -z "$turn1" ] && turn1="(empty)"
+          turn2=$(jq -rs '[.[] | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text] | join("\n\n")' \
+            "$RUN_DIR/turn-2.jsonl" 2>/dev/null)
+          [ -z "$turn2" ] && turn2="(empty)"
+
+          plan_text="(not produced)"
+          [ -f "$RUN_DIR/eval-dispatch-plan.json" ] && plan_text=$(cat "$RUN_DIR/eval-dispatch-plan.json")
+
+          {
+            printf '## Fixture\n\n'
+            jq '.' "$RUN_DIR/task.json"
+            printf '\n## Groundtruth Calibration\n\n'
+            jq '.' "$RUN_DIR/calibration.json"
+            printf '\n## Turn 1 Transcript (assistant messages)\n\n'
+            printf '%s' "$turn1"
+            printf '\n\n## Turn 2 Transcript (assistant messages)\n\n'
+            printf '%s' "$turn2"
+            printf '\n\n## eval-dispatch-plan.json\n\n'
+            printf '%s' "$plan_text"
+          } > "$RUN_DIR/judge-prompt.txt"
+
+          {
+            echo 'user_prompt<<POPOTRON_EOF'
+            cat "$RUN_DIR/judge-prompt.txt"
+            echo 'POPOTRON_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run Popotron judge
+        id: popotron
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: >-
+            --dangerously-skip-permissions
+            --model claude-opus-5
+            --json-schema '{"type":"object","properties":{"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"}},"required":["id","score","justification"]}}},"required":["dimensions"]}'
+          prompt: ${{ steps.judge-prep.outputs.user_prompt }}
+
+      - name: Collect Popotron scores
         continue-on-error: true
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+          JUDGE_STRUCTURED_OUTPUT: ${{ steps.popotron.outputs.structured_output }}
         run: |
-          PYTHONPATH=scripts/tests/hall-wits python3 scripts/tests/hall-wits/judge.py \
+          python3 scripts/tests/hall-wits/judge-scores.py \
             "$GITHUB_WORKSPACE/run-dir" \
-            fixtures/golden-path-01 \
             --judge-model claude-opus-5 \
+            --test-model claude-sonnet-4-6 \
             2>&1 | tee judge-output.txt
 
       - name: Generate report
