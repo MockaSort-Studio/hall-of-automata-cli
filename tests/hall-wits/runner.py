@@ -92,7 +92,8 @@ def run_turn(prompt, cc_bin, plugin_dir, out_path, run_dir, session_id=None):
     env["GH_TOKEN"] = arena_token
     env["GITHUB_TOKEN"] = arena_token
     env["GITHUB_PERSONAL_ACCESS_TOKEN"] = arena_token
-    cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json", "--verbose"]
+    cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json", "--verbose",
+           "--dangerously-skip-permissions"]
     if plugin_dir:
         cmd += ["--plugin-dir", os.path.abspath(plugin_dir)]
     if session_id:
