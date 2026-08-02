@@ -21,6 +21,19 @@ jobs:
       run-id: ${{ steps.run.outputs.run_id }}
 
     steps:
+      # actions/checkout wipes the target directory on its first checkout of
+      # a given path (regardless of clean:), so this must run before any
+      # other step writes to the workspace root. claude-code-action shells
+      # out to git (user.name config, rev-parse --git-path, etc.) against
+      # $GITHUB_WORKSPACE, which otherwise has no .git at all — neither of
+      # the other checkouts below targets the root, they use pr-plugin/ and
+      # scripts/. Uses the PR's SHA, not master, since this run is grading
+      # the PR's code.
+      - name: Checkout repo root for Claude Code Action
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.plugin-sha }}
+
       - name: Checkout PR plugin code
         uses: actions/checkout@v4
         with:
@@ -81,16 +94,6 @@ jobs:
             "$GITHUB_WORKSPACE/run-dir" \
             scripts/tests/hall-wits/fixtures/golden-path-01-expected.json \
             2>&1 | tee checker-output.txt
-
-      - name: Checkout repo root for Claude Code Action
-        # claude-code-action shells out to git (user.name config, rev-parse,
-        # etc.) against $GITHUB_WORKSPACE. Neither prior checkout targets the
-        # workspace root, so without this the action fails with
-        # "fatal: not a git repository".
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          clean: false
 
       - name: Prepare Popotron judge
         id: judge-prep
