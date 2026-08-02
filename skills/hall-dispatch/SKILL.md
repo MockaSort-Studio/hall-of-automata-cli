@@ -103,7 +103,7 @@ For each task in dispatch order, spaced 15 seconds apart:
 
 **Board write:** Read `skills/hall-dispatch/board-write.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and execute the **dispatch-write** procedure. For CLI-flow issues, this transitions the board item from Backlog (set by board-provision) to In Progress.
 
-**Under `--eval-dispatch`:** after all tasks are processed, write `eval-dispatch-plan.json` to the working directory. `plan_id` uses UTC timestamp format `eval-YYYYMMDD-HHMMSS`; `saga` is the saga wiki URL from dispatch context (empty string if none):
+**Under `--eval-dispatch`:** after all tasks are processed, write `eval-dispatch-plan.json` to the working directory. If it already exists (from an earlier `--eval-dispatch` invocation in this same session — e.g. a prior turn's dispatch), read it and **append** a new wave to its existing `waves` array instead of overwriting the file: a multi-turn session must accumulate every wave it ever dispatched, not just the most recent one. Keep the file's existing `plan_id`, `generated_at`, and `saga` unchanged on append — those are set once, on first creation only. New wave number is `1 + the highest existing wave number` (or `1` if the file didn't exist yet). `plan_id` on first creation uses UTC timestamp format `eval-YYYYMMDD-HHMMSS`; `saga` is the saga wiki URL from dispatch context (empty string if none):
 
 ```json
 {

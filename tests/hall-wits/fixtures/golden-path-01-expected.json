@@ -13,8 +13,7 @@
     },
     "sub_issue_wiring": {
       "okr_title_prefix": "OKR",
-      "kr_title_prefix": "KR",
-      "item_title_prefix": "Item"
+      "kr_title_prefix": "KR"
     },
     "no_dispatch_invariant": {
       "blocked_parent_key": "blocked_parent",

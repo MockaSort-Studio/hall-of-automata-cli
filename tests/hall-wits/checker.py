@@ -168,14 +168,18 @@ def chk_okr_gate(run_dir, exp, run_issues, manifest):
 
 
 def chk_sub_issue_wiring(exp, run_issues, manifest, owner, repo, token):
+    """OKR->KR wiring is checked by title (hall-okr/SKILL.md documents a
+    strict "[KR N.M] <outcome>" format). KR->Item is checked by the mere
+    existence of any native sub-issue, not by title — hall-decompose/SKILL.md
+    documents no title convention for Items (only an unused issue-template
+    default does), so titles like "Implement /hall:archive command" are
+    normal, correct output that a title-prefix filter can never recognize."""
     seeded = set(manifest["issues"].values())
     created = [i for i in run_issues if i["number"] not in seeded]
     okrs = [i for i in created if title_matches(i["title"], exp["okr_title_prefix"])]
     krs = [i for i in created if title_matches(i["title"], exp["kr_title_prefix"])]
-    items = [i for i in created if title_matches(i["title"], exp["item_title_prefix"])]
-    if not okrs and not krs and not items:
-        return CheckResult("sub_issue_wiring", True, "skipped — no OKR/KR/Item created this run")
-    item_nums = {i["number"] for i in items}
+    if not okrs and not krs:
+        return CheckResult("sub_issue_wiring", True, "skipped — no OKR/KR created this run")
     kr_nums = {k["number"] for k in krs}
     errors = []
     for okr in okrs:
@@ -183,12 +187,11 @@ def chk_sub_issue_wiring(exp, run_issues, manifest, owner, repo, token):
         if not subs & kr_nums:
             errors.append(f"OKR #{okr['number']}: no KR sub-issue")
     for kr in krs:
-        subs = {s["number"] for s in _sub_issues(owner, repo, kr["number"], token)}
-        if not subs & item_nums:
+        if not _sub_issues(owner, repo, kr["number"], token):
             errors.append(f"KR #{kr['number']}: no Item sub-issue")
     if errors:
         return CheckResult("sub_issue_wiring", False, "; ".join(errors))
-    return CheckResult("sub_issue_wiring", True, f"ok (okrs={len(okrs)} krs={len(krs)} items={len(items)})")
+    return CheckResult("sub_issue_wiring", True, f"ok (okrs={len(okrs)} krs={len(krs)})")
 
 
 def chk_no_dispatch_invariant(exp, manifest, owner, repo, token):

@@ -58,7 +58,6 @@ EXPECTED = {
         "sub_issue_wiring": {
             "okr_title_prefix": "OKR",
             "kr_title_prefix": "KR",
-            "item_title_prefix": "Item",
         },
         "no_dispatch_invariant": {
             "blocked_parent_key": "blocked_parent",
@@ -155,6 +154,22 @@ class TestChkSubIssueWiring(unittest.TestCase):
         r = checker.chk_sub_issue_wiring(self.EXP, RUN_ISSUES[:5], MANIFEST, "o", "r", "t")
         self.assertTrue(r.passed)
         self.assertIn("skipped", r.detail)
+
+    def test_item_with_no_title_convention_still_counts(self):
+        """Regression guard: hall-decompose/SKILL.md documents no title
+        format for Items (unlike OKR/KR) — a real run titled its Item
+        "Implement /hall:archive command" with no prefix at all, and that's
+        normal, correct output, not a wiring failure."""
+        run_issues = RUN_ISSUES[:7] + [
+            {"number": 202, "title": "Implement /hall:archive command",
+             "state": "open", "labels": []},
+        ]
+
+        def fake_subs(owner, repo, num, token):
+            return {200: [{"number": 201}], 201: [{"number": 202}]}.get(num, [])
+        with patch("checker._sub_issues", side_effect=fake_subs):
+            r = checker.chk_sub_issue_wiring(self.EXP, run_issues, MANIFEST, "o", "r", "t")
+        self.assertTrue(r.passed)
 
 
 class TestChkNoDispatchInvariant(unittest.TestCase):

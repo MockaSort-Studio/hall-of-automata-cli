@@ -104,7 +104,15 @@ jobs:
           FIXTURE="fixtures/golden-path-01"
           RUN_DIR="$GITHUB_WORKSPACE/run-dir"
 
-          gh api "$ARENA/judge/popotron.md" --jq '.content' | base64 -d > CLAUDE.md
+          # Persona goes into the prompt text itself, not CLAUDE.md: partway
+          # through its own bootstrap, claude-code-action restores CLAUDE.md
+          # (and .claude/, .mcp.json, etc.) from origin/master as an
+          # anti-injection measure ("PR head is untrusted"), clobbering
+          # anything written here before Popotron ever starts reasoning. A
+          # CLAUDE.md-based persona silently never takes effect — Popotron
+          # ends up reasoning under hall-of-automata-cli's own generic
+          # CLAUDE.md instead of its judge identity.
+          persona=$(gh api "$ARENA/judge/popotron.md" --jq '.content' | base64 -d)
           gh api "$ARENA/$FIXTURE/groundtruth/calibration.json" --jq '.content' \
             | base64 -d | jq '.' > "$RUN_DIR/calibration.json"
           gh api "$ARENA/$FIXTURE/task.json" --jq '.content' \
@@ -121,6 +129,7 @@ jobs:
           [ -f "$RUN_DIR/eval-dispatch-plan.json" ] && plan_text=$(cat "$RUN_DIR/eval-dispatch-plan.json")
 
           {
+            printf '%s\n\n---\n\n' "$persona"
             printf '## Fixture\n\n'
             jq '.' "$RUN_DIR/task.json"
             printf '\n## Groundtruth Calibration\n\n'
@@ -143,6 +152,13 @@ jobs:
         id: popotron
         continue-on-error: true
         uses: anthropics/claude-code-action@v1
+        env:
+          # Real credentials for hall-wits-arena so Popotron's persona-mandated
+          # verification (gh issue view, sub_issues, project item-list) is an
+          # actual tool call, not a fabricated "verified live" claim repeating
+          # the run's own self-report back as an independent finding.
+          GH_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
