@@ -117,7 +117,7 @@ jobs:
             printf '\n\n## Turn 2 Transcript (assistant messages)\n\n'
             printf '%s' "$turn2"
             printf '\n\n## eval-dispatch-plan.json\n\n'
-            printf '%s' "$plan_text"
+            printf '%s\n' "$plan_text"
           } > "$RUN_DIR/judge-prompt.txt"
 
           {
