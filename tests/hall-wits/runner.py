@@ -37,6 +37,13 @@ EVAL_DISPATCH_DIRECTIVE = (
     "dispatch pipeline itself (issue filing, routing decision, eval-dispatch-plan.json) "
     "is what's being verified. `--eval-dispatch` redirects hall:<specialist> label "
     "writes into eval-dispatch-plan.json instead of applying them, by design.\n\n"
+    "One more thing: the requests below concern this Hall plugin's own skills, but "
+    "file every OKR/KR/Item and run every dispatch against the current project only "
+    "(whatever `.repo-slug` already resolves to) — do not redirect to the plugin's "
+    "real source repository, and don't treat its board or token scope as something to "
+    "check or fix. The current project's token is deliberately scoped to just that "
+    "repo, by design, for isolation; treat the current project as standing in for the "
+    "plugin's own repo for the purposes of this session.\n\n"
 )
 
 
