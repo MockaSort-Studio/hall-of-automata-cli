@@ -130,6 +130,11 @@ class TestChkSubIssueWiring(unittest.TestCase):
             self.assertFalse(r.passed)
             self.assertIn("OKR", r.detail)
 
+    def test_skipped_when_nothing_created(self):
+        r = checker.chk_sub_issue_wiring(self.EXP, RUN_ISSUES[:5], MANIFEST, "o", "r", "t")
+        self.assertTrue(r.passed)
+        self.assertIn("skipped", r.detail)
+
 
 class TestChkNoDispatchInvariant(unittest.TestCase):
     EXP = EXPECTED["checks"]["no_dispatch_invariant"]
@@ -156,18 +161,56 @@ class TestChkNoDispatchInvariant(unittest.TestCase):
 
 
 class TestChkBoardFields(unittest.TestCase):
+    EXP_PROJECT = {"project_number": 8}
+
     def test_skipped_when_no_project(self):
-        r = checker.chk_board_fields({"project_number": None})
+        r = checker.chk_board_fields({"project_number": None}, [], {}, "o", "r", "t")
         self.assertTrue(r.passed)
         self.assertIn("skipped", r.detail)
+
+    def test_skipped_when_no_issues_created(self):
+        r = checker.chk_board_fields(self.EXP_PROJECT, RUN_ISSUES[:5], MANIFEST, "o", "r", "t")
+        self.assertTrue(r.passed)
+        self.assertIn("skipped", r.detail)
+
+    def test_pass_when_fields_set(self):
+        with patch("checker._project_item_fields",
+                    return_value={"Status": "In Progress", "ItemType": "OKR"}):
+            r = checker.chk_board_fields(self.EXP_PROJECT, RUN_ISSUES, MANIFEST, "o", "r", "t")
+            self.assertTrue(r.passed)
+
+    def test_fail_when_not_on_board(self):
+        with patch("checker._project_item_fields", return_value=None):
+            r = checker.chk_board_fields(self.EXP_PROJECT, RUN_ISSUES, MANIFEST, "o", "r", "t")
+            self.assertFalse(r.passed)
+            self.assertIn("not added to project board", r.detail)
+
+    def test_fail_when_status_missing(self):
+        with patch("checker._project_item_fields", return_value={"ItemType": "OKR"}):
+            r = checker.chk_board_fields(self.EXP_PROJECT, RUN_ISSUES, MANIFEST, "o", "r", "t")
+            self.assertFalse(r.passed)
+            self.assertIn("Status", r.detail)
 
 
 class TestChkWikiTagConsistency(unittest.TestCase):
     EXP = EXPECTED["checks"]["wiki_tag_consistency"]
 
-    def test_pass_no_forbidden_writes(self):
+    def test_skipped_when_no_wiki_calls(self):
         with tempfile.TemporaryDirectory() as d:
-            self.assertTrue(checker.chk_wiki_tag_consistency(d, self.EXP).passed)
+            r = checker.chk_wiki_tag_consistency(d, self.EXP)
+            self.assertTrue(r.passed)
+            self.assertIn("skipped", r.detail)
+
+    def test_pass_wiki_write_without_forbidden_tag(self):
+        ev = json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use",
+            "name": "Bash",
+            "input": {"command": "gh api /repos/x/y.wiki.git -f 'title=Saga-3-[open]'"}}]}})
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "turn-1.jsonl"), "w") as f:
+                f.write(ev + "\n")
+            r = checker.chk_wiki_tag_consistency(d, self.EXP)
+            self.assertTrue(r.passed)
+            self.assertNotIn("skipped", r.detail)
 
     def test_fail_wiki_closed_tag_in_transcript(self):
         ev = json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use",

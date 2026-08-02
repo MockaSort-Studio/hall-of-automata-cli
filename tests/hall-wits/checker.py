@@ -39,6 +39,71 @@ def _sub_issues(owner, repo, number, token):
     return _gh_get(f"/repos/{owner}/{repo}/issues/{number}/sub_issues", token) or []
 
 
+def _gh_graphql(query, variables, token):
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=json.dumps({"query": query, "variables": variables}).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/vnd.github+json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as r:
+        result = json.loads(r.read())
+    if result.get("errors"):
+        raise RuntimeError(f"GraphQL errors: {result['errors']}")
+    return result.get("data") or {}
+
+
+_PROJECT_ITEM_FIELDS_QUERY = """
+query($owner:String!, $repo:String!, $number:Int!) {
+  repository(owner:$owner, name:$repo) {
+    issue(number:$number) {
+      projectItems(first: 10) {
+        nodes {
+          project { number }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2FieldCommon { name } }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field { ... on ProjectV2FieldCommon { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def _project_item_fields(owner, repo, issue_number, project_number, token):
+    """Field name -> value for issue_number's item on project_number, or None if not on that board."""
+    data = _gh_graphql(
+        _PROJECT_ITEM_FIELDS_QUERY,
+        {"owner": owner, "repo": repo, "number": issue_number},
+        token,
+    )
+    issue = ((data.get("repository") or {}).get("issue")) or {}
+    for node in (issue.get("projectItems") or {}).get("nodes", []):
+        if str((node.get("project") or {}).get("number")) != str(project_number):
+            continue
+        fields = {}
+        for fv in (node.get("fieldValues") or {}).get("nodes", []):
+            name = ((fv.get("field") or {}).get("name"))
+            if name:
+                fields[name] = fv.get("name") or fv.get("text")
+        return fields
+    return None
+
+
 def _tool_calls_from(run_dir, *turns):
     calls = []
     for turn in turns:
@@ -97,6 +162,8 @@ def chk_sub_issue_wiring(exp, run_issues, manifest, owner, repo, token):
     okrs = [i for i in created if i["title"].startswith(exp["okr_title_prefix"])]
     krs = [i for i in created if i["title"].startswith(exp["kr_title_prefix"])]
     items = [i for i in created if i["title"].startswith(exp["item_title_prefix"])]
+    if not okrs and not krs and not items:
+        return CheckResult("sub_issue_wiring", True, "skipped — no OKR/KR/Item created this run")
     item_nums = {i["number"] for i in items}
     kr_nums = {k["number"] for k in krs}
     errors = []
@@ -132,28 +199,50 @@ def chk_no_dispatch_invariant(exp, manifest, owner, repo, token):
     return CheckResult("no_dispatch_invariant", True, "ok")
 
 
-def chk_board_fields(exp):
-    if not exp.get("project_number"):
+def chk_board_fields(exp, run_issues, manifest, owner, repo, token):
+    project_number = exp.get("project_number")
+    if not project_number:
         return CheckResult("board_fields", True, "skipped — project_number not set in fixture")
-    # TODO: implement GraphQL board field check
-    return CheckResult("board_fields", False, "project_number set but GraphQL board check not implemented")
+    seeded = set(manifest.get("issues", {}).values())
+    created = [i for i in run_issues if i["number"] not in seeded]
+    if not created:
+        return CheckResult("board_fields", True, "skipped — no OKR/KR/Item created this run")
+    required = exp.get("required_fields", ["Status", "ItemType"])
+    errors = []
+    for issue in created:
+        fields = _project_item_fields(owner, repo, issue["number"], project_number, token)
+        if fields is None:
+            errors.append(f"#{issue['number']}: not added to project board")
+            continue
+        missing = [f for f in required if not fields.get(f)]
+        if missing:
+            errors.append(f"#{issue['number']}: missing field(s) {missing}")
+    if errors:
+        return CheckResult("board_fields", False, "; ".join(errors))
+    return CheckResult("board_fields", True, f"ok ({len(created)} issue(s) verified on board)")
 
 
 def chk_wiki_tag_consistency(run_dir, exp):
     forbidden = exp.get("forbidden_tag", "[closed]")
     calls = _tool_calls_from(run_dir, "turn-1.jsonl", "turn-2.jsonl")
+    wiki_calls = 0
     for c in calls:
         payload = json.dumps(c.get("input") or {}).lower()
-        if "wiki" in payload and forbidden.lower() in payload:
+        if "wiki" not in payload:
+            continue
+        wiki_calls += 1
+        if forbidden.lower() in payload:
             return CheckResult("wiki_tag_consistency", False,
                                f"wiki write with '{forbidden}' tag: {c.get('name')} {payload[:80]}")
+    if wiki_calls == 0:
+        return CheckResult("wiki_tag_consistency", True, "skipped — no wiki-related tool calls this run")
     tag = exp.get("expected_tag", "[open]")
     return CheckResult("wiki_tag_consistency", True, f"ok — no '{forbidden}' tag writes detected (tag {tag} presumed unchanged)")
 
 
 def chk_run_tag_hygiene(exp, run_issues, manifest):
-    seeded_count = len(manifest.get("issues", {}))
-    created = len(run_issues) - seeded_count
+    seeded = set(manifest.get("issues", {}).values())
+    created = len([i for i in run_issues if i["number"] not in seeded])
     min_created = exp.get("min_created_count", 1)
     if created < min_created:
         return CheckResult("run_tag_hygiene", False, f"{created} issue(s) created during run, expected ≥{min_created}")
@@ -175,7 +264,7 @@ def run_checks(run_dir, expected_path, token):
         chk_okr_gate(run_dir, chks["okr_gate"], run_issues, manifest),
         chk_sub_issue_wiring(chks["sub_issue_wiring"], run_issues, manifest, owner, repo, token),
         chk_no_dispatch_invariant(chks["no_dispatch_invariant"], manifest, owner, repo, token),
-        chk_board_fields(chks["board_fields"]),
+        chk_board_fields(chks["board_fields"], run_issues, manifest, owner, repo, token),
         chk_wiki_tag_consistency(run_dir, chks["wiki_tag_consistency"]),
         chk_run_tag_hygiene(chks["run_tag_hygiene"], run_issues, manifest),
     ]
