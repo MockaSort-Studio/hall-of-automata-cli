@@ -60,7 +60,7 @@ def run_turn(prompt, cc_bin, plugin_dir, out_path, run_dir, session_id=None):
     if not os.path.exists(slug):
         open(slug, "w").write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
     env = {**os.environ, "HOME": home}
-    cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json"]
+    cmd = [cc_bin, "--print", prompt, "--output-format", "stream-json", "--verbose"]
     if plugin_dir:
         cmd += ["--plugin-dir", os.path.abspath(plugin_dir)]
     if session_id:
