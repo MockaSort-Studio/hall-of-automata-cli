@@ -22,7 +22,9 @@
     },
     "board_fields": {
       "project_number": 9,
-      "required_fields": ["Status", "ItemType"]
+      "required_fields": ["Status", "ItemType"],
+      "okr_title_prefix": "OKR",
+      "kr_title_prefix": "KR"
     },
     "wiki_tag_consistency": {
       "expected_tag": "[open]",

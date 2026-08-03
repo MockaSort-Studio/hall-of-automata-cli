@@ -177,6 +177,16 @@ jobs:
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             > report.md
 
+      - name: Snapshot GitHub artifacts
+        if: always() && steps.run.outputs.run_id != ''
+        env:
+          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
+        run: |
+          python3 scripts/tests/hall-wits/snapshot.py \
+            ${{ steps.run.outputs.run_id }} \
+            "$GITHUB_WORKSPACE/run-dir" \
+            --project-number 9
+
       - name: Upload run artifacts
         if: always() && steps.run.outputs.run_id != ''
         uses: actions/upload-artifact@v4

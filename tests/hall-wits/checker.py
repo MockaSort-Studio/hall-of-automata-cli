@@ -214,6 +214,12 @@ def chk_no_dispatch_invariant(exp, manifest, owner, repo, token):
 
 
 def chk_board_fields(exp, run_issues, manifest, owner, repo, token):
+    """Status is checked for presence only — any of Backlog/In Design/In
+    Progress/Done is legitimate depending on stage. ItemType is checked
+    against the issue's own determined category (via the same title_matches
+    OKR/KR prefixes sub_issue_wiring uses) where determinable — "some value
+    is set" was too weak a bar; an OKR issue with ItemType=KR would have
+    passed the old check."""
     project_number = exp.get("project_number")
     if not project_number:
         return CheckResult("board_fields", True, "skipped — project_number not set in fixture")
@@ -222,6 +228,8 @@ def chk_board_fields(exp, run_issues, manifest, owner, repo, token):
     if not created:
         return CheckResult("board_fields", True, "skipped — no OKR/KR/Item created this run")
     required = exp.get("required_fields", ["Status", "ItemType"])
+    okr_prefix = exp.get("okr_title_prefix")
+    kr_prefix = exp.get("kr_title_prefix")
     errors = []
     for issue in created:
         fields = _project_item_fields(owner, repo, issue["number"], project_number, token)
@@ -231,6 +239,16 @@ def chk_board_fields(exp, run_issues, manifest, owner, repo, token):
         missing = [f for f in required if not fields.get(f)]
         if missing:
             errors.append(f"#{issue['number']}: missing field(s) {missing}")
+            continue
+        expected_type = None
+        if okr_prefix and title_matches(issue["title"], okr_prefix):
+            expected_type = "OKR"
+        elif kr_prefix and title_matches(issue["title"], kr_prefix):
+            expected_type = "KR"
+        if expected_type and fields.get("ItemType") != expected_type:
+            errors.append(
+                f"#{issue['number']}: ItemType is {fields.get('ItemType')!r}, expected {expected_type!r}"
+            )
     if errors:
         return CheckResult("board_fields", False, "; ".join(errors))
     return CheckResult("board_fields", True, f"ok ({len(created)} issue(s) verified on board)")

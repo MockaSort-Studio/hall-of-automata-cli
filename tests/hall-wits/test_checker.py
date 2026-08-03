@@ -227,6 +227,30 @@ class TestChkBoardFields(unittest.TestCase):
             self.assertFalse(r.passed)
             self.assertIn("Status", r.detail)
 
+    EXP_PROJECT_TYPED = {"project_number": 8, "okr_title_prefix": "OKR", "kr_title_prefix": "KR"}
+
+    def test_pass_when_itemtype_matches_category(self):
+        def fake_fields(owner, repo, num, project_number, token):
+            return {200: {"Status": "Backlog", "ItemType": "OKR"},
+                    201: {"Status": "Backlog", "ItemType": "KR"},
+                    202: {"Status": "Backlog", "ItemType": "Item"}}[num]
+        with patch("checker._project_item_fields", side_effect=fake_fields):
+            r = checker.chk_board_fields(self.EXP_PROJECT_TYPED, RUN_ISSUES, MANIFEST, "o", "r", "t")
+        self.assertTrue(r.passed)
+
+    def test_fail_when_okr_has_wrong_itemtype(self):
+        """Regression guard: "some value is set" was too weak — an OKR
+        issue tagged ItemType=KR on the board used to pass silently."""
+        def fake_fields(owner, repo, num, project_number, token):
+            return {200: {"Status": "Backlog", "ItemType": "KR"},  # wrong: should be OKR
+                    201: {"Status": "Backlog", "ItemType": "KR"},
+                    202: {"Status": "Backlog", "ItemType": "Item"}}[num]
+        with patch("checker._project_item_fields", side_effect=fake_fields):
+            r = checker.chk_board_fields(self.EXP_PROJECT_TYPED, RUN_ISSUES, MANIFEST, "o", "r", "t")
+        self.assertFalse(r.passed)
+        self.assertIn("ItemType", r.detail)
+        self.assertIn("200", r.detail)
+
 
 class TestChkWikiTagConsistency(unittest.TestCase):
     EXP = EXPECTED["checks"]["wiki_tag_consistency"]

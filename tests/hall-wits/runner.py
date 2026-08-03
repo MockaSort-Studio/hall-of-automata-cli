@@ -25,20 +25,26 @@ ARENA_OWNER = "MockaSort-Studio"
 ARENA_REPO  = "hall-wits-arena"
 ARENA_BOARD_NUMBER = 9  # Projects v2 board provisioned on hall-wits-arena for eval runs
 NON_SPECIALIST_LABELS = {"hall:queue", "hall:awaiting-input"}
-EVAL_DISPATCH_DIRECTIVE = (
-    "Context: this is an automated exercise run of this Hall plugin, and I'm the only "
-    "invoker in this session — proceed autonomously through Design, Goal Formalization, "
-    "Plan, and Dispatch without pausing for confirmation at any step.\n\n"
-    "Do all of the work against this sandbox project (whatever the active project "
-    "already is), even though the requests below reference this plugin's own skills — "
-    "treat the sandbox as standing in for the plugin's real repo for this session. "
-    "Its Projects v2 board is already provisioned and cached in config.json; use it as "
-    "normal, no need to run hall-init-board.\n\n"
-    "Route every actionable request — including bugfixes and in-domain changes you'd "
-    "normally implement inline — through `/hall:dispatch --eval-dispatch` instead of "
-    "using Write or Edit yourself. That flag redirects hall:<specialist> label writes "
-    "into eval-dispatch-plan.json instead of applying them, by design.\n\n"
-)
+def eval_dispatch_directive(run_id):
+    return (
+        "Context: this is an automated exercise run of this Hall plugin, and I'm the only "
+        "invoker in this session — proceed autonomously through Design, Goal Formalization, "
+        "Plan, and Dispatch without pausing for confirmation at any step.\n\n"
+        "Do all of the work against this sandbox project (whatever the active project "
+        "already is), even though the requests below reference this plugin's own skills — "
+        "treat the sandbox as standing in for the plugin's real repo for this session. "
+        "Its Projects v2 board is already provisioned and cached in config.json; use it as "
+        "normal, no need to run hall-init-board.\n\n"
+        "Route every actionable request — including bugfixes and in-domain changes you'd "
+        "normally implement inline — through `/hall:dispatch --eval-dispatch` instead of "
+        "using Write or Edit yourself. That flag redirects hall:<specialist> label writes "
+        "into eval-dispatch-plan.json instead of applying them, by design.\n\n"
+        f"One more thing, for this harness's own bookkeeping: apply the label `run:{run_id}` "
+        "to every issue you create this session, in addition to whatever real labels are "
+        "correct. It's how this eval's cleanup step finds and removes everything afterward — "
+        "distinct from the hall:<specialist> labels --eval-dispatch already redirects, and "
+        "harmless to the scenario itself.\n\n"
+    )
 
 
 def _gh_get(path, token):
@@ -192,8 +198,11 @@ def main():
     if not token:
         sys.exit("error: HALL_WITS_ARENA_TOKEN not set")
     run_dir = os.path.abspath(args.run_dir)
-    if not os.path.exists(os.path.join(run_dir, "manifest.json")):
+    manifest_path = os.path.join(run_dir, "manifest.json")
+    if not os.path.exists(manifest_path):
         sys.exit(f"error: manifest.json not found in {run_dir} — run provision.py first")
+    with open(manifest_path) as f:
+        run_id = json.load(f)["run_id"]
 
     prompts = fetch_prompts(args.fixture_path, token)
     print(f"loaded {len(prompts)} turn prompts")
@@ -212,7 +221,7 @@ def main():
     t1_path  = os.path.join(run_dir, "turn-1.jsonl")
     print("running turn 1...")
     t1_lines = run_turn(
-        EVAL_DISPATCH_DIRECTIVE + prompts[0],
+        eval_dispatch_directive(run_id) + prompts[0],
         args.cc_bin, args.plugin_dir, t1_path, run_dir, session_id,
     )
     session_id = extract_session_id(t1_lines) or session_id
