@@ -142,10 +142,44 @@ def format_report(runs):
     return "\n".join(lines)
 
 
+def structural_ok(run):
+    return not any(line.strip().startswith("❌") for line in run["checker_out"].splitlines())
+
+
+def release_verdict(runs):
+    """Release gate policy: unanimous structural checks, majority calibration.
+
+    Structural checks are deterministic verification of what Old Major
+    actually did to real GitHub state — any failure is a real bug and
+    always blocks. Calibration agreement is Popotron's subjective score,
+    with acknowledged run-to-run noise — 2 of 3 agreeing is enough.
+    """
+    if not runs:
+        return False, ["no iteration artifacts found"]
+    reasons = []
+    failing = [r["name"] for r in runs if not structural_ok(r)]
+    if failing:
+        reasons.append(f"structural checks failed in: {', '.join(failing)}")
+    cal = [r["scores"]["calibration_agreement"] for r in runs if "calibration_agreement" in r["scores"]]
+    agree = sum(1 for c in cal if c)
+    if not cal or agree * 2 < len(cal):
+        reasons.append(f"calibration agreement {agree}/{len(cal)} — majority required")
+    return (not reasons), reasons
+
+
 def main():
-    if len(sys.argv) != 2:
-        sys.exit("usage: aggregate.py <iterations_dir>")
-    runs = _load_runs(sys.argv[1])
+    args = [a for a in sys.argv[1:] if a != "--verdict"]
+    verdict_mode = "--verdict" in sys.argv[1:]
+    if len(args) != 1:
+        sys.exit("usage: aggregate.py <iterations_dir> [--verdict]")
+
+    runs = _load_runs(args[0])
+    if verdict_mode:
+        ok, reasons = release_verdict(runs)
+        for reason in reasons:
+            print(f"::error::{reason}")
+        sys.exit(0 if ok else 1)
+
     print(format_report(runs))
 
 

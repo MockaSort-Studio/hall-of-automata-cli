@@ -37,6 +37,10 @@ jobs:
   eval:
     needs: check-version
     if: needs.check-version.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        iteration: [1, 2, 3]
     uses: ./.github/workflows/hall-wits-eval-core.yml
     with:
       plugin-sha: ${{ github.sha }}
@@ -49,22 +53,25 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download eval artifacts
+      # A matrixed reusable-workflow job only exposes the LAST instance's
+      # outputs via needs.*.outputs, so run-id can't be read directly —
+      # download by the shared hall-wits-run-* name prefix instead.
+      - uses: actions/checkout@v4
+
+      - name: Download all iteration artifacts
         uses: actions/download-artifact@v4
         with:
-          name: hall-wits-run-${{ needs.eval.outputs.run-id }}
+          pattern: hall-wits-run-*
+          path: iterations
+          if-no-files-found: warn
+
+      - name: Aggregate iterations
+        run: |
+          python3 tests/hall-wits/aggregate.py iterations > aggregate-report.md
 
       - name: Verify eval verdict
         run: |
-          if grep -q '❌' checker-output.txt; then
-            echo "::error::Checker reported failures — release blocked"
-            exit 1
-          fi
-          cal_ok=$(jq -r '.calibration_agreement' run-dir/judge-scores.json 2>/dev/null || echo "false")
-          if [ "$cal_ok" != "true" ]; then
-            echo "::error::Judge calibration mismatch — release blocked"
-            exit 1
-          fi
+          python3 tests/hall-wits/aggregate.py iterations --verdict
 
       - name: Create release
         env:
@@ -74,5 +81,5 @@ jobs:
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
             --target "${{ github.sha }}" \
-            --notes-file report.md \
+            --notes-file aggregate-report.md \
             --repo "$GITHUB_REPOSITORY"

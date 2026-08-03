@@ -109,6 +109,42 @@ class TestAggregate(unittest.TestCase):
         self.assertIn("hall-wits-run-a", report)
         self.assertIn("hall-wits-run-b", report)
 
+    def test_release_verdict_passes_when_all_structural_and_majority_calibration(self):
+        runs = [
+            {"name": "a", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": True}},
+            {"name": "b", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": True}},
+            {"name": "c", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": False}},
+        ]
+        ok, reasons = aggregate.release_verdict(runs)
+        self.assertTrue(ok)
+        self.assertEqual(reasons, [])
+
+    def test_release_verdict_fails_on_any_structural_failure(self):
+        """Structural checks are deterministic — one failing iteration always blocks."""
+        runs = [
+            {"name": "a", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": True}},
+            {"name": "b", "checker_out": "❌ chk_a: bad", "scores": {"calibration_agreement": True}},
+            {"name": "c", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": True}},
+        ]
+        ok, reasons = aggregate.release_verdict(runs)
+        self.assertFalse(ok)
+        self.assertIn("b", reasons[0])
+
+    def test_release_verdict_fails_on_minority_calibration_agreement(self):
+        runs = [
+            {"name": "a", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": True}},
+            {"name": "b", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": False}},
+            {"name": "c", "checker_out": "✅ chk_a: ok", "scores": {"calibration_agreement": False}},
+        ]
+        ok, reasons = aggregate.release_verdict(runs)
+        self.assertFalse(ok)
+        self.assertIn("calibration agreement 1/3", reasons[0])
+
+    def test_release_verdict_fails_on_empty_runs(self):
+        ok, reasons = aggregate.release_verdict([])
+        self.assertFalse(ok)
+        self.assertIn("no iteration artifacts found", reasons[0])
+
 
 if __name__ == "__main__":
     unittest.main()
