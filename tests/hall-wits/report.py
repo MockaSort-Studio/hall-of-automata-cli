@@ -7,6 +7,9 @@ Writes formatted markdown to stdout.
 import argparse
 import json
 import os
+import re
+
+ARENA_REF = "MockaSort-Studio/hall-wits-arena"
 
 
 def read_text(path, fallback="(unavailable)"):
@@ -15,6 +18,22 @@ def read_text(path, fallback="(unavailable)"):
             return f.read().strip() or fallback
     except FileNotFoundError:
         return fallback
+
+
+def defuse_issue_refs(text):
+    """A bare #N in judge prose always means an issue in hall-wits-arena —
+    that's the only repo the run touched. Two problems if left as plain
+    markdown text: (1) this report is posted as a PR comment on
+    hall-of-automata-cli, and GitHub auto-links bare #N to an issue in
+    whatever repo the comment actually lives in — silently pointing every
+    reference at an unrelated real issue in this repo's own history; (2)
+    even a correctly cross-repo-qualified link ("owner/repo#N") would still
+    resolve to nothing, since hall-wits-arena's cleanup step deletes every
+    issue the run touched right after this report is generated. Wrapping in
+    backticks renders it as inert code text — no link, wrong repo or dead
+    one — while still telling a reader which repo the number belongs to.
+    Skips refs already backtick-wrapped to avoid double-wrapping."""
+    return re.sub(r'(?<!`)#(\d+)\b(?!`)', rf'`{ARENA_REF.split("/")[-1]}#\1`', text)
 
 
 def format_judge_section(scores_path):
@@ -26,7 +45,8 @@ def format_judge_section(scores_path):
 
     dims = s.get("dimensions", [])
     rows = "\n".join(
-        f"| `{d.get('id', '?')}` | {d.get('score', '?')}/5 | {d.get('justification', '')[:80]} |"
+        f"| `{d.get('id', '?')}` | {d.get('score', '?')}/5 | "
+        f"{defuse_issue_refs(d.get('justification', ''))[:120]} |"
         for d in dims
     )
     table = "| Dimension | Score | Justification |\n|---|---|---|\n" + rows if rows else "(no dimensions scored)"
@@ -36,7 +56,8 @@ def format_judge_section(scores_path):
         derivation = d.get("derivation", "").strip()
         if derivation:
             derivation_blocks.append(
-                f"<details>\n<summary><code>{d.get('id', '?')}</code> — full derivation</summary>\n\n{derivation}\n\n</details>"
+                f"<details>\n<summary><code>{d.get('id', '?')}</code> — full derivation</summary>\n\n"
+                f"{defuse_issue_refs(derivation)}\n\n</details>"
             )
     if derivation_blocks:
         table = table + "\n\n" + "\n\n".join(derivation_blocks)
@@ -56,6 +77,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("run_dir")
     p.add_argument("--checker-out", default="checker-output.txt")
+    p.add_argument("--run-url", default="",
+                    help="Actions run URL — the durable audit trail, since "
+                         "hall-wits-arena's issues are deleted right after "
+                         "this report is generated")
     args = p.parse_args()
 
     manifest_path = os.path.join(args.run_dir, "manifest.json")
@@ -70,6 +95,11 @@ def main():
     checker_out = read_text(args.checker_out)
     judge_table, judge_summary = format_judge_section(
         os.path.join(args.run_dir, "judge-scores.json")
+    )
+
+    audit_note = (
+        f"\n[Full run detail — transcripts, tool calls, raw judge output]({args.run_url})\n"
+        if args.run_url else ""
     )
 
     print(f"""\
@@ -89,6 +119,11 @@ def main():
 
 {judge_summary}
 
+Issue numbers above are `hall-wits-arena` references, shown as plain text —
+that repo is reset and every issue the run touched is deleted right after
+this report is generated, so a live link would either point at the wrong
+repo or at nothing at all.
+{audit_note}
 ---
 *// Popotron \U0001f52e — pipeline sealed*""")
 
