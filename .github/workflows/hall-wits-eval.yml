@@ -22,10 +22,10 @@ jobs:
     steps:
       - name: Start trigger + check run
         id: trigger
-        uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/start@b6c0f11851bc3df2a9bf7f9e3f335082c466874a
+        uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/start@993d2dda1e172fa1f06a7d218f32c4bd66303fde
         with:
           check-name: hall-wits-eval
-          trigger-phrase: ":crystal_ball:"
+          trigger-phrase: ":crystal_ball:|🔮"
           in-progress-title: "Hall Wits eval running"
           in-progress-summary: "Provisioning, running the golden task, checking, and judging…"
           ack-comment: ":crystal_ball: Popotron stirs... running the golden task."
@@ -63,7 +63,7 @@ jobs:
 
       - name: Finish trigger + check run
         if: always()
-        uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/finish@b6c0f11851bc3df2a9bf7f9e3f335082c466874a
+        uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/finish@993d2dda1e172fa1f06a7d218f32c4bd66303fde
         with:
           check-run-id: ${{ needs.gate.outputs.check-run-id }}
           status: ${{ needs.pipeline.result }}
