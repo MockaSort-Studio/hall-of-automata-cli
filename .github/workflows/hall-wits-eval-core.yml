@@ -21,19 +21,6 @@ jobs:
       run-id: ${{ steps.run.outputs.run_id }}
 
     steps:
-      # actions/checkout wipes the target directory on its first checkout of
-      # a given path (regardless of clean:), so this must run before any
-      # other step writes to the workspace root. claude-code-action shells
-      # out to git (user.name config, rev-parse --git-path, etc.) against
-      # $GITHUB_WORKSPACE, which otherwise has no .git at all — neither of
-      # the other checkouts below targets the root, they use pr-plugin/ and
-      # scripts/. Uses the PR's SHA, not master, since this run is grading
-      # the PR's code.
-      - name: Checkout repo root for Claude Code Action
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.plugin-sha }}
-
       - name: Checkout PR plugin code
         uses: actions/checkout@v4
         with:
@@ -104,14 +91,9 @@ jobs:
           FIXTURE="fixtures/golden-path-01"
           RUN_DIR="$GITHUB_WORKSPACE/run-dir"
 
-          # Persona goes into the prompt text itself, not CLAUDE.md: partway
-          # through its own bootstrap, claude-code-action restores CLAUDE.md
-          # (and .claude/, .mcp.json, etc.) from origin/master as an
-          # anti-injection measure ("PR head is untrusted"), clobbering
-          # anything written here before Popotron ever starts reasoning. A
-          # CLAUDE.md-based persona silently never takes effect — Popotron
-          # ends up reasoning under hall-of-automata-cli's own generic
-          # CLAUDE.md instead of its judge identity.
+          # Persona goes straight into the prompt text — Popotron runs in an
+          # isolated directory with no repo of its own, so there's no
+          # CLAUDE.md to write it to in the first place.
           persona=$(gh api "$ARENA/judge/popotron.md" --jq '.content' | base64 -d)
           gh api "$ARENA/$FIXTURE/groundtruth/calibration.json" --jq '.content' \
             | base64 -d | jq '.' > "$RUN_DIR/calibration.json"
@@ -142,31 +124,38 @@ jobs:
             printf '%s\n' "$plan_text"
           } > "$RUN_DIR/judge-prompt.txt"
 
-          {
-            echo 'user_prompt<<POPOTRON_EOF'
-            cat "$RUN_DIR/judge-prompt.txt"
-            echo 'POPOTRON_EOF'
-          } >> "$GITHUB_OUTPUT"
-
       - name: Run Popotron judge
         id: popotron
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
         env:
-          # Real credentials for hall-wits-arena so Popotron's persona-mandated
-          # verification (gh issue view, sub_issues, project item-list) is an
-          # actual tool call, not a fabricated "verified live" claim repeating
-          # the run's own self-report back as an independent finding.
+          # Plain `claude` CLI, invoked the same way runner.py invokes it for
+          # turns 1/2 — isolated cwd, no --plugin-dir, no repo checked out
+          # here at all. anthropics/claude-code-action was doing its own
+          # checkout-and-restore of hall-of-automata-cli's real repo at the
+          # workspace root as part of its normal operation, which gave
+          # Popotron ambient visibility into this repo's actual OKRs/KRs/
+          # board and repeatedly pulled its judgment toward that real state
+          # instead of the fixture's. A bare CLI call in a fresh directory
+          # has nothing to "look into" besides the prompt it's given.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           GH_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
           HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: >-
-            --dangerously-skip-permissions
-            --model claude-opus-5
-            --json-schema '{"type":"object","properties":{"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"}},"required":["id","score","justification"]}}},"required":["dimensions"]}'
-          prompt: ${{ steps.judge-prep.outputs.user_prompt }}
+        run: |
+          RUN_DIR="$GITHUB_WORKSPACE/run-dir"
+          JUDGE_DIR=$(mktemp -d)
+          cd "$JUDGE_DIR"
+          claude --print "$(cat "$RUN_DIR/judge-prompt.txt")" \
+            --output-format json \
+            --model claude-opus-5 \
+            --dangerously-skip-permissions \
+            --json-schema '{"type":"object","properties":{"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"}},"required":["id","score","justification"]}}},"required":["dimensions"]}' \
+            > "$RUN_DIR/popotron-raw.json"
+
+          {
+            echo 'structured_output<<POPOTRON_SCORES_EOF'
+            jq -c '.structured_output // {}' "$RUN_DIR/popotron-raw.json"
+            echo 'POPOTRON_SCORES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Collect Popotron scores
         continue-on-error: true
