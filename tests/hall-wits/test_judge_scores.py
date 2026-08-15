@@ -77,6 +77,24 @@ class TestWriteJudgeScores(unittest.TestCase):
         return run_dir
 
     def test_writes_judge_scores(self):
+        structured = json.dumps({
+            "assessment": "Clean run, one minor gap on scope discipline.",
+            "dimensions": [
+                {"id": "adaptability", "score": 4, "justification": "Good"},
+                {"id": "okr_gate",     "score": 5, "justification": "Excellent"},
+            ],
+        })
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = self._setup_run_dir(tmpdir, CALIBRATION)
+            with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
+                judge_scores.collect(run_dir, "claude-opus-5", "claude-sonnet-4-6")
+            scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
+            self.assertTrue(scores["calibration_agreement"])
+            self.assertAlmostEqual(scores["overall"], 4.5)
+            self.assertEqual(len(scores["dimensions"]), 2)
+            self.assertEqual(scores["assessment"], "Clean run, one minor gap on scope discipline.")
+
+    def test_missing_assessment_defaults_empty(self):
         structured = json.dumps({"dimensions": [
             {"id": "adaptability", "score": 4, "justification": "Good"},
             {"id": "okr_gate",     "score": 5, "justification": "Excellent"},
@@ -86,9 +104,7 @@ class TestWriteJudgeScores(unittest.TestCase):
             with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
                 judge_scores.collect(run_dir, "claude-opus-5", "claude-sonnet-4-6")
             scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
-            self.assertTrue(scores["calibration_agreement"])
-            self.assertAlmostEqual(scores["overall"], 4.5)
-            self.assertEqual(len(scores["dimensions"]), 2)
+            self.assertEqual(scores["assessment"], "")
 
     def test_missing_env_var_exits(self):
         with tempfile.TemporaryDirectory() as tmpdir:

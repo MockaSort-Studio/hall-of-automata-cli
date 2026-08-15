@@ -34,10 +34,6 @@ jobs:
   pipeline:
     needs: gate
     if: needs.gate.outputs.triggered == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        iteration: [1, 2, 3]
     uses: ./.github/workflows/hall-wits-eval-core.yml
     with:
       plugin-sha: ${{ needs.gate.outputs.head-sha }}
@@ -51,38 +47,40 @@ jobs:
       pull-requests: write
       checks: write
     steps:
-      # A matrixed reusable-workflow job only exposes the LAST instance's
-      # outputs via needs.*.outputs — each iteration's run-id is unrecoverable
-      # that way. All 3 iterations still upload under the shared
-      # `hall-wits-run-*` name prefix (random per-iteration suffix), so
-      # pattern-matching sidesteps the matrix-outputs limitation entirely.
-      - name: Checkout aggregate script from master
-        uses: actions/checkout@v4
-        with:
-          ref: master
-
-      - name: Download all iteration artifacts
+      - name: Download run artifact
+        if: needs.pipeline.outputs.run-id != ''
         uses: actions/download-artifact@v4
         with:
-          pattern: hall-wits-run-*
-          path: iterations
-          if-no-files-found: warn
+          name: hall-wits-run-${{ needs.pipeline.outputs.run-id }}
+          path: run
 
-      - name: Aggregate iterations
+      # Structural checks are deterministic verification of what Old Major
+      # actually did to real GitHub state — any failure is a real bug, and
+      # must fail this check run, not just get reported informationally in
+      # the PR comment as it did before.
+      - name: Check structural gate
+        id: gate-check
+        if: needs.pipeline.outputs.run-id != ''
         run: |
-          python3 tests/hall-wits/aggregate.py iterations > aggregate-report.md
+          if grep -q '❌' run/checker-output.txt 2>/dev/null; then
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Structural checks failed — see checker-output.txt in the run artifact"
+          else
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Post assessment comment
+        if: needs.pipeline.outputs.run-id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr comment ${{ github.event.issue.number }} \
-            --body-file aggregate-report.md --repo "$GITHUB_REPOSITORY"
+            --body-file run/report.md --repo "$GITHUB_REPOSITORY"
 
       - name: Finish trigger + check run
         if: always()
         uses: MockaSort-Studio/actions/.github/actions/pr-comment-trigger/finish@993d2dda1e172fa1f06a7d218f32c4bd66303fde
         with:
           check-run-id: ${{ needs.gate.outputs.check-run-id }}
-          status: ${{ needs.pipeline.result }}
+          status: ${{ (needs.pipeline.result == 'success' && steps.gate-check.outputs.passed != 'false') && 'success' || 'failure' }}
           token: ${{ secrets.GITHUB_TOKEN }}

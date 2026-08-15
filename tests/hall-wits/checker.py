@@ -282,6 +282,13 @@ def chk_run_tag_hygiene(exp, run_issues, manifest):
 
 
 def run_checks(run_dir, expected_path, token):
+    """Each check is isolated — one API failure (rate limit, transient
+    error, a concurrent actor deleting an issue) reports as a failing
+    result for that check alone, never as an uncaught exception. A crash
+    used to abort the whole script before it printed anything, and its
+    traceback would then get swept up by the report/aggregation layer as
+    if it were check output — this is the fix for that failure class, not
+    just this one instance of it."""
     with open(expected_path) as f:
         expected = json.load(f)
     with open(os.path.join(run_dir, "manifest.json")) as f:
@@ -289,16 +296,34 @@ def run_checks(run_dir, expected_path, token):
     owner = expected["arena_owner"]
     repo = expected["arena_repo"]
     provisioned_at = manifest["provisioned_at"]
-    run_issues = _list_issues(owner, repo, provisioned_at, token)
     chks = expected["checks"]
+
+    def safe(name, fn):
+        try:
+            return fn()
+        except Exception as e:
+            return CheckResult(name, False, f"crashed: {e}")
+
+    run_issues = None
+    list_error = None
+    try:
+        run_issues = _list_issues(owner, repo, provisioned_at, token)
+    except Exception as e:
+        list_error = str(e)
+
+    def needs_issues(name, fn):
+        if list_error is not None:
+            return CheckResult(name, False, f"crashed: could not list issues — {list_error}")
+        return safe(name, fn)
+
     return [
-        chk_eval_dispatch_plan(run_dir, chks["eval_dispatch_plan"]),
-        chk_okr_gate(run_dir, chks["okr_gate"], run_issues, manifest),
-        chk_sub_issue_wiring(chks["sub_issue_wiring"], run_issues, manifest, owner, repo, token),
-        chk_no_dispatch_invariant(chks["no_dispatch_invariant"], manifest, owner, repo, token),
-        chk_board_fields(chks["board_fields"], run_issues, manifest, owner, repo, token),
-        chk_wiki_tag_consistency(run_dir, chks["wiki_tag_consistency"]),
-        chk_run_tag_hygiene(chks["run_tag_hygiene"], run_issues, manifest),
+        safe("eval_dispatch_plan", lambda: chk_eval_dispatch_plan(run_dir, chks["eval_dispatch_plan"])),
+        needs_issues("okr_gate", lambda: chk_okr_gate(run_dir, chks["okr_gate"], run_issues, manifest)),
+        needs_issues("sub_issue_wiring", lambda: chk_sub_issue_wiring(chks["sub_issue_wiring"], run_issues, manifest, owner, repo, token)),
+        safe("no_dispatch_invariant", lambda: chk_no_dispatch_invariant(chks["no_dispatch_invariant"], manifest, owner, repo, token)),
+        needs_issues("board_fields", lambda: chk_board_fields(chks["board_fields"], run_issues, manifest, owner, repo, token)),
+        safe("wiki_tag_consistency", lambda: chk_wiki_tag_consistency(run_dir, chks["wiki_tag_consistency"])),
+        needs_issues("run_tag_hygiene", lambda: chk_run_tag_hygiene(chks["run_tag_hygiene"], run_issues, manifest)),
     ]
 
 

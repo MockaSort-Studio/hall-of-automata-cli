@@ -294,5 +294,56 @@ class TestChkRunTagHygiene(unittest.TestCase):
         self.assertFalse(r.passed)
 
 
+class TestRunChecks(unittest.TestCase):
+    """A crash anywhere (e.g. a 410 from a deleted issue) must degrade to a
+    failing result for the affected check(s), never propagate as an
+    uncaught exception — that's what used to blank the whole report."""
+
+    def _write_fixtures(self, d):
+        with open(os.path.join(d, "manifest.json"), "w") as f:
+            json.dump(MANIFEST, f)
+        exp_path = os.path.join(d, "expected.json")
+        with open(exp_path, "w") as f:
+            json.dump(EXPECTED, f)
+        return exp_path
+
+    def test_list_issues_failure_degrades_dependent_checks_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            exp_path = self._write_fixtures(d)
+            with patch("checker._list_issues", side_effect=RuntimeError("GET ... -> 410")), \
+                 patch("checker._sub_issues", return_value=[]), \
+                 patch("checker._gh_get", return_value={"state": "open",
+                       "labels": [{"name": "hall:awaiting-input"}]}):
+                results = checker.run_checks(d, exp_path, "t")
+
+        self.assertEqual(len(results), 7)
+        by_name = {r.name: r for r in results}
+        for name in ("okr_gate", "sub_issue_wiring", "board_fields", "run_tag_hygiene"):
+            self.assertFalse(by_name[name].passed)
+            self.assertIn("crashed", by_name[name].detail)
+        # Checks that don't depend on the issue listing still run normally.
+        self.assertTrue(by_name["no_dispatch_invariant"].passed)
+        self.assertTrue(by_name["wiki_tag_consistency"].passed)
+
+    def test_single_check_crash_does_not_abort_the_rest(self):
+        with tempfile.TemporaryDirectory() as d:
+            exp_path = self._write_fixtures(d)
+            with patch("checker._list_issues", return_value=RUN_ISSUES), \
+                 patch("checker._sub_issues", side_effect=RuntimeError("GET ... -> 410")), \
+                 patch("checker._gh_get", return_value={"state": "open",
+                       "labels": [{"name": "hall:awaiting-input"}]}):
+                results = checker.run_checks(d, exp_path, "t")
+
+        self.assertEqual(len(results), 7)
+        by_name = {r.name: r for r in results}
+        self.assertFalse(by_name["sub_issue_wiring"].passed)
+        self.assertIn("crashed", by_name["sub_issue_wiring"].detail)
+        self.assertFalse(by_name["no_dispatch_invariant"].passed)
+        self.assertIn("crashed", by_name["no_dispatch_invariant"].detail)
+        # Checks untouched by the crashing call still report normally.
+        self.assertFalse(by_name["eval_dispatch_plan"].passed)
+        self.assertIn("file not found", by_name["eval_dispatch_plan"].detail)
+
+
 if __name__ == "__main__":
     unittest.main()

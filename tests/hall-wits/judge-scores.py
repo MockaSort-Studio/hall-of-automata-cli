@@ -60,6 +60,7 @@ def collect(run_dir, judge_model, test_model):
         "fixture_id":             manifest["fixture_id"],
         "judge_model":            judge_model,
         "test_model":             test_model,
+        "assessment":             parsed.get("assessment", ""),
         "dimensions":             dims,
         "overall":                round(sum(d["score"] for d in dims) / len(dims), 2) if dims else 0,
         "calibration_agreement":  len(mismatches) == 0,
@@ -70,6 +71,8 @@ def collect(run_dir, judge_model, test_model):
     with open(out_path, "w") as f:
         f.write(json.dumps(scores, indent=2) + "\n")
     print(f"scores -> {out_path}")
+    if scores["assessment"]:
+        print(f"  assessment: {scores['assessment'][:120]}")
     for d in dims:
         print(f"  [{d['score']}/5] {d['id']}: {d['justification'][:80]}")
 

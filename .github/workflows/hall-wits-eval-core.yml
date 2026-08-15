@@ -110,6 +110,12 @@ jobs:
           plan_text="(not produced)"
           [ -f "$RUN_DIR/eval-dispatch-plan.json" ] && plan_text=$(cat "$RUN_DIR/eval-dispatch-plan.json")
 
+          # checker.py already verified these facts against live GitHub state
+          # for free — handing the result to the judge as given fact instead
+          # of asking it to re-derive the same thing itself via live gh calls.
+          checker_text="(not available)"
+          [ -f "$GITHUB_WORKSPACE/checker-output.txt" ] && checker_text=$(cat "$GITHUB_WORKSPACE/checker-output.txt")
+
           {
             printf '%s\n\n---\n\n' "$persona"
             printf '## Fixture\n\n'
@@ -122,6 +128,8 @@ jobs:
             printf '%s' "$turn2"
             printf '\n\n## eval-dispatch-plan.json\n\n'
             printf '%s\n' "$plan_text"
+            printf '\n\n## Structural Checker Results (already verified against live GitHub state — trust these, do not re-derive them)\n\n'
+            printf '%s\n' "$checker_text"
           } > "$RUN_DIR/judge-prompt.txt"
 
       - name: Run Popotron judge
@@ -137,9 +145,12 @@ jobs:
           # board and repeatedly pulled its judgment toward that real state
           # instead of the fixture's. A bare CLI call in a fresh directory
           # has nothing to "look into" besides the prompt it's given.
+          #
+          # No GH_TOKEN/HALL_WITS_ARENA_TOKEN here — Popotron judges from the
+          # prompt alone now (transcript + checker.py's already-verified
+          # structural results). It has no reason to hold live credentials
+          # to re-fetch facts a free deterministic script already checked.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          GH_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
-          HALL_WITS_ARENA_TOKEN: ${{ secrets.HALL_WITS_ARENA_TOKEN }}
         run: |
           RUN_DIR="$GITHUB_WORKSPACE/run-dir"
           JUDGE_DIR=$(mktemp -d)
@@ -148,7 +159,7 @@ jobs:
             --output-format json \
             --model claude-sonnet-5 \
             --dangerously-skip-permissions \
-            --json-schema '{"type":"object","properties":{"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"},"derivation":{"type":"string"}},"required":["id","score","justification","derivation"]}}},"required":["dimensions"]}' \
+            --json-schema '{"type":"object","properties":{"assessment":{"type":"string"},"dimensions":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"score":{"type":"integer"},"justification":{"type":"string"},"derivation":{"type":"string"}},"required":["id","score","justification","derivation"]}}},"required":["assessment","dimensions"]}' \
             > "$RUN_DIR/popotron-raw.json"
 
           {

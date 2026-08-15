@@ -37,10 +37,6 @@ jobs:
   eval:
     needs: check-version
     if: needs.check-version.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        iteration: [1, 2, 3]
     uses: ./.github/workflows/hall-wits-eval-core.yml
     with:
       plugin-sha: ${{ github.sha }}
@@ -53,25 +49,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      # A matrixed reusable-workflow job only exposes the LAST instance's
-      # outputs via needs.*.outputs, so run-id can't be read directly —
-      # download by the shared hall-wits-run-* name prefix instead.
-      - uses: actions/checkout@v4
-
-      - name: Download all iteration artifacts
+      - name: Download run artifact
+        if: needs.eval.outputs.run-id != ''
         uses: actions/download-artifact@v4
         with:
-          pattern: hall-wits-run-*
-          path: iterations
-          if-no-files-found: warn
+          name: hall-wits-run-${{ needs.eval.outputs.run-id }}
+          path: run
 
-      - name: Aggregate iterations
-        run: |
-          python3 tests/hall-wits/aggregate.py iterations > aggregate-report.md
-
+      # Structural checks and judge calibration are the release gate —
+      # any structural failure, or a calibration mismatch, blocks the
+      # release outright. No separate verdict script for a single run;
+      # this is the whole gate.
       - name: Verify eval verdict
         run: |
-          python3 tests/hall-wits/aggregate.py iterations --verdict
+          if [ ! -f run/checker-output.txt ]; then
+            echo "::error::no eval run artifact found — cannot verify release gate"
+            exit 1
+          fi
+          if grep -q '❌' run/checker-output.txt; then
+            echo "::error::structural checks failed — see checker-output.txt"
+            exit 1
+          fi
+          if [ ! -f run/run-dir/judge-scores.json ] || \
+             [ "$(jq -r '.calibration_agreement' run/run-dir/judge-scores.json)" != "true" ]; then
+            echo "::error::judge calibration mismatch — see judge-scores.json"
+            exit 1
+          fi
 
       - name: Create release
         env:
@@ -81,5 +84,5 @@ jobs:
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
             --target "${{ github.sha }}" \
-            --notes-file aggregate-report.md \
+            --notes-file run/report.md \
             --repo "$GITHUB_REPOSITORY"

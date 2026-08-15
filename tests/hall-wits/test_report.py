@@ -80,6 +80,26 @@ class TestFormatJudgeSection(unittest.TestCase):
         self.assertIn("⚠️ mismatch", summary)
         self.assertIn("okr_gate: scored 1", summary)
 
+    def test_assessment_rendered_and_defused(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = self._write_scores(d, {
+                "assessment": "Solid run overall; see #74 for the one gap.",
+                "dimensions": [],
+                "overall": 4, "calibration_agreement": True, "calibration_mismatches": [],
+            })
+            _, summary = report.format_judge_section(path)
+        self.assertIn("**Assessment:**", summary)
+        self.assertIn("`hall-wits-arena#74`", summary)
+
+    def test_missing_assessment_omits_block(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = self._write_scores(d, {
+                "dimensions": [],
+                "overall": 4, "calibration_agreement": True, "calibration_mismatches": [],
+            })
+            _, summary = report.format_judge_section(path)
+        self.assertNotIn("**Assessment:**", summary)
+
 
 if __name__ == "__main__":
     unittest.main()

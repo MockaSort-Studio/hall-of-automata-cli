@@ -69,7 +69,9 @@ def format_judge_section(scores_path):
     cal_detail = ""
     if mismatches:
         cal_detail = "\n\n**Calibration mismatches:**\n" + "\n".join(f"- {m}" for m in mismatches)
-    summary = f"**Overall:** {overall}/5 | **Calibration:** {cal_mark}{cal_detail}"
+    assessment = defuse_issue_refs(s.get("assessment", "").strip())
+    assessment_block = f"**Assessment:** {assessment}\n\n" if assessment else ""
+    summary = f"{assessment_block}**Overall:** {overall}/5 | **Calibration:** {cal_mark}{cal_detail}"
     return table, summary
 
 
