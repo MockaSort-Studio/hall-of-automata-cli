@@ -2,7 +2,9 @@
 
 Dependency-free Node CLI wrapping the GitHub state-model operations Hall's Pi
 migration needs, on top of the `gh` CLI's existing auth. Built for KR 7.1 (#356)
-Item #363 — replaces repeated raw `gh api` calls with tested, cached commands.
+Item #363 — replaces repeated raw `gh api` calls with tested, live-resolved
+commands. No local cache anywhere — GitHub is the sole source of truth,
+every id (field, category, discussion node) is resolved fresh on every call.
 
 Run with `node cli.mjs <group> <action> --flag value ...`. All flags are
 `--key value`; repeat `--label` for multiple labels.
@@ -20,9 +22,10 @@ project add-item   --org ORG --project 8 --url <issue-url>
 project item-id    --org ORG --project 8 --number 360
 project set-field  --org ORG --project 8 --item <itemId> --field Status --value Todo
 
-discussion comment --owner ORG --repo repo --number 5 --body "text"
-```
+discussion create        --owner ORG --repo repo --title "..." --body "..." --category General
+discussion comment        --owner ORG --repo repo --number 5 --body "text"
+discussion list-comments  --owner ORG --repo repo --number 5 [--limit 20]
+discussion delete         --owner ORG --repo repo --number 5
 
-Field/option ids for `project set-field` are resolved live from `field-list` on
-every call — no local mirror of any GitHub state, per Saga 1's design law
-(GitHub is the sole source of truth; nothing formalized gets cached to disk).
+repo set-discussions --repo org/repo --enabled true
+```

@@ -3,7 +3,8 @@ import { createIssue, viewIssue } from "./lib/issues.mjs";
 import { addSubIssue, listSubIssues } from "./lib/subissues.mjs";
 import { addBlockedBy } from "./lib/dependencies.mjs";
 import { addItem, findItemId, setField } from "./lib/project.mjs";
-import { commentOnDiscussion } from "./lib/discussions.mjs";
+import { createDiscussion, commentOnDiscussion, listComments, deleteDiscussion } from "./lib/discussions.mjs";
+import { setDiscussionsEnabled } from "./lib/repo.mjs";
 
 function flags(argv) {
   const out = {};
@@ -39,7 +40,13 @@ async function main() {
   if (group === "project" && action === "set-field") {
     return setField(f.org, Number(f.project), f.item, f.field, f.value);
   }
+  if (group === "discussion" && action === "create") {
+    return createDiscussion(f.owner, f.repo, f.title, f.body, f.category);
+  }
   if (group === "discussion" && action === "comment") return commentOnDiscussion(f.owner, f.repo, Number(f.number), f.body);
+  if (group === "discussion" && action === "list-comments") return listComments(f.owner, f.repo, Number(f.number), f.limit ? Number(f.limit) : undefined);
+  if (group === "discussion" && action === "delete") return deleteDiscussion(f.owner, f.repo, Number(f.number));
+  if (group === "repo" && action === "set-discussions") return setDiscussionsEnabled(f.repo, f.enabled !== "false");
   throw new Error(`Unknown command: ${group} ${action}`);
 }
 
