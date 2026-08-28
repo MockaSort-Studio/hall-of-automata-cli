@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createRobot, baseModule, personaModule, roleModule } from "./lib/index.mjs";
+import { createRobot, baseModule, soulModule, roleModule } from "./lib/index.mjs";
 
 function flags(argv) {
   const out = {};
@@ -26,7 +26,7 @@ try {
 
   const body = createRobot()
     .install(baseModule, {})
-    .install(personaModule, { name: f.name })
+    .install(soulModule, { name: f.name })
     .install(roleModule, { name: f.name, role: f.role, task: f.task, override })
     .build();
 
