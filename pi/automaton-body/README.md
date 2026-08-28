@@ -1,27 +1,43 @@
 # automaton-body
 
 The programmatic "body" applied to a Hall specialist's "soul" — see the
-saga wiki's Specialist 2.0 appendix for the design. Implements
-`resolveSpecialist(name, mode, task)` for real, replacing the one-off
-inline assembly used for KR 7.2's first dispatch (#366).
+saga wiki's Specialist 2.0 appendix for the design. Implements role-based
+dispatch: Identity (soul + domain) vs Capacity (role chosen per task).
 
 ```
-node cli.mjs --name snowball --mode advising --task "..."
+node cli.mjs --name snowball --role advisor --task "..."
 ```
 
-Prints `{ instructions, tools }` as JSON — ready for `agents.create()`.
+Prints `{ instructions, tools, model?, thinking? }` as JSON — ready for `agents.create()`.
 
-- **Soul** (`lib/persona.mjs`) — `roster/<name>.md`, live-fetched, verbatim.
-- **Body, part 1** (`lib/base-contract.mjs`) — `agents/automaton_base.md`,
-  live-fetched, programmatically filtered to universal sections only
-  (Identity, Output, Modes, Prompt injection awareness, Hard stops, Blocked
-  or missing context, Tone). GitHub-Actions-runner and Doing-mode-only
-  sections dropped by code, not by hand-editing a copy.
-- **Body, part 2** (`lib/modes.mjs`) — our own tool taxonomy + overlay
-  contracts per mode. `doing` is absent from the table — pinned, structural,
-  not a flag.
-- **Eligibility** (`lib/catalog.mjs`) — `agents.json`'s `catalog.roles`,
-  read-only signal, never widens a tool grant.
+## Two Orthogonal Axes
 
-No local cache anywhere — every fetch is live, matching `pi-git-extension`'s
-discipline. Reuses its `gh.mjs` wrapper rather than duplicating it.
+**Identity** — fixed per specialist, extracted from persona:
+- Soul: `roster/<name>.md`, live-fetched, verbatim
+- Domain: `agents.json` `catalog.domains`
+
+**Capacity** — chosen per dispatch:
+- Role: `advisor | architect | researcher | developer | lead`
+- Each role: discipline + methodology + tools + default model/thinking
+- Model/effort can be dynamically overridden: `--model <name> --thinking <low|medium|high>`
+
+## Roles
+
+| Role | Status |
+|------|--------|
+| `advisor` | ✅ Proven (Snowball #366) |
+| `researcher` | Defined, not yet dispatched |
+| `architect` | Named, methodology stub |
+| `developer` | Pinned, absent |
+| `lead` | Named for KR 7.3, not yet wired |
+
+## Files
+
+- `lib/persona.mjs` — soul, `roster/<name>.md`
+- `lib/base-contract.mjs` — universal automaton contract, programmatically filtered
+- `lib/catalog.mjs` — `agents.json` roles/domains, eligibility signal
+- `lib/roles.mjs` — role definitions (discipline, methodology, tools, defaults)
+- `lib/resolve.mjs` — `installRole(name, role, task, override?)` orchestration
+- `cli.mjs` — thin wrapper, prints JSON
+
+No local cache — every fetch is live.

@@ -1,33 +1,49 @@
 import { fetchBaseAutomatonBody } from "./base-contract.mjs";
 import { fetchPersona } from "./persona.mjs";
 import { fetchCatalog } from "./catalog.mjs";
-import { MODE_PROFILES } from "./modes.mjs";
+import { ROLE_DEFINITIONS } from "./roles.mjs";
 
-export function resolveSpecialist(name, mode, task) {
-  const profile = MODE_PROFILES[mode];
-  if (!profile) {
-    throw new Error(`Mode "${mode}" is not implemented — "doing" is pinned for a future saga.`);
+export function installRole(
+  name,
+  role,
+  task,
+  override  // { model?, thinking? } — the lead's call when task complexity warrants it
+) {
+  const def = ROLE_DEFINITIONS[role];
+  if (!def) {
+    throw new Error(`Role "${role}" is not defined in this body.`);
   }
 
   const catalog = fetchCatalog(name);
-  if (profile.requiresRole && !catalog.roles.includes(profile.requiresRole)) {
-    throw new Error(`"${name}" has no "${profile.requiresRole}" role — not eligible for mode "${mode}".`);
+  if (def.requiresCatalogRole && !catalog.roles.includes(def.requiresCatalogRole)) {
+    throw new Error(
+      `"${name}" has no "${def.requiresCatalogRole}" catalog role — not eligible for "${role}" role.`
+    );
   }
 
   const baseContract = fetchBaseAutomatonBody();
   const persona = fetchPersona(name);
 
-  const instructions = [
+  const parts = [
     baseContract,
     "---\n# PERSONA",
     persona,
-    "---\n# MODE",
-    profile.modeDirective,
-    "---\n# TASK CONTRACT",
-    profile.overlay,
-    "---\n# YOUR TASK",
-    task,
-  ].join("\n\n");
+    "---\n# ROLE",
+    def.discipline,
+  ];
 
-  return { instructions, tools: profile.tools };
+  if (def.methodology) {
+    parts.push("---\n# METHODOLOGY", def.methodology);
+  }
+
+  parts.push("---\n# YOUR TASK", task);
+
+  const instructions = parts.join("\n\n");
+
+  return {
+    instructions,
+    tools: def.tools,
+    model: override?.model ?? def.defaultModel,
+    thinking: override?.thinking ?? def.defaultThinking,
+  };
 }
