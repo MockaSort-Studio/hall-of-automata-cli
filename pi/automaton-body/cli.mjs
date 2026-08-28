@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { installRole } from "./lib/resolve.mjs";
+import { createRobot, baseModule, personaModule, roleModule } from "./lib/index.mjs";
 
 function flags(argv) {
   const out = {};
@@ -15,7 +15,7 @@ function flags(argv) {
 const f = flags(process.argv.slice(2));
 if (!f.name || !f.role || !f.task) {
   console.error("Usage: node cli.mjs --name <specialist> --role <advisor|researcher|architect|lead> --task \"...\"");
-  console.error("       Optional: --model <model-name> --thinking <low|medium|high>");
+  console.error("       Optional: --model <model> --thinking <low|medium|high>");
   process.exit(1);
 }
 
@@ -24,8 +24,13 @@ try {
   if (f.model) override.model = f.model;
   if (f.thinking) override.thinking = f.thinking;
 
-  const result = installRole(f.name, f.role, f.task, Object.keys(override).length ? override : undefined);
-  console.log(JSON.stringify(result));
+  const body = createRobot()
+    .install(baseModule, {})
+    .install(personaModule, { name: f.name })
+    .install(roleModule, { name: f.name, role: f.role, task: f.task, override })
+    .build();
+
+  console.log(JSON.stringify(body));
 } catch (err) {
   console.error(err.message || err);
   process.exit(1);
