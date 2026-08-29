@@ -15,3 +15,13 @@ node cli.mjs --name snowball --role advisor --task "..."
 - KR 7.2 (#357) — single-specialist Stage Dispatch
 - Item #366 — proven with Snowball advisor
 - Crew State Model: Saga 2 appendix
+
+
+---
+
+⚠️ **DEPRECATION NOTICE**
+
+This module has been superseded by the pi-automata-crew implementation. Please migrate to the new crew-based automaton system.
+
+See: pi-automata-crew/docs/Spike-Findings.md for migration details.
+

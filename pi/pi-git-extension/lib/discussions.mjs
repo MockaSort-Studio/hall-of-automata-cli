@@ -72,3 +72,15 @@ export function deleteDiscussion(owner, repo, number) {
     "--jq", ".data.deleteDiscussion.discussion",
   ]);
 }
+
+export function updateDiscussion(owner, repo, number, title, body) {
+  const discussionId = discussionNodeId(owner, repo, number);
+  const mutation = "mutation($id:ID!,$title:String!,$body:String!){updateDiscussion(input:{id:$id,title:$title,body:$body}){discussion{id number url}}}";
+  return gh([
+    "api", "graphql", "-f", `query=${mutation}`,
+    "-F", `id=${discussionId}`,
+    "-F", `title=${title}`,
+    "-F", `body=${body}`,
+    "--jq", ".data.updateDiscussion.discussion",
+  ]);
+}

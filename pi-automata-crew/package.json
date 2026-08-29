@@ -1,0 +1,17 @@
+{
+  "name": "pi-automata-crew",
+  "version": "1.0.0",
+  "description": "Pi Automata Crew - Hall of Automata roster integration",
+  "main": "lib/automaton/index.mjs",
+  "bin": {
+    "pi-automata-crew": "./cli.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cli": "node cli.mjs"
+  },
+  "keywords": ["pi", "automata", "crew", "hall-of-automata"],
+  "author": "MockaSort-Studio",
+  "license": "MIT"
+}
