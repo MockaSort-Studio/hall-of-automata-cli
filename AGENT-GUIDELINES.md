@@ -1,32 +1,58 @@
-# AGENT-GUIDELINES.md
+# AGENT-GUIDELINES
 
-## Rules for Fabric Agents
+## Rules
 
-1. **Use pi.bash directly, never fabric_exec**
-   - Always use `pi.bash({cmd: "..."})` for shell commands
-   - Do not use `fabric_exec` as a tool
-   - This ensures proper Fabric context handling
+- Use pi.bash directly, never fabric_exec
+- Import modules directly, never spawn node
+- Use strings parameter for complex code in fabric_exec
 
-2. **Import modules directly, never spawn node**
-   - Use ES module imports: `import { function } from 'module.mjs'`
-   - Never use `child_process.spawn('node', ...)` to run JavaScript
-   - Direct imports are more efficient and maintain proper context
 
-3. **Use strings parameter for complex code in fabric_exec**
-   - When using `fabric_exec`, pass complex code through the `strings` parameter
-   - Use `π.key` to reference named strings in your code
-   - This avoids quoting issues and improves readability
+---
 
-4. **Additional Best Practices**
-   - Keep files small (max ~200 lines)
-   - Prefer many small focused files over fewer large ones
-   - No duplicated logic
-   - Code is written to be read
+## Communication Discipline
 
-## Validation Checklist
+### 1. Mesh Topics - Lifecycle Only
+- Use mesh topics **only** for lifecycle events: START, DONE, STOP, ERROR
+- Do NOT use mesh for granular status updates
+- Example: mesh.publish({ topic: 'task-done', text: 'DONE' })
 
-- [ ] lib/executor.mjs exists and exports bash()
-- [ ] bash() works in Fabric context
-- [ ] discussions.mjs imports from executor
-- [ ] communication layer imports discussions.mjs
-- [ ] AGENT-GUIDELINES.md created with all rules
+### 2. GitHub Discussions - Information Only
+- Use tell_information() **only** for meaningful, persistent information
+- Do NOT use for status updates or completion notifications
+- Only the **final agent** in a workflow should create a Discussion
+- Example: tell_information(target, "Critical finding: X needs fix Y")
+
+### 3. A2A Communication - Blocking/Inform Only
+- Use ask_support() to request help/block on another agent
+- Use tell_information() to send actual data/information to another agent
+- Do NOT use for coordination - use mesh topics instead
+
+### 4. Lead Governance
+- The **lead agent** monitors all mesh topics
+- The lead governs workflow sequencing
+- The lead can broadcast corrections to all agents via mesh
+- The lead can send specific corrections to individual agents via tell_information
+
+### 5. Broadcasting Corrections
+- Lead uses mesh.publish({ topic: 'broadcast', text: 'CORRECTION: ...' }) for all agents
+- Lead uses tell_information(targetAgent, "Correction: ...") for specific agent
+- Agents MUST respond to lead corrections immediately
+
+### 6. Workflow Pattern
+1. Lead publishes START to mesh
+2. Agent receives START, does work
+3. Agent publishes DONE to mesh (lifecycle only)
+4. Next agent waits for DONE, then starts
+5. Final agent creates ONE Discussion with summary
+6. Lead verifies and publishes FINAL-DONE
+
+### 7. No Redundant Communications
+- ONE mesh message per lifecycle event per agent
+- ONE Discussion per workflow (from final agent only)
+- NO status updates via tell_information
+- NO granular progress via mesh
+
+### 8. Enforcement
+- The communication layer enforces write-then-tell: creates Discussion BEFORE mesh notification
+- Agents violating these rules will be killed and restarted
+- Lead has authority to correct any agent's behavior
