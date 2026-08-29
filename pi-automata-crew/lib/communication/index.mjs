@@ -1,3 +1,4 @@
+import { bash } from "../../../lib/executor.mjs";
 import { createDiscussion, commentOnDiscussion, listComments, updateDiscussion } from "../../../pi-git-extension/lib/discussions.mjs";
 const DEFAULT_OWNER = "MockaSort-Studio";
 const DEFAULT_REPO = "hall-of-automata-cli";
@@ -27,3 +28,10 @@ export async function publish_event(topic, data) {
   await mesh.publish({ topic: topic, text: text });
 }
 export { createDiscussion, commentOnDiscussion, listComments, updateDiscussion };
+export function subscribe(topic) {
+  validateTopic(topic);
+  // In Fabric, we can't actually subscribe, but we can log it
+  // This is a placeholder for the subscription pattern
+  console.log('Subscribed to topic:', topic);
+  return { topic, status: 'subscribed' };
+}
