@@ -2,7 +2,7 @@ import { Type } from "typebox";
 
 function request(task, model, thinking) {
   const options = { task, ...(model ? { model } : {}), ...(thinking ? { thinking } : {}) };
-  const code = `const { startCrew } = await import("./pi-automata-crew/entrypoint.mjs");\nreturn await startCrew(${JSON.stringify(options)});`;
+  const code = `const { startCrew } = await import("./.pi/extensions/crew/lib/entrypoint.mjs");\nreturn await startCrew(${JSON.stringify(options)});`;
   return `Run this using fabric_exec exactly as written:\n\n${code}`;
 }
 

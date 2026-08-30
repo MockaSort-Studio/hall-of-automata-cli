@@ -1,4 +1,4 @@
-import { createRobot, baseModule, soulModule, roleModule, crewDisciplineModule } from "../pi/automaton-body/lib/index.mjs";
+import { createRobot, baseModule, soulModule, roleModule, crewDisciplineModule } from "./automaton-body/lib/index.mjs";
 
 /**
  * Main-side entrypoint. Run this module from fabric_exec.
