@@ -9,7 +9,8 @@ const rosterPath = (cwd, runId) => join(cwd, ".pi", "fabric", "crew-launch", `${
 const launchCode = path => [
   `const cfg = JSON.parse(await pi.read(${JSON.stringify(path)}));`,
   "const lead = await agents.create(cfg.lead);",
-  "return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: \"created\" };",
+  'await agents.tell({ id: lead.id, message: "Begin the work in your initial assignment." });',
+  "return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: \"started\" };",
 ].join("\n");
 const output = value => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
 

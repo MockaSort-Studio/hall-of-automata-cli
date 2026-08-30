@@ -12,6 +12,7 @@ test("initial dispatch uses kickoff constructor context, not a URL-only tell", (
   assert.match(protocol, /constructor context is the initial handoff/);
   assert.match(protocol, /Never use crew_tell or crew_ask merely/);
   assert.doesNotMatch(protocol, /publish START/);
+  assert.match(protocol, /Begin the work in your initial assignment/);
 });
 
 test("crew Discussion content is wrapper-owned", () => {

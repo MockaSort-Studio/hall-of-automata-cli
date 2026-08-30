@@ -23,8 +23,9 @@ create a second Discussion.
 For every independent member, create the actor with an initial assignment containing:
 its bounded task, the kickoff URL, the relevant acceptance criteria, and any dependency.
 This constructor context is the initial handoff. Never use crew_tell or crew_ask merely
-to send a URL. Add each actor to the roster. Create all independent members before
-waiting for any result.
+to send a URL. Add each actor to the roster, then wake it with
+await agents.tell({id:member.id, message:"Begin the work in your initial assignment."}).
+Create all independent members before waiting for any result.
 
 ### 4. Work as a review loop
 A member DONE is a review event, not completion. Read its linked comment and decide:
