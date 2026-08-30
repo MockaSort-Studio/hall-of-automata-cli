@@ -1,3 +1,6 @@
 .claude/
 **/__pycache__
-.pi/
+
+# Track reloadable project-local Pi extensions, not Fabric runtime state
+!.pi/extensions/
+!.pi/extensions/**
