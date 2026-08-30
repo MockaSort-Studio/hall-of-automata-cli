@@ -1,27 +1,17 @@
 # automaton-body
 
-Modular robot: createRobot().install(module, ctx).build() -> {instructions, tools, model, thinking}
+Canonical modular Crew member assembler.
+
+```js
+createRobot().install(module, ctx).build()
+// { instructions, tools, model, thinking }
+```
 
 ## Modules
-- baseModule() — universal contract
-- soulModule({name}) — soul from roster (Specialist 2.0: pure character narrative)
-- roleModule({role, task, override}) — discipline + tools + defaults
-- crewDisciplineModule() — crew base rules (GitHub-only state model)
 
-## Usage
-node cli.mjs --name snowball --role advisor --task "..."
+- `baseModule()` — live shared contract
+- `soulModule({ name })` — live Hall roster soul
+- `roleModule({ role, override })` — role discipline and model defaults
+- `crewDisciplineModule()` — GitHub-only state and communication rules
 
-## Tracking
-- KR 7.2 (#357) — single-specialist Stage Dispatch
-- Item #366 — proven with Snowball advisor
-- Crew State Model: Saga 2 appendix
-
-
----
-
-⚠️ **DEPRECATION NOTICE**
-
-This module has been superseded by the pi-automata-crew implementation. Please migrate to the new crew-based automaton system.
-
-See: pi-automata-crew/docs/Spike-Findings.md for migration details.
-
+The Crew workflow entrypoint is `pi-automata-crew/entrypoint.mjs`.

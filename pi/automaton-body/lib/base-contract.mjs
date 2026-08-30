@@ -1,4 +1,4 @@
-import { gh } from "../../pi-git-extension/lib/gh.mjs";
+import { gh } from "./gh.mjs";
 
 // Sections kept from hall-of-automata/agents/automaton_base.md — everything
 // universal to being a Hall automaton, regardless of runner. Dropped:

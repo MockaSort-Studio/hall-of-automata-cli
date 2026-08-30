@@ -1,4 +1,5 @@
-import { gh, ghJson } from "./gh.mjs";
+
+import { gh, ghJson } from "../core/gh.mjs";
 
 function repositoryId(owner, repo) {
   const query = "query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){id}}";

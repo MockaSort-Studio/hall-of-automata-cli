@@ -2,7 +2,7 @@
 
 Minimal, dependency-free web fetch for Fabric actors — Node 24+ native
 `fetch`, no MCP server, no external dependency. Part of our own tool
-taxonomy (`web.fetch`), built for the same reason as `pi-git-extension`:
+taxonomy (`web.fetch`), built as a small native Pi/Fabric capability:
 purpose-built, small, fully controlled.
 
 Not used by KR 7.2's current dispatches (GitHub-only consultation) — built

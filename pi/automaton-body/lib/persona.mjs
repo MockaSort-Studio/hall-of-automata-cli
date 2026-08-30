@@ -1,4 +1,4 @@
-import { gh } from "../../pi-git-extension/lib/gh.mjs";
+import { gh } from "./gh.mjs";
 
 // Soul — pure character, live-fetched, verbatim, never trimmed here.
 // Trimming (if any) happens per-mode in resolve.mjs, not by mutating the source.

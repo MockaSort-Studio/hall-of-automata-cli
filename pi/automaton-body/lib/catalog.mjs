@@ -1,4 +1,4 @@
-import { gh } from "../../pi-git-extension/lib/gh.mjs";
+import { gh } from "./gh.mjs";
 
 // Capability signal only — eligibility gate, never widens a tool grant.
 export function fetchCatalog(name) {

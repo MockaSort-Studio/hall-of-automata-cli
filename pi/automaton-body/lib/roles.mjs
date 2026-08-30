@@ -1,38 +1,36 @@
-// Role-based model: Identity (soul + domain) vs Capacity (role chosen per dispatch)
-// Replaces the fixed three-mode enum with an open role registry.
-
-// Open registry — adding a new role means adding one definition, not redesigning the type
+// Role definitions are capability policy, not tool implementation.
+// Fabric coordination is available through the actor's host fabric_exec;
+// GitHub actions should be registered providers, not raw shell grants.
 export const ROLE_DEFINITIONS = {
   advisor: {
     discipline: "Options, tradeoffs, one recommendation. Stop.",
-    tools: ["read", "grep", "find", "ls", "bash"],  // bash wraps github.comment for now
+    tools: [],
     defaultThinking: "medium",
-    requiresCatalogRole: null,  // open to all
+    requiresCatalogRole: null,
   },
   researcher: {
-    discipline: "Grounded in what you read/fetched. No padding.",
-    tools: ["read", "grep", "find", "ls", "bash"],  // web.fetch + github.comment via bash
+    discipline: "Grounded in what you read or fetched. No padding.",
+    tools: [],
     defaultThinking: "low",
     requiresCatalogRole: null,
   },
   architect: {
-    discipline: "Propose approach + tradeoffs + diagram.",
-    methodology: "(hall-saga Phase 3 design methodology — to be ported)",
-    tools: ["read", "grep", "find", "ls", "bash"],
+    discipline: "Propose an approach, tradeoffs, and a diagram.",
+    methodology: "Use the task contract and GitHub Discussion as the design record.",
+    tools: [],
     defaultThinking: "high",
-    requiresCatalogRole: null,  // for now; may gate on "design" catalog role later
+    requiresCatalogRole: null,
   },
   developer: {
-    // Pinned, absent — same structural pin as before
-    discipline: "(developer role pinned — not yet dispatchable)",
+    discipline: "Developer role is pinned until a future saga authorizes code writing.",
     tools: [],
     requiresCatalogRole: "implement",
   },
   lead: {
-    discipline: "Recruit, watch, review, close.",
-    methodology: "The 4 responsibilities (see saga Appendix) — named for KR 7.3, not yet wired",
-    tools: ["read", "grep", "find", "ls", "bash"],  // mesh.* + agents.tell/ask via future extension
+    discipline: "Recruit, route, watch, review, and close one bounded dispatch.",
+    methodology: "Use one Discussion, lifecycle-only mesh, and URL-only ask/tell messages.",
+    tools: [],
     defaultThinking: "medium",
-    requiresCatalogRole: null,  // for now; may gate later
+    requiresCatalogRole: null,
   },
 };
