@@ -31,6 +31,16 @@ function discussionNodeId(owner, repo, number) {
   ]);
 }
 
+
+export function listDiscussions(owner, repo, limit = 100) {
+  const query = "query($owner:String!,$repo:String!,$limit:Int!){repository(owner:$owner,name:$repo){discussions(first:$limit){nodes{id number title url}}}}";
+  return ghJson([
+    "api", "graphql", "-f", `query=${query}`,
+    "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `limit=${limit}`,
+    "--jq", ".data.repository.discussions.nodes",
+  ]);
+}
+
 export function createDiscussion(owner, repo, title, body, categoryName, options = {}) {
   const { labels = [] } = options;
   const repoId = repositoryId(owner, repo);

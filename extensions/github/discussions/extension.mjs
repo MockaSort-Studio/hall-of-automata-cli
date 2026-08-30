@@ -1,8 +1,9 @@
-import { Type } from "typebox";
 import {
   createDiscussion,
   commentOnDiscussion,
   listComments,
+  listDiscussions,
+  deleteDiscussion,
 } from "./index.mjs";
 
 function result(value) {
@@ -46,4 +47,28 @@ export default function (pi) {
       return result(await listComments(input.owner, input.repo, input.number));
     },
   });
+  pi.registerTool({
+    name: "github_discussions_list",
+    label: "GitHub Discussions: list",
+    description: "List Discussions in a GitHub repository.",
+    parameters: Type.Object({
+      owner: Type.String(), repo: Type.String(), limit: Type.Optional(Type.Integer()),
+    }),
+    async execute(_id, input) {
+      return result(await listDiscussions(input.owner, input.repo, input.limit));
+    },
+  });
+
+  pi.registerTool({
+    name: "github_discussion_delete",
+    label: "GitHub Discussion: delete",
+    description: "Permanently delete one GitHub Discussion by number.",
+    parameters: Type.Object({
+      owner: Type.String(), repo: Type.String(), number: Type.Integer(),
+    }),
+    async execute(_id, input) {
+      return result(await deleteDiscussion(input.owner, input.repo, input.number));
+    },
+  });
+
 }
