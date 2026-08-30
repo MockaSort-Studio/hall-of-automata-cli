@@ -1,5 +1,5 @@
 
-import { gh, ghJson } from "../core/gh.mjs";
+import { gh, ghJson } from "../core/gh.ts";
 
 export function getFieldMap(org, project) {
   const data = ghJson([

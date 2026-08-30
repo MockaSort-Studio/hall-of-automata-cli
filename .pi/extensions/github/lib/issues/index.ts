@@ -1,7 +1,7 @@
 
-import { gh, ghJson } from "../core/gh.mjs";
+import { gh, ghJson } from "../core/gh.ts";
 
-// Original issues.mjs functions
+// Original issues.ts functions
 export function createIssue(repo, { title, bodyFile, labels = [], milestone }) {
   const args = ["issue", "create", "-R", repo, "--title", title, "--body-file", bodyFile];
   for (const label of labels) args.push("--label", label);
@@ -17,7 +17,7 @@ export function viewIssue(repo, number) {
   ]);
 }
 
-// Merged from subissues.mjs
+// Merged from subissues.ts
 export function addSubIssue(repo, parentNumber, childNumber) {
   const subIssueId = issueDbId(repo, childNumber);
   return gh([
@@ -34,7 +34,7 @@ export function listSubIssues(repo, parentNumber) {
   ]);
 }
 
-// Merged from dependencies.mjs
+// Merged from dependencies.ts
 export function addBlockedBy(repo, issueNumber, blockingNumber) {
   const issueId = issueDbId(repo, blockingNumber);
   return gh([
@@ -44,7 +44,7 @@ export function addBlockedBy(repo, issueNumber, blockingNumber) {
   ]);
 }
 
-// Shared helper function (from dependencies.mjs and subissues.mjs)
+// Shared helper function (from dependencies.ts and subissues.ts)
 function issueDbId(repo, number) {
   return Number(gh(["api", `repos/${repo}/issues/${number}`, "--jq", ".id"]));
 }

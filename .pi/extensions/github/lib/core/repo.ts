@@ -1,5 +1,5 @@
 
-import { gh } from "./gh.mjs";
+import { gh } from "./gh.ts";
 
 export function setDiscussionsEnabled(repo, enabled) {
   return gh([

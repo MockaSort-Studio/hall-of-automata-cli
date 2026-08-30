@@ -1,8 +1,9 @@
 import { Type } from "typebox";
-import * as discussions from "./lib/discussions/index.mjs";
-import * as issues from "./lib/issues/index.mjs";
-import * as projects from "./lib/projects/index.mjs";
-import * as repo from "./lib/core/repo.mjs";
+import * as discussions from "./lib/discussions/index.ts";
+import * as issues from "./lib/issues/index.ts";
+import * as projects from "./lib/projects/index.ts";
+import * as repo from "./lib/core/repo.ts";
+import * as labels from "./lib/labels/index.ts";
 
 const S = Type.String;
 const I = Type.Integer;
@@ -60,4 +61,17 @@ export default function (pi) {
     x => projects.setField(x.org,x.project,x.itemId,x.fieldName,x.valueName));
   tool("github_repo_discussions_set", "Enable or disable repository Discussions.",
     obj({ repo:S(), enabled:Type.Boolean() }), x => repo.setDiscussionsEnabled(x.repo,x.enabled));
+
+  tool("github_label_list", "List all labels in a repository.",
+    obj({ repo:S() }),
+    x => labels.listLabels(x.repo));
+  tool("github_label_create", "Create a new label in a repository.",
+    obj({ repo:S(), name:S(), color:S(), description:O(S()) }),
+    x => labels.createLabel(x.repo,x.name,x.color,x.description));
+  tool("github_label_update", "Update an existing label's color or description.",
+    obj({ repo:S(), name:S(), color:O(S()), description:O(S()) }),
+    x => labels.updateLabel(x.repo,x.name,x.color,x.description));
+  tool("github_issue_add_label", "Add one or more labels to an Issue.",
+    obj({ repo:S(), issueNumber:I(), labels:Type.Array(S()) }),
+    x => labels.addLabels(x.repo,x.issueNumber,x.labels));
 }

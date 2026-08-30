@@ -1,0 +1,60 @@
+// tests/crew/roles.test.mjs
+// Unit tests for all crew role discipline functions.
+import { strict as assert } from "node:assert";
+import { test } from "node:test";
+
+const BASE = "../../.pi/extensions/crew/lib/automaton-body/lib";
+
+async function loadRole(name) {
+  return (await import(`${BASE}/roles/${name}.mjs`));
+}
+
+test("leadRole returns discipline, no tools, medium thinking", async () => {
+  const { leadRole } = await loadRole("lead");
+  const r = leadRole();
+  assert.ok(r.discipline.includes("orchestrate") || r.discipline.includes("LEAD"), "discipline missing lead intent");
+  assert.deepEqual(r.tools, []);
+  assert.equal(r.defaultThinking, "medium");
+});
+
+test("architectRole returns discipline, read-only tools, high thinking", async () => {
+  const { architectRole } = await loadRole("architect");
+  const r = architectRole();
+  assert.ok(r.discipline.includes("Advising"), "discipline missing Advising mode");
+  assert.ok(r.tools.includes("read"), "missing read tool");
+  assert.ok(!r.tools.includes("write"), "architect must not have write tool");
+  assert.ok(!r.tools.includes("edit"),  "architect must not have edit tool");
+  assert.equal(r.defaultThinking, "high");
+});
+
+test("developerRole returns discipline, write tools, medium thinking", async () => {
+  const { developerRole } = await loadRole("developer");
+  const r = developerRole();
+  assert.ok(r.discipline.includes("Doing"), "discipline missing Doing mode");
+  assert.ok(r.tools.includes("write"), "developer must have write tool");
+  assert.ok(r.tools.includes("edit"),  "developer must have edit tool");
+  assert.equal(r.defaultThinking, "medium");
+});
+
+test("advisorRole returns discipline, read-only tools, low thinking", async () => {
+  const { advisorRole } = await loadRole("advisor");
+  const r = advisorRole();
+  assert.ok(r.discipline.includes("Researching"), "discipline missing Researching mode");
+  assert.ok(r.tools.includes("read"), "missing read tool");
+  assert.ok(!r.tools.includes("write"), "advisor must not have write tool");
+  assert.equal(r.defaultThinking, "low");
+});
+
+test("roleModule wires all four roles without error", async () => {
+  const { roleModule } = await import(`${BASE}/modules/role.mjs`);
+  for (const role of ["lead", "architect", "developer", "advisor"]) {
+    const result = roleModule({ role, override: {} });
+    assert.ok(result.instructions.length > 20, `${role}: instructions too short`);
+    assert.ok(Array.isArray(result.tools),      `${role}: tools must be array`);
+  }
+});
+
+test("roleModule throws for unknown role", async () => {
+  const { roleModule } = await import(`${BASE}/modules/role.mjs`);
+  assert.throws(() => roleModule({ role: "wizard", override: {} }), /not defined/);
+});

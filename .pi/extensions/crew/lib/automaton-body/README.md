@@ -10,8 +10,8 @@ createRobot().install(module, ctx).build()
 ## Modules
 
 - `baseModule()` — live shared contract
-- `soulModule({ name })` — live Hall roster soul
-- `roleModule({ role, override })` — role discipline and model defaults
-- `crewDisciplineModule()` — GitHub-only state and communication rules
+- `soulModule({ name })` — local Hall roster soul
+- `roleModule({ role, override })` — behavioral role and model defaults
+- `crewDisciplineModule()` — shared collaboration and communication contract
 
-The Crew workflow entrypoint is `pi-automata-crew/entrypoint.mjs`.
+The active Crew extension entrypoint is `.pi/extensions/crew/index.ts`.
