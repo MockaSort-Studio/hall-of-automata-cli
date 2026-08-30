@@ -19,7 +19,7 @@ export function assemble(name, role, task, override = {}) {
     .build();
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}\n\n## CURRENT ASSIGNMENT\n${task}`,
+    instructions: `${body.instructions}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.\n\n## CURRENT ASSIGNMENT\n${task}`,
     tools: body.tools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),

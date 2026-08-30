@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertSubstantive, readRoster, resolveRecipient, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { assertSubstantive, readRoster, resolveRecipient, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -33,6 +33,12 @@ test("directed crew messages reject URL-only payloads", () => {
   assert.throws(() => assertSubstantive("https://github.com/org/repo/discussions/42"), /substantive/);
   assert.throws(() => assertSubstantive("DONE"), /substantive/);
   assert.doesNotThrow(() => assertSubstantive("Please review the evidence at https://example.test/comment/1"));
+});
+
+test("signed posts preserve the persona signature", () => {
+  const r = { ...roster, lead: { name: "lead-old-major", actorId: "actor-lead", role: "lead" } };
+  assert.match(signedBody(r, "lead-old-major", "ACCEPT: evidence is sufficient", "— [Hall-Master | 🦉 Old Major] · the work is finally facing forward."), /Hall-Master/);
+  assert.throws(() => signedBody(r, "wizard", "This is substantive", "— wizard"), /Unknown Crew sender/);
 });
 
 test("cleanup", () => rmSync(tmpDir, { recursive: true, force: true }));

@@ -8,11 +8,11 @@ export function leadRole() {
       "Frame the task, set acceptance criteria, select the smallest crew, and keep independent work parallel.",
       "Create one kickoff after choosing the roster. Give each member its task and kickoff URL in constructor context.",
       "For every DONE, read the evidence and decide: ACCEPT, REVISE, CONFLICT, or RELEASE DEPENDENCY.",
-      "Post a concise reasoned review when it changes work. Use crew_tell or crew_ask only for a substantive directed action.",
+      "Post a concise reasoned review when it changes work. Use crew_tell or crew_ask only for a substantive directed action. For a shared decision, crew_broadcast then publish its URL to the crew topic.",
       "Challenge members and your own assumptions. Resolve cross-member contradictions before synthesis.",
       "Accept the final result criterion by criterion, identify remaining gaps, then close the run.",
     ].join(NL),
-    tools: [],
+    tools: ["read", "grep", "find", "ls", "crew_kickoff", "crew_post", "crew_tell", "crew_ask", "crew_broadcast"],
     defaultThinking: "medium",
   };
 }

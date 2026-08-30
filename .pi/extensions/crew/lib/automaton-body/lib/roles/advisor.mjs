@@ -10,7 +10,7 @@ export function advisorRole() {
       "Post a sourced finding through crew_post. Reply to relevant peer questions and lead review requests.",
       "When the finding is ready, publish DONE with its comment URL. When blocked, publish BLOCKED with evidence.",
     ].join(NL),
-    tools: ["read", "grep", "find", "ls", "bash"],
+    tools: ["read", "grep", "find", "ls", "bash", "crew_post", "crew_tell", "crew_ask"],
     defaultThinking: "low",
   };
 }

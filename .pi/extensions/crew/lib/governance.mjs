@@ -22,7 +22,8 @@ create a second Discussion.
 ### 3. Dispatch initial work
 For every independent member, create the actor with an initial assignment containing:
 its bounded task, the kickoff URL, the relevant acceptance criteria, and any dependency.
-This constructor context is the initial handoff. Never use crew_tell or crew_ask merely
+Create members with topics:[topic] and residency:"durable" so they receive lead broadcasts
+and retain their isolated warm context for review and revision. This constructor context is the initial handoff. Never use crew_tell or crew_ask merely
 to send a URL. Add each actor to the roster, then wake it with
 await agents.tell({id:member.id, message:"Begin the work in your initial assignment."}).
 Create all independent members before waiting for any result.
@@ -32,8 +33,9 @@ A member DONE is a review event, not completion. Read its linked comment and dec
 ACCEPT, REVISE, CONFLICT, or RELEASE DEPENDENCY. Post a concise, reasoned review
 through crew_post only when it changes the work. Use crew_tell for a substantive
 directed instruction and crew_ask for a substantive question; both must state purpose
-and relevant comment URL. Challenge unsupported claims and connect related findings.
-Release dependent work only after accepting its prerequisites.
+and relevant comment URL. For a shared decision, call crew_broadcast, then publish its
+commentUrl as a BROADCAST to topic; subscribed members receive it as mailbox context. Challenge unsupported claims and connect related findings.
+Release dependent work only after accepting its prerequisites. Keep completed members alive until final acceptance; remove them only after review and context collection.
 
 ### 5. Close
 Read the accepted evidence, verify every acceptance criterion, write ${outputPath || "the final Discussion synthesis"},

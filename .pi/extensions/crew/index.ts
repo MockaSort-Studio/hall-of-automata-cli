@@ -9,6 +9,9 @@ const rosterPath = (cwd, runId) => join(cwd, ".pi", "fabric", "crew-launch", `${
 const launchCode = path => [
   `const cfg = JSON.parse(await pi.read(${JSON.stringify(path)}));`,
   "const lead = await agents.create(cfg.lead);",
+  "const roster = JSON.parse(await pi.read(cfg.rosterFile));",
+  "roster.lead = { name: lead.name, actorId: lead.id, role: \"lead\" };",
+  "await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
   'await agents.tell({ id: lead.id, message: "Begin the work in your initial assignment." });',
   "return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: \"started\" };",
 ].join("\n");
@@ -37,9 +40,9 @@ export default function (pi) {
       writeFileSync(rFile, JSON.stringify({ runId, topic, owner: "MockaSort-Studio", repo: "hall-of-automata-cli", discussionNumber: null, discussionUrl: null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
       const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: rFile, outputPath: input.outputPath })}`;
       const member = assemble("old-major", "lead", assignment, input);
-      const lead = { ...member, runner: "pi", extensions: true, topics: [topic], responseMode: "text", delivery: "mailbox", residency: "session" };
+      const lead = { ...member, runner: "pi", extensions: true, topics: [topic], responseMode: "text", delivery: "mailbox", residency: "durable" };
       const cfgPath = join(dir, `${runId}.json`);
-      writeFileSync(cfgPath, JSON.stringify({ runId, topic, lead }));
+      writeFileSync(cfgPath, JSON.stringify({ runId, topic, rosterFile: rFile, lead }));
       pi.sendUserMessage(`Run this using fabric_exec exactly as written:\n\n${launchCode(`.pi/fabric/crew-launch/${runId}.json`)}`, { deliverAs: "followUp" });
       return output({ runId, topic, souls: SOULS, roles: ROLES });
     },

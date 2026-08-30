@@ -9,11 +9,13 @@ async function loadRole(name) {
   return (await import(`${BASE}/roles/${name}.mjs`));
 }
 
-test("leadRole returns discipline, no tools, medium thinking", async () => {
+test("leadRole exposes review and Crew communication tools", async () => {
   const { leadRole } = await loadRole("lead");
   const r = leadRole();
   assert.ok(r.discipline.includes("orchestrate") || r.discipline.includes("LEAD"), "discipline missing lead intent");
-  assert.deepEqual(r.tools, []);
+  assert.ok(r.tools.includes("crew_kickoff"));
+  assert.ok(r.tools.includes("crew_post"));
+  assert.ok(!r.tools.includes("write"));
   assert.equal(r.defaultThinking, "medium");
 });
 

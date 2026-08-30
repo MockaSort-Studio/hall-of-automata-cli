@@ -10,7 +10,7 @@ export function developerRole() {
       "Post a substantive implementation result through crew_post. Respond to relevant peer questions and lead review requests.",
       "When verified, publish DONE with its comment URL. When blocked, publish BLOCKED with evidence.",
     ].join(NL),
-    tools: ["read", "write", "edit", "bash", "find", "grep", "ls"],
+    tools: ["read", "write", "edit", "bash", "find", "grep", "ls", "crew_post", "crew_tell", "crew_ask"],
     defaultThinking: "medium",
   };
 }
