@@ -1,8 +1,8 @@
 import { Type } from "typebox";
-import * as discussions from "../../../extensions/github/discussions/index.mjs";
-import * as issues from "../../../extensions/github/issues/index.mjs";
-import * as projects from "../../../extensions/github/projects/index.mjs";
-import * as repo from "../../../extensions/github/core/repo.mjs";
+import * as discussions from "./lib/discussions/index.mjs";
+import * as issues from "./lib/issues/index.mjs";
+import * as projects from "./lib/projects/index.mjs";
+import * as repo from "./lib/core/repo.mjs";
 
 const S = Type.String;
 const I = Type.Integer;
