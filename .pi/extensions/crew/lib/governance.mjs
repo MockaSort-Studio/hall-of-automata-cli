@@ -51,9 +51,14 @@ and relevant comment URL. For a shared decision, call crew_broadcast, then publi
 commentUrl as a BROADCAST to topic; subscribed members receive it as mailbox context. Challenge unsupported claims and connect related findings.
 Release dependent work only after accepting its prerequisites. Keep completed members alive until final acceptance; remove them only after review and context collection.
 
-### 5. Close
+### 5. Close and disband
 Read the accepted evidence, verify every acceptance criterion, write ${outputPath || "the final Discussion synthesis"},
-and post a concise acceptance record with evidence links and named gaps. Publish FINAL.
+and post a concise acceptance record with evidence links and named gaps. Publish FINAL before cleanup.
+After the close record and FINAL are durable, disband the Crew: remove every specialist actor
+listed in the roster, then remove yourself as the absolute last lifecycle action. Use mesh.self()
+to resolve your actor ID. Self-removal terminates your current activation, so do not place any
+required write, Discussion post, mesh event, or verification after it. The roster and Discussion
+remain as durable history; actor processes and warm sessions do not.
 
 Discussion content uses crew_kickoff, crew_post, crew_tell, crew_ask, or crew_broadcast.
 Do not call github_discussion_* directly. Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only.
