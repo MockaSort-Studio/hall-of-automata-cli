@@ -30,15 +30,15 @@ export default function (pi) {
   pi.registerTool({
     name: "start_crew", label: "Crew: start",
     description: "Queue a lead-first Crew run. The lead creates one kickoff and dispatches the smallest capable crew.",
-    parameters: Type.Object({ task: Type.String(), outputPath: Type.Optional(Type.String()), model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()) }),
+    parameters: Type.Object({ task: Type.String(), outputPath: Type.Optional(Type.String()), model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()), discussionNumber: Type.Optional(Type.Number()), discussionUrl: Type.Optional(Type.String()) }),
     async execute(_id, input, _sig, _upd, ctx) {
       const runId = crypto.randomUUID();
       const topic = `crew.${runId}`;
       const dir = join(ctx.cwd, ".pi", "fabric", "crew-launch");
       mkdirSync(dir, { recursive: true });
       const rFile = rosterPath(ctx.cwd, runId);
-      writeFileSync(rFile, JSON.stringify({ runId, topic, owner: "MockaSort-Studio", repo: "hall-of-automata-cli", discussionNumber: null, discussionUrl: null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
-      const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: rFile, outputPath: input.outputPath })}`;
+      writeFileSync(rFile, JSON.stringify({ runId, topic, owner: "MockaSort-Studio", repo: "hall-of-automata-cli", discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
+      const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: rFile, outputPath: input.outputPath, discussionNumber: input.discussionNumber, discussionUrl: input.discussionUrl })}`;
       const member = assemble("old-major", "lead", assignment, input);
       const lead = { ...member, runner: "pi", extensions: true, topics: [topic], responseMode: "text", delivery: "mailbox", residency: "durable" };
       const cfgPath = join(dir, `${runId}.json`);
@@ -49,7 +49,7 @@ export default function (pi) {
   });
 
   pi.registerCommand("crew-start", {
-    description: "Start a Crew dispatch",
+    description: "Start a Crew dispatch. Optionally pass discussionNumber+discussionUrl to continue in an existing Discussion.",
     handler: async args => {
       if (!args?.trim()) throw new Error("Usage: /crew-start <problem statement>");
       pi.sendUserMessage(`Use start_crew with this task: ${args.trim()}`, { deliverAs: "followUp" });
