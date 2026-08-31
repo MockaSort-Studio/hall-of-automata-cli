@@ -20,20 +20,20 @@ export default function (pi) {
   });
 
   tool("github_discussion_comments", "Read comments from a Discussion thread.",
-    obj({ owner:S(), repo:S(), number:I(), limit:O(I()) }),
-    x => discussions.listComments(x.owner,x.repo,x.number,x.limit));
+    obj({ owner:S(), repo:S(), discussionNumber:I(), limit:O(I()) }),
+    x => discussions.listComments(x.owner,x.repo,x.discussionNumber,x.limit));
   tool("github_discussions_list", "List repository Discussions.",
     obj({ owner:S(), repo:S(), limit:O(I()) }),
     x => discussions.listDiscussions(x.owner,x.repo,x.limit));
   tool("github_discussion_delete", "Permanently delete a Discussion.",
-    obj({ owner:S(), repo:S(), number:I() }),
-    x => discussions.deleteDiscussion(x.owner,x.repo,x.number));
+    obj({ owner:S(), repo:S(), discussionNumber:I() }),
+    x => discussions.deleteDiscussion(x.owner,x.repo,x.discussionNumber));
 
   tool("github_issue_create", "Create an Issue.",
     obj({ repo:S(), title:S(), bodyFile:S(), labels:O(Type.Array(S())), milestone:O(S()) }),
     x => issues.createIssue(x.repo,x));
-  tool("github_issue_view", "Read an Issue.", obj({ repo:S(), number:I() }),
-    x => issues.viewIssue(x.repo,x.number));
+  tool("github_issue_view", "Read an Issue.", obj({ repo:S(), issueNumber:I() }),
+    x => issues.viewIssue(x.repo,x.issueNumber));
   tool("github_subissue_add", "Attach a child Issue to a parent.",
     obj({ repo:S(), parentNumber:I(), childNumber:I() }),
     x => issues.addSubIssue(x.repo,x.parentNumber,x.childNumber));
