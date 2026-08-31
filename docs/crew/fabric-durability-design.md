@@ -1,7 +1,7 @@
 # Durable Crew Recruitment
 
 Status: Option C implemented and regression-tested locally.
-Scope: Fabric fork at `/tmp/pi-fabric-policy-design`.
+Scope: Fabric fork at `/Users/michelangelosetaro/Workspace/pi-fabric-policy-design`.
 
 ## Intended architecture
 
@@ -79,7 +79,7 @@ constructor and checks it directly.
 
 ## Verification
 
-From `/tmp/pi-fabric-policy-design`:
+From `/Users/michelangelosetaro/Workspace/pi-fabric-policy-design`:
 
 - TypeScript typecheck: passed.
 - Full `tests/residency.test.ts`: 8/8 passed.
