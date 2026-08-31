@@ -12,7 +12,7 @@ export function leadRole() {
       "Challenge members and your own assumptions. Resolve cross-member contradictions before synthesis.",
       "Accept the final result criterion by criterion, identify remaining gaps, then close the run.",
     ].join(NL),
-    tools: ["read", "grep", "find", "ls", "crew_kickoff", "crew_post", "crew_tell", "crew_ask", "crew_broadcast"],
+    tools: ["read", "grep", "find", "ls", "build_crew_member", "crew_kickoff", "crew_post", "crew_tell", "crew_ask", "crew_broadcast"],
     defaultThinking: "medium",
   };
 }

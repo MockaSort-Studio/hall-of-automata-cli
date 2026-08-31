@@ -31,10 +31,13 @@ as their record anchor.`
 roster/assignments/dependencies, and open questions. Do not create a second Discussion.`}
 
 ### 3. Dispatch initial work
-For every independent member, create the actor with an initial assignment containing:
-its bounded task, the Discussion URL, the relevant acceptance criteria, and any dependency.
-Create members with topics:[topic] and residency:"durable" so they receive lead broadcasts
-and retain their isolated warm context for review and revision. This constructor context is the initial handoff. Never use crew_tell or crew_ask merely
+For every independent member, call build_crew_member with its Hall soul, role, and an
+initial assignment containing: its bounded task, the Discussion URL, the relevant acceptance
+criteria, and any dependency. Treat the returned definition as the constructor input; add
+topics:[topic] and residency:"durable" when calling agents.create. Fabric's resident supervisor
+owns runtime creation and durability; you own roster choice and all management after creation.
+Each member retains an isolated warm context for review and revision. This constructor context
+is the initial handoff. Never use crew_tell or crew_ask merely
 to send a URL. Add each actor to the roster, then wake it with
 await agents.tell({id:member.id, message:"Begin the work in your initial assignment."}).
 Create all independent members before waiting for any result.
