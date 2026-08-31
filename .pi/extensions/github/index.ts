@@ -19,12 +19,6 @@ export default function (pi) {
     async execute(_id, input) { return output(await execute(input)); },
   });
 
-  tool("github_discussion_create", "Create the one Discussion for a Crew dispatch.",
-    obj({ owner:S(), repo:S(), title:S(), body:S(), category:S() }),
-    x => discussions.createDiscussion(x.owner,x.repo,x.title,x.body,x.category));
-  tool("github_discussion_comment", "Append to an existing Discussion thread.",
-    obj({ owner:S(), repo:S(), number:I(), body:S() }),
-    x => discussions.commentOnDiscussion(x.owner,x.repo,x.number,x.body));
   tool("github_discussion_comments", "Read comments from a Discussion thread.",
     obj({ owner:S(), repo:S(), number:I(), limit:O(I()) }),
     x => discussions.listComments(x.owner,x.repo,x.number,x.limit));
@@ -74,4 +68,20 @@ export default function (pi) {
   tool("github_issue_add_label", "Add one or more labels to an Issue.",
     obj({ repo:S(), issueNumber:I(), labels:Type.Array(S()) }),
     x => labels.addLabels(x.repo,x.issueNumber,x.labels));
+
+  tool("github_issues_list", "List repository Issues, optionally filtered by state, labels, or milestone.",
+    obj({ repo:S(), state:O(S()), labels:O(Type.Array(S())), milestone:O(S()), limit:O(I()) }),
+    x => issues.listIssues(x.repo,x.state,x.labels,x.milestone,x.limit));
+  tool("github_dependency_list", "Read open blockers for an Issue (GET blocked_by).",
+    obj({ repo:S(), issueNumber:I() }),
+    x => issues.listDependencies(x.repo,x.issueNumber));
+  tool("github_issue_comment", "Post a status comment on an Issue.",
+    obj({ repo:S(), issueNumber:I(), body:S() }),
+    x => issues.commentOnIssue(x.repo,x.issueNumber,x.body));
+  tool("github_issue_update", "Edit Issue fields: title, body, milestone, or state.",
+    obj({ repo:S(), issueNumber:I(), title:O(S()), body:O(S()), milestone:O(S()), state:O(S()) }),
+    x => issues.updateIssue(x.repo,x.issueNumber,x));
+  tool("github_issue_remove_label", "Remove a specific label from an Issue.",
+    obj({ repo:S(), issueNumber:I(), label:S() }),
+    x => issues.removeLabel(x.repo,x.issueNumber,x.label));
 }
