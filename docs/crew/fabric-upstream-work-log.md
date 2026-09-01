@@ -5,6 +5,7 @@ Working tree: `/Users/michelangelosetaro/Workspace/pi-fabric-policy-design`
 Upstream base: `monotykamary/pi-fabric` at `3393b74`
 Status: verified and pushed to `MockaSort-Studio/pi-fabric:dev` (`122c9e9`, `3d14aaa`); not proposed to the upstream parent.
 Fork: https://github.com/MockaSort-Studio/pi-fabric/tree/dev
+Upstream issue: https://github.com/monotykamary/pi-fabric/issues/92
 
 The validated branch remains based on upstream `3393b74`. Fork `main` has since advanced to
 `37427c9`, so `dev` currently diverges from `main`; rebase and full regression verification
