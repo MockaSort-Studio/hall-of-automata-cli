@@ -3,7 +3,7 @@
 Date: 2026-08-31
 Working tree: `/Users/michelangelosetaro/Workspace/pi-fabric-policy-design`
 Upstream base: `monotykamary/pi-fabric` at `3393b74`
-Status: implemented and verified locally; not committed upstream.
+Status: verified and locally committed (`122c9e9`, `3d14aaa`); not pushed upstream.
 
 ## Goal
 
@@ -136,3 +136,36 @@ The child's message history advanced from 0 to 8 across the four communication
 operations, with a distinct completed run for each one. Final actor registry was
 empty. A cross-turn `stop` probe remains optional lifecycle coverage; it is not
 a communication-path gap.
+
+## Resident launcher shutdown fix — 2026-09-01
+
+Local Fabric commit: `3d14aaa`
+
+### Reproduction
+
+KR 7.4 removed every durable actor and released `owner.json`, but the stable launcher
+and its `pi --mode rpc` child remained alive for more than 30 minutes.
+
+### Root cause
+
+The resident host correctly reached its 30-second idle exit and released ownership.
+The launcher deliberately kept the RPC child's stdin open. `ctx.shutdown()` completed
+the extension but RPC mode continued waiting for stdin EOF, so the child and launcher
+waited on each other. Duplicate startup losers could leak by the same mechanism.
+
+### Fix
+
+- Added `observeResidentOwner` as a small state transition helper.
+- The launcher recognizes ownership only when `owner.pid` matches its child PID.
+- When its owner disappears, the launcher ends child stdin to deliver RPC EOF.
+- When another live owner wins startup, the duplicate launcher ends its child stdin.
+- Stale/dead owner PIDs do not terminate a legitimate new startup.
+
+### Verification
+
+- TypeScript typecheck: passed.
+- Focused launcher + residency tests: 12/12 passed.
+- Build and startup-artifact assertions: passed.
+- Live probe: durable actor self-removed in 4.884 seconds; after the 30-second idle
+  window, actor registry was empty, `owner.json` was absent, and both launcher and RPC
+  child were gone.

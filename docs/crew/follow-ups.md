@@ -4,10 +4,8 @@ Updated: 2026-09-01
 
 ## In progress
 
-- [ ] **Automatic disband after successful close — implemented, E2E pending.**
-  After the durable artifact, final Discussion record, and mesh `FINAL` are complete,
-  governance now removes every specialist and finally the Lead. Isolated durable
-  self-removal passed; verify automatic cleanup in the next uncontaminated Crew run.
+- [x] **Automatic disband after successful close.** KR 7.4 closed its Discussion,
+  emitted `FINAL`, then removed both specialists and the Lead without observer input.
 
 ## Completed — Discussion protocol
 
@@ -24,12 +22,14 @@ Updated: 2026-09-01
   broadcast, response, review, and final acceptance have focused renderers and tests.
 - [x] **Close the GitHub Discussion after successful Crew close.** `crew_close` is
   Lead-only, signed, retry-aware, posts criterion evidence, and calls `closeDiscussion`.
-  The mutation was verified by closing completed Discussion #395 without deleting it.
+  The close mutation was verified live; the original test fixture was later removed.
 
 ## Todo — Crew runtime
 
-- [ ] Run one uncontaminated end-to-end KR autonomy proof without observer wakeups.
-- [ ] Investigate accumulated orphan resident launcher processes.
+- [x] KR 7.4 ran end to end without observer wakeups or steering.
+- [x] Fixed orphan resident launchers in the stable Fabric fork. The launcher now
+  closes RPC stdin after owner release and suppresses duplicate startup children; focused
+  tests and a live self-removal/idle-exit probe passed.
 
 ## Deferred — Hall CLI state-model port
 
