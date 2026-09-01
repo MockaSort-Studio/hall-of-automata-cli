@@ -40,5 +40,7 @@ test("lead treats every DONE as a substantive review gate", () => {
   assert.match(protocol, /agents\.followUp\(\{ id:"main"/);
   assert.match(protocol, /kind:"crew_result"/);
   assert.match(protocol, /status:"closed"/);
+  assert.match(protocol, /outcome:"PASS"/);
+  assert.match(protocol, /summary:"<concise outcome>"/);
   assert.ok(protocol.indexOf('id:"main"') < protocol.indexOf("remove every specialist"));
 });

@@ -61,7 +61,7 @@ Read the accepted evidence, verify every acceptance criterion, and write ${outpu
 Call crew_close with a concise summary, criterion-level evidence, and named nonblocking gaps;
 it posts the final acceptance record and closes the Discussion. Keep its returned commentUrl as the final record.
 Publish FINAL only after crew_close confirms closed:true. Then return the result to the invoking Pi session exactly once:
-await agents.followUp({ id:"main", message:"Crew ${runId} completed. Status: closed. Discussion: <discussion URL>. Final record: <crew_close commentUrl>. Summary: <concise outcome>.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", outputPath:${JSON.stringify(outputPath || null)} } }).
+await agents.followUp({ id:"main", message:"Crew ${runId} completed. Status: closed. Discussion: <discussion URL>. Final record: <crew_close commentUrl>. Summary: <concise outcome>.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", outcome:"PASS", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", summary:"<concise outcome>", outputPath:${JSON.stringify(outputPath || null)} } }).
 This Main delivery is required user-facing output, not Crew-internal mesh traffic. After the close record, FINAL,
 and Main delivery are durable, disband the Crew: remove every specialist actor listed in the roster,
 then remove yourself as the absolute last lifecycle action. Use mesh.self()

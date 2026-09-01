@@ -28,8 +28,29 @@ test("queued acknowledgment is user-facing and promises terminal return", () => 
   assert.ok(!message.includes("config"));
 });
 
+test("replayed launch returns existing terminal state without creating an actor", async () => {
+  const code = launchCode("config.json");
+  const files = new Map([
+    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", lead: {} })],
+    ["roster.json", JSON.stringify({ status: "closed", lead: { actorId: "lead-1" } })],
+  ]);
+  let creates = 0;
+  const fakePi = { read: async path => files.get(path) };
+  const fakeAgents = { create: async () => { creates += 1; } };
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const result = await new AsyncFunction("pi", "agents", code)(fakePi, fakeAgents);
+  assert.deepEqual(result, {
+    runId: "run-1", topic: "crew.run-1", leadId: "lead-1",
+    status: "closed", alreadyLaunched: true,
+  });
+  assert.equal(creates, 0);
+});
+
 test("launch code uses Fabric APIs and relative config paths", () => {
   const code = launchCode(".custom/fabric/crew-launch/run-1.json");
+  assert.match(code, /roster\.status !== 'queued'/);
+  assert.match(code, /alreadyLaunched: true/);
+  assert.match(code, /newText: '"status": "launching"'/);
   assert.match(code, /agents\.create\(cfg\.lead\)/);
   assert.match(code, /agents\.followUp/);
   assert.ok(!code.includes("agents.tell"));
