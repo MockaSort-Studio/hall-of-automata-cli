@@ -39,8 +39,8 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       text += theme.fg("muted", `  ${view.phase}`);
       if (view.memberCount > 0) text += theme.fg("dim", ` · ${view.memberCount} specialist`);
       if (view.discussionNumber && view.discussionUrl) {
-        const label = `#${view.discussionNumber} ↗`;
-        const link = getCapabilities().hyperlinks ? hyperlink(label, view.discussionUrl) : `${label} ${view.discussionUrl}`;
+        const label = `Discussion #${view.discussionNumber}`;
+        const link = getCapabilities().hyperlinks ? hyperlink(label, view.discussionUrl) : label;
         text += ` · ${theme.fg("accent", link)}`;
       }
       box.addChild(new Text(text, 0, 0));
