@@ -40,9 +40,11 @@ topics:[topic] and residency:"durable" when calling agents.create. Fabric's resi
 owns runtime creation and durability; you own roster choice and all management after creation.
 Each member retains an isolated warm context for review and revision.
 The constructor context is the initial handoff. Never use crew_tell or crew_ask merely
-to send a URL. Add each actor to the roster, then wake it with
-await agents.tell({id:member.id, message:"Begin the work in your initial assignment."}).
-Create all independent members before waiting for any result.
+to send a URL. Create all independent actors first, then call crew_register once with every
+created actor's exact name, actorId, and role. Do not wake any specialist unless that atomic
+registration succeeds. After registration, wake each actor with
+await agents.followUp({id:member.id, message:"Begin the work in your initial assignment."}).
+If registration fails, remove every actor created in that batch before reporting BLOCKED.
 
 ### 4. Work as a review loop
 A member DONE is a review event, not completion. Read its linked comment and decide:

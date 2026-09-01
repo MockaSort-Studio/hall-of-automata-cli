@@ -13,6 +13,9 @@ test("initial dispatch uses kickoff constructor context, not a URL-only tell", (
   assert.match(protocol, /Never use crew_tell or crew_ask merely/);
   assert.doesNotMatch(protocol, /publish START/);
   assert.match(protocol, /Begin the work in your initial assignment/);
+  assert.match(protocol, /crew_register once/);
+  assert.match(protocol, /agents\.followUp/);
+  assert.doesNotMatch(protocol, /agents\.tell/);
   assert.match(protocol, /residency:"durable"/);
 });
 

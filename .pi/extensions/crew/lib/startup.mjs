@@ -42,7 +42,7 @@ export function launchCode(configPath) {
     "  roster.lead = { name: lead.name, actorId: lead.id, role: 'lead' };",
     "  roster.status = 'starting';",
     "  await pi.write({ path: cfg.rosterFile, content: JSON.stringify(roster, null, 2) });",
-    "  await agents.tell({ id: lead.id, message: 'Begin the work in your initial assignment.' });",
+    "  await agents.followUp({ id: lead.id, message: 'Begin the work in your initial assignment.' });",
     "  roster.status = 'started';",
     "  await pi.write({ path: cfg.rosterFile, content: JSON.stringify(roster, null, 2) });",
     "  return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: 'started' };",

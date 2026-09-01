@@ -1,11 +1,13 @@
-import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { Type } from "typebox";
 import {
   closeDiscussion,
   createKickoff,
+  markDiscussionClosed,
   postComment,
   readRoster,
+  registerMembers,
   resolveRecipient,
   signedBody,
   writeRoster,
@@ -33,6 +35,9 @@ const kickoffMember = Type.Object({
   assignment: Type.String(),
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
+const registeredMember = Type.Object({
+  name: Type.String(), actorId: Type.String(), role: Type.String(),
+});
 const commentResult = (comment, extra = {}) => result({ commentId: comment.id, commentUrl: comment.url, ...extra });
 const load = (ctx, runId) => readRoster(rosterPath(ctx.cwd, runId));
 const signed = (roster, input, body) => signedBody(roster, input.from, body, input.signature);
@@ -56,6 +61,23 @@ export function registerCommunicationTools(pi) {
       const discussion = createKickoff(roster, input.title, body, input.category);
       writeRoster(path, { ...roster, discussionNumber: discussion.number, discussionUrl: discussion.url });
       return result({ discussionNumber: discussion.number, discussionUrl: discussion.url });
+    },
+  });
+
+  pi.registerTool({
+    name: "crew_register", label: "Crew: register members",
+    description: "Atomically register created specialist actors before they are woken.",
+    parameters: Type.Object({
+      runId: Type.String(), from: Type.String(),
+      members: Type.Array(registeredMember, { minItems: 1 }),
+    }),
+    async execute(_id, input, _signal, _update, ctx) {
+      const path = rosterPath(ctx.cwd, input.runId);
+      return withFileMutationQueue(path, async () => {
+        const roster = registerMembers(readRoster(path), input.from, input.members);
+        writeRoster(path, roster);
+        return result({ registered: input.members.map(member => member.name), members: roster.members });
+      });
     },
   });
 
@@ -137,19 +159,26 @@ export function registerCommunicationTools(pi) {
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const path = rosterPath(ctx.cwd, input.runId);
-      let roster = readRoster(path);
-      if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may close the Discussion.");
-      if (roster.discussionClosed) return result({ discussionUrl: roster.discussionUrl, closed: true, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
-      if (!roster.finalCommentId) {
-        const comment = postComment(roster, signed(roster, input, renderFinal(input)));
-        roster = { ...roster, finalCommentId: comment.id, finalCommentUrl: comment.url };
+      return withFileMutationQueue(path, async () => {
+        let roster = readRoster(path);
+        if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may close the Discussion.");
+        if (roster.discussionClosed) {
+          if (roster.status !== "closed") {
+            roster = { ...roster, status: "closed" };
+            writeRoster(path, roster);
+          }
+          return result({ discussionUrl: roster.discussionUrl, closed: true, status: "closed", commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+        }
+        if (!roster.finalCommentId) {
+          const comment = postComment(roster, signed(roster, input, renderFinal(input)));
+          roster = { ...roster, finalCommentId: comment.id, finalCommentUrl: comment.url };
+          writeRoster(path, roster);
+        }
+        const closed = closeDiscussion(roster);
+        roster = markDiscussionClosed(roster, closed);
         writeRoster(path, roster);
-      }
-      const closed = closeDiscussion(roster);
-      if (!closed.closed) throw new Error("GitHub did not report the Discussion as closed.");
-      roster = { ...roster, discussionClosed: true, discussionClosedAt: closed.closedAt };
-      writeRoster(path, roster);
-      return result({ discussionUrl: closed.url, closed: true, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+        return result({ discussionUrl: closed.url, closed: true, status: "closed", commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+      });
     },
   });
 }

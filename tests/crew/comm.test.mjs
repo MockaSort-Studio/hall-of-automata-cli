@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { closeDiscussion, postComment, assertSubstantive, readRoster, resolveRecipient, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { closeDiscussion, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, resolveRecipient, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -28,6 +28,23 @@ test("recipient requires one exact canonical role-persona handle", () => {
   assert.equal(resolveRecipient({ ...roster, lead: { name: "lead-old-major", actorId: "actor-lead" } }, "lead-old-major").actorId, "actor-lead");
   assert.throws(() => resolveRecipient(roster, "developer"), /role-persona handle/);
   assert.throws(() => resolveRecipient(roster, "advisor-wizard"), /not found/);
+});
+
+test("Lead registers members idempotently and rejects identity conflicts", () => {
+  const withLead = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" }, members: [] };
+  const member = { name: "architect-tomashco", actorId: "actor-a", role: "architect" };
+  const registered = registerMembers(withLead, "lead-old-major", [member]);
+  assert.deepEqual(registered.members, [member]);
+  assert.deepEqual(registerMembers(registered, "lead-old-major", [member]).members, [member]);
+  assert.throws(() => registerMembers(registered, "advisor-wizard", [member]), /Only the Crew Lead/);
+  assert.throws(() => registerMembers(registered, "lead-old-major", [{ ...member, actorId: "actor-b" }]), /another actor/);
+});
+
+test("Discussion close records neutral terminal roster status", () => {
+  const closed = markDiscussionClosed(roster, { closed: true, closedAt: "2026-09-01T00:00:00Z" });
+  assert.equal(closed.status, "closed");
+  assert.equal(closed.discussionClosed, true);
+  assert.throws(() => markDiscussionClosed(roster, { closed: false }), /did not report/);
 });
 
 test("directed crew messages reject URL-only payloads", () => {

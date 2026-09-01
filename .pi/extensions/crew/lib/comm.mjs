@@ -46,6 +46,30 @@ export function resolveRecipient(roster, value) {
   return member;
 }
 
+export function registerMembers(roster, from, members) {
+  const sender = canonicalHandle(from);
+  if (roster.lead?.name !== sender) throw new Error("Only the Crew Lead may register members.");
+  const next = [...(roster.members || [])];
+  for (const candidate of members) {
+    const member = {
+      name: canonicalHandle(candidate.name),
+      actorId: candidate.actorId?.trim(),
+      role: candidate.role?.trim(),
+    };
+    if (!member.actorId || !member.role) throw new Error("Crew members require actorId and role.");
+    const byName = next.find(item => item.name === member.name);
+    const byActor = next.find(item => item.actorId === member.actorId);
+    if (byName && byName.actorId !== member.actorId) {
+      throw new Error(`Crew member "${member.name}" is already registered to another actor.`);
+    }
+    if (byActor && byActor.name !== member.name) {
+      throw new Error(`Actor "${member.actorId}" is already registered under another name.`);
+    }
+    if (!byName) next.push(member);
+  }
+  return { ...roster, members: next };
+}
+
 export function assertSubstantive(message) {
   const text = message.replace(/https?:\/\/\S+/g, "").replace(/@\S+/g, "").replace(/^#+\s*/gm, "").trim();
   if (text.length < 8) {
@@ -63,6 +87,16 @@ export function signedBody(roster, from, message, signature) {
     throw new Error("Crew posts require the sender's completed persona signature.");
   }
   return `${message}\n\n---\n@${sender}\n${signature.trim()}`;
+}
+
+export function markDiscussionClosed(roster, closed) {
+  if (!closed?.closed) throw new Error("GitHub did not report the Discussion as closed.");
+  return {
+    ...roster,
+    status: "closed",
+    discussionClosed: true,
+    discussionClosedAt: closed.closedAt,
+  };
 }
 
 export function createKickoff(roster, title, body, category = "General") {

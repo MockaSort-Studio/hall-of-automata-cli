@@ -24,7 +24,8 @@ test("repository coordinates are discovered rather than host-coded", () => {
 test("launch code uses Fabric APIs and relative config paths", () => {
   const code = launchCode(".custom/fabric/crew-launch/run-1.json");
   assert.match(code, /agents\.create\(cfg\.lead\)/);
-  assert.match(code, /agents\.tell/);
+  assert.match(code, /agents\.followUp/);
+  assert.ok(!code.includes("agents.tell"));
   assert.match(code, /status: 'started'/);
   assert.match(code, /roster\.status = 'failed'/);
   assert.match(code, /agents\.remove/);
