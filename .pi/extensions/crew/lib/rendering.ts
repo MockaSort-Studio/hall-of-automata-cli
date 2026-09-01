@@ -7,17 +7,6 @@ const shortId = value => typeof value === "string" ? value.slice(0, 8) : "unknow
 export function registerCrewMessageRenderer(pi: ExtensionAPI) {
   pi.on("context", event => ({ messages: minimizeCrewContext(event.messages) }));
 
-  pi.registerEntryRenderer("crew-status-card", (entry, _options, theme) => {
-    const data = entry.data as { runId?: string; phase?: string };
-    const box = new Box(1, 1, text => theme.bg("customMessageBg", text));
-    box.addChild(new Text(
-      theme.fg("warning", theme.bold("◌ Crew queued")) +
-        theme.fg("muted", `  ${String(data.runId ?? "unknown").slice(0, 8)}`) +
-        "\n" + theme.fg("dim", "Durable Lead startup is being handed to Fabric."),
-      0, 0,
-    ));
-    return box;
-  });
   pi.registerMessageRenderer("pi-fabric-agent-message", (message, options, theme) => {
     const details = message.details as { data?: Record<string, unknown> } | undefined;
     const data = details?.data;

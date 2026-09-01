@@ -3,6 +3,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble } from "./lib/assembly.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
+import { registerCrewMonitor } from "./lib/monitor.ts";
 import { registerCrewMessageRenderer } from "./lib/rendering.ts";
 import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 
@@ -23,6 +24,7 @@ const parameters = Type.Object({
 export default function crewExtension(pi: ExtensionAPI) {
   registerCommunicationTools(pi);
   registerCrewMessageRenderer(pi);
+  const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({
     name: "build_crew_member",
@@ -63,7 +65,7 @@ export default function crewExtension(pi: ExtensionAPI) {
     },
     async execute(_id, input, signal, _update, ctx) {
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
-      pi.appendEntry("crew-status-card", { runId: prepared.runId, phase: "queued" });
+      monitor.activate(ctx, prepared.rosterFile);
       return output({ ...prepared, status: "queued", launchRequired: true }, queuedMessage(prepared));
     },
   });
