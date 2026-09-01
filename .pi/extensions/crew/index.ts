@@ -64,6 +64,17 @@ export default function crewExtension(pi: ExtensionAPI) {
       );
     },
     async execute(_id, input, signal, _update, ctx) {
+      // Lead role requires thinking mode. Validate model is compatible.
+      const THINKING_UNSUPPORTED = ["mistral-small", "mistral-medium", "mistral-tiny"];
+      if (input.model) {
+        const m = input.model.toLowerCase();
+        if (THINKING_UNSUPPORTED.some(blocked => m.includes(blocked))) {
+          throw new Error(
+            `Model "${input.model}" does not support thinking mode, which is required for the Crew Lead role. ` +
+            `Use a model that supports reasoning, e.g. anthropic/claude-sonnet-4-5 or mistral/devstral-latest.`
+          );
+        }
+      }
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
       monitor.activate(ctx, prepared.rosterFile);
       return output({ ...prepared, status: "queued", launchRequired: true }, queuedMessage(prepared));
