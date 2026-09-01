@@ -26,7 +26,7 @@ test("terminal Crew removes the monitor", () => {
   assert.equal(crewMonitorView(roster({ status: "closed" })), null);
 });
 
-test("widget is fixed below editor, clickable when supported, and cleaned up", () => {
+test("widget is fixed above editor, clickable when supported, and cleaned up", () => {
   assert.match(source, /placement: "aboveEditor"/);
   assert.match(source, /hyperlink\(label, view\.discussionUrl\)/);
   assert.match(source, /getCapabilities\(\)\.hyperlinks/);
