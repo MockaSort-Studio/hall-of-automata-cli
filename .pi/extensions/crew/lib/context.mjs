@@ -3,7 +3,7 @@ const compact = value => String(value ?? "").replace(/\s+/g, " ").trim();
 export function minimalCrewResult(data) {
   const runId = compact(data.runId).slice(0, 8) || "unknown";
   const outcome = compact(data.outcome || data.status) || "unknown";
-  const summary = compact(data.summary).slice(0, 320);
+  const summary = compact(data.summary).replace(/^(PASS|BLOCKED|FAIL)\s*(?::|—|-)\s*/i, "").slice(0, 320);
   const record = compact(data.finalCommentUrl || data.discussionUrl);
   return [
     `[Crew result ${runId}] ${outcome}.`,

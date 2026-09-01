@@ -23,4 +23,5 @@ test("Crew result projection is bounded and leaves unrelated messages unchanged"
   const ordinary = { role: "user", content: "keep me" };
   assert.equal(minimizeCrewContext([ordinary])[0], ordinary);
   assert.ok(minimalCrewResult({ runId: "run", outcome: "PASS", summary: "x".repeat(1000) }).length < 400);
+  assert.equal(minimalCrewResult({ runId: "run-1234", outcome: "PASS", summary: "PASS: verified" }), "[Crew result run-1234] PASS. verified");
 });
