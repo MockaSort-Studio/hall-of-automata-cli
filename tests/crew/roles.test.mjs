@@ -15,6 +15,9 @@ test("leadRole exposes review and Crew communication tools", async () => {
   assert.ok(r.discipline.includes("orchestrate") || r.discipline.includes("LEAD"), "discipline missing lead intent");
   assert.ok(r.tools.includes("crew_kickoff"));
   assert.ok(r.tools.includes("crew_post"));
+  assert.ok(r.tools.includes("crew_review"));
+  assert.ok(r.tools.includes("crew_reply"));
+  assert.ok(r.tools.includes("crew_close"));
   assert.ok(!r.tools.includes("write"));
   assert.equal(r.defaultThinking, "medium");
 });
@@ -27,6 +30,7 @@ test("architectRole returns discipline, read-only tools, high thinking", async (
   assert.ok(!r.tools.includes("write"), "architect must not have write tool");
   assert.ok(!r.tools.includes("edit"),  "architect must not have edit tool");
   assert.equal(r.defaultThinking, "high");
+  assert.ok(r.tools.includes("crew_reply"));
 });
 
 test("developerRole returns discipline, write tools, medium thinking", async () => {
@@ -35,6 +39,7 @@ test("developerRole returns discipline, write tools, medium thinking", async () 
   assert.ok(r.discipline.includes("Doing"), "discipline missing Doing mode");
   assert.ok(r.tools.includes("write"), "developer must have write tool");
   assert.ok(r.tools.includes("edit"),  "developer must have edit tool");
+  assert.ok(r.tools.includes("crew_reply"));
   assert.equal(r.defaultThinking, "medium");
 });
 
@@ -45,6 +50,7 @@ test("advisorRole returns discipline, read-only tools, low thinking", async () =
   assert.ok(r.tools.includes("read"), "missing read tool");
   assert.ok(!r.tools.includes("write"), "advisor must not have write tool");
   assert.equal(r.defaultThinking, "low");
+  assert.ok(r.tools.includes("crew_reply"));
 });
 
 test("roleModule wires all four roles without error", async () => {

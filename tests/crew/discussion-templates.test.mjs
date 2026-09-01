@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { renderKickoff } from "../../.pi/extensions/crew/lib/discussion-templates.mjs";
+import {
+  renderBroadcast, renderDirected, renderFinal, renderFinding, renderKickoff, renderReply, renderReview,
+} from "../../.pi/extensions/crew/lib/discussion-templates.mjs";
 
 const roster = {
   runId: "run-1",
@@ -64,4 +66,31 @@ test("kickoff rejects missing criteria, specialists, and malformed handles", () 
     ...input,
     crew: [{ name: "Tomashco", assignment: "Review." }],
   }), /role-persona handle/);
+});
+
+
+test("directed, broadcast, and reply templates use canonical addressees without transport tags", () => {
+  assert.equal(renderDirected("architect-tomashco", "Check the ownership boundary."), "@architect-tomashco\n\nCheck the ownership boundary.");
+  assert.equal(renderBroadcast("Use the resident supervisor."), "@all\n\nUse the resident supervisor.");
+  assert.equal(renderReply("lead-old-major", "The boundary is verified."), "@lead-old-major\n\nThe boundary is verified.");
+  assert.throws(() => renderBroadcast("[Broadcast] Use the supervisor."), /transport label/);
+  assert.throws(() => renderDirected("architect", "Check this boundary."), /role-persona handle/);
+});
+
+test("finding and review templates contain only semantic headings", () => {
+  assert.equal(renderFinding({ subject: "Actor ownership", message: "The resident host owns nested actors." }),
+    "## Finding: Actor ownership\n\nThe resident host owns nested actors.");
+  assert.equal(renderReview({ subject: "Actor ownership", decision: "ACCEPT", reason: "The source and probe agree." }),
+    "## Review: Actor ownership\n\n**Decision:** ACCEPT\n\nThe source and probe agree.");
+});
+
+test("final template records criterion evidence and named gaps", () => {
+  const rendered = renderFinal({
+    summary: "The communication contract is verified.",
+    acceptance: [{ criterion: "Replies are threaded.", evidenceUrl: "https://example.test/reply" }],
+    gaps: ["Project state remains deferred."],
+  });
+  assert.match(rendered, /^## Final acceptance/);
+  assert.match(rendered, /- \[x\] Replies are threaded/);
+  assert.match(rendered, /### Remaining gaps/);
 });

@@ -1,6 +1,6 @@
 # Crew Operational Follow-ups
 
-Updated: 2026-08-31
+Updated: 2026-09-01
 
 ## In progress
 
@@ -9,24 +9,22 @@ Updated: 2026-08-31
   governance now removes every specialist and finally the Lead. Isolated durable
   self-removal passed; verify automatic cleanup in the next uncontaminated Crew run.
 
-## Todo — Discussion protocol (current focus)
+## Completed — Discussion protocol
 
 - [x] **Provide a canonical kickoff template.** `crew_kickoff` now accepts structured
   objective, acceptance criteria, crew assignments/dependencies, unique references, and
   open questions. The wrapper renders one concise layout and rejects repeated links.
-- [ ] **Render clean, valid Discussion messages.** Remove transport labels such as
-  `[Broadcast]`, `[Question]`, and similar internal tags from human-visible text.
-  Keep signatures and Markdown structurally consistent.
-- [ ] **Use explicit canonical addressees.** Ask and tell messages identify their
-  target with the roster-derived `@role-persona` handle; broadcasts use `@all`.
-  Reject malformed or ambiguous addressing before posting.
-- [ ] **Thread responses beneath the triggering comment.** Preserve the source
-  comment ID for ask, tell, and broadcast messages, then post responses as GitHub
-  Discussion replies instead of unrelated top-level comments.
-- [ ] **Define and test message templates by operation.** Cover kickoff, ask, tell,
-  broadcast, response, review, and final close rendering plus malformed-input cases.
-- [ ] **Close the GitHub Discussion after successful Crew close.** Add a signed,
-  roster-aware close operation; do not delete the canonical record.
+- [x] **Render clean, valid Discussion messages.** Deterministic wrappers now reject
+  internal transport labels and render consistent semantic headings and signatures.
+- [x] **Use explicit canonical addressees.** Ask/tell require one exact roster-derived
+  `@role-persona`; broadcasts render `@all`; ambiguous role or prefix lookup is rejected.
+- [x] **Thread responses beneath the triggering comment.** Comment tools return GraphQL
+  IDs; `crew_reply(replyToId)` posts beneath the source ask, tell, or broadcast comment.
+- [x] **Define and test message templates by operation.** Kickoff, finding, ask, tell,
+  broadcast, response, review, and final acceptance have focused renderers and tests.
+- [x] **Close the GitHub Discussion after successful Crew close.** `crew_close` is
+  Lead-only, signed, retry-aware, posts criterion evidence, and calls `closeDiscussion`.
+  The mutation was verified by closing completed Discussion #395 without deleting it.
 
 ## Todo — Crew runtime
 

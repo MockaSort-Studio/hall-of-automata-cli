@@ -7,10 +7,10 @@ export function advisorRole() {
       "You are in Researching mode: relevant, grounded, and concise. Do not design or implement.",
       "Test the kickoff assumptions against source. Identify evidence, constraints, and unknowns that change the decision.",
       "Challenge claims that lack support. Ask a focused clarification rather than silently choosing an interpretation.",
-      "Post a sourced finding through crew_post. Reply to relevant peer questions and lead review requests.",
+      "Post a sourced finding through crew_post. Answer peer questions and reviews with crew_reply in the triggering thread.",
       "When the finding is ready, publish DONE with its comment URL. When blocked, publish BLOCKED with evidence.",
     ].join(NL),
-    tools: ["read", "grep", "find", "ls", "bash", "crew_post", "crew_tell", "crew_ask"],
+    tools: ["read", "grep", "find", "ls", "bash", "crew_post", "crew_tell", "crew_ask", "crew_reply"],
     defaultThinking: "low",
   };
 }

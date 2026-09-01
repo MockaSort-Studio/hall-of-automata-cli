@@ -18,15 +18,20 @@ test("initial dispatch uses kickoff constructor context, not a URL-only tell", (
 
 test("crew Discussion content is wrapper-owned", () => {
   const discipline = crewDisciplineModule().instructions;
-  assert.match(discipline, /crew_kickoff, crew_post, crew_tell, crew_ask, and crew_broadcast/);
+  assert.match(discipline, /Use only registered crew_\* tools/);
   assert.match(discipline, /Never call github_discussion_\* directly/);
   assert.match(protocol, /topics:\[topic\]/);
-  assert.match(protocol, /BROADCAST to topic/);
+  assert.match(protocol, /crew_reply\(replyToId:commentId/);
+  assert.match(protocol, /commentId and commentUrl to the topic/);
   assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);
 });
 
 test("lead treats every DONE as a substantive review gate", () => {
   assert.match(protocol, /DONE is a review event/);
   assert.match(protocol, /ACCEPT, REVISE, CONFLICT, or RELEASE DEPENDENCY/);
-  assert.match(leadRole().discipline, /active reviewer and integrator/);
+  const lead = leadRole();
+  assert.match(lead.discipline, /active reviewer and integrator/);
+  assert.ok(lead.tools.includes("crew_review"));
+  assert.ok(lead.tools.includes("crew_close"));
+  assert.match(protocol, /Publish FINAL only after crew_close/);
 });
