@@ -1,5 +1,5 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Box, hyperlink, Text } from "@earendil-works/pi-tui";
+import { Box, getCapabilities, hyperlink, Text } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher } from "node:fs";
 import { join, resolve } from "node:path";
 import { crewMonitorView } from "./monitor-state.mjs";
@@ -39,7 +39,8 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       text += theme.fg("muted", `  ${view.phase}`);
       if (view.memberCount > 0) text += theme.fg("dim", ` · ${view.memberCount} specialist`);
       if (view.discussionNumber && view.discussionUrl) {
-        const link = hyperlink(`Discussion #${view.discussionNumber}`, view.discussionUrl);
+        const label = `#${view.discussionNumber} ↗`;
+        const link = getCapabilities().hyperlinks ? hyperlink(label, view.discussionUrl) : `${label} ${view.discussionUrl}`;
         text += ` · ${theme.fg("accent", link)}`;
       }
       box.addChild(new Text(text, 0, 0));
