@@ -2,55 +2,71 @@
 
 Updated: 2026-09-01
 
-## Todo — KR 7.4 quality debt (current priority)
+## Gate 0 — Clean `dev` before further runtime work
+
+- [ ] **P0 — Audit and clean the migration branch.** Inventory `master...dev`, identify the
+  canonical Pi Crew execution path, and remove obsolete spikes, duplicate implementations,
+  stale compatibility code, generated runtime state, and documentation that describes paths
+  we no longer support. Preserve the stable Fabric sibling commits and current GitHub tools.
+  Finish with the full validation suite, a reviewable tree, and a documented folder structure.
+  No observability or context-policy implementation starts before this gate passes.
+
+## Phase 1 — Observability before intervention
+
+- [ ] **P0 — Evaluate and pin `pi-langfuse`.** Review the third-party extension source and
+  choose cloud versus self-hosted Langfuse before installation. Pin an exact package version;
+  never commit credentials. Define a privacy policy explicitly—metadata-only cannot diagnose
+  tool payload growth, while full-debug can upload prompts, source, and tool I/O. Keep source
+  metadata disabled unless separately approved.
+- [ ] **P0 — Prove Langfuse sees the whole durable Crew.** A root Pi trace is insufficient.
+  Verify that Lead and specialist generations, tool calls/results, errors, usage, cost, and
+  resumed durable activations appear in Langfuse. Correlate every trace with Crew run ID,
+  actor ID, role-persona, activation, Discussion, and git revision. If `pi-langfuse` cannot
+  carry those fields through Fabric children, add the smallest Fabric/Crew bridge required.
+- [ ] **P0 — Establish an untouched baseline trace.** Rerun one representative Crew task
+  without context limits or turn limits. Produce a queryable timeline of prompt size,
+  model-facing tool-result size, context high-water, compaction, latency, failures, and final
+  quality for each actor. Langfuse payload truncation protects telemetry ingestion; it must
+  not be mistaken for model-context truncation.
+- [ ] **P1 — Keep a durable local run artifact.** Langfuse augments rather than replaces
+  repository evidence. Before disband, persist the trace/session IDs, runtime, per-response
+  context delta, tool name and model-facing result bytes, usage, compaction events, errors,
+  and lifecycle timestamps. Every unexplained jump above 2k tokens must remain visible as an
+  observability failure rather than disappear with actor-local sessions.
+
+## Phase 2 — Evidence-driven context and discipline
+
+- [ ] **P1 — Focus constructor context.** Use baseline traces to remove irrelevant inherited
+  Claude-era routing, duplicate policy, and persona material that does not change Crew
+  behavior. Pin the Crew contract instead of fetching mutable prompt text at assembly time.
+  Judge reductions by retained behavior and trace deltas, not an arbitrary character quota.
+- [ ] **P1 — Focus evidence discipline.** Teach and test search-before-read, staged bounded
+  retrieval, compact decision-oriented `fabric_exec` returns, raw evidence written to
+  artifacts, and an explicit evidence ledger. Do not impose a turn budget: legitimate review,
+  challenge, and revision loops must remain available.
+- [ ] **P1 — Change context policy only after traces identify the boundary.** Use comparable
+  runs to decide whether model-facing result shaping, targeted compaction, or other runtime
+  controls are warranted. Any intervention must preserve task quality and Crew autonomy; a
+  lower token count with weaker review is a regression.
+- [ ] **P1 — Run an A/B quality gate.** Repeat the same task and model with baseline versus
+  focused prompts/discipline. Compare context growth, tool payloads, cost, runtime, evidence
+  coverage, review quality, and outcome correctness. Adopt only changes with trace-backed
+  improvement and no loss of substantive Crew behavior.
+
+## Remaining KR 7.4 protocol debt
 
 - [ ] **P0 — Make `start_crew` actually start the Crew.** It currently writes config,
-  injects executable code as a delayed user follow-up, and calls that “started.” The stale
-  launch message arrived after KR 7.4 had already finished. `start_crew` must create and wake
-  the Lead directly, return its actor ID, and reject replay of a completed run.
-- [ ] **P0 — Stop speculative Lead startup.** The Lead guessed a nonexistent
-  `roles/specialist.mjs` and probed historical rosters before listing available sources. Give
-  it a constructor-visible manifest of roles, souls, and communication contracts. Require
-  search/list before reads; unrelated read failures must not abort an entire evidence batch.
-- [ ] **P0 — Hard-limit model-facing tool results.** Nineteen context jumps of at least
-  3,000 tokens created 79.9% of KR 7.4 growth; consecutive developer jumps reached 15,990
-  and 16,557. Default every outer `fabric_exec` result to at most 8 KB of decisions and
-  evidence pointers. Larger raw output must go to an artifact, never warm context. Enforce
-  the limit in runtime code; prompt advice alone is not a control.
-- [ ] **P0 — Add automatic context high-water compaction.** KR 7.4 configured no context
-  ceiling and emitted no compaction event. Add a context-size limit distinct from Fabric
-  cumulative `maxTokens`: warn at 32k, persist a working-state artifact, compact before 48k,
-  and fail the run if an actor still exceeds 48k. Lead and self-compaction must both work.
-- [ ] **P0 — Remove stale constructor context.** The Lead started with 15,661 instruction
-  characters, including irrelevant Claude-era `.hall` routing and label procedures. Build a
-  pinned Crew-specific contract. Gate Lead instructions at 8 KB and specialist instructions
-  at 5 KB before task text; fail assembly on overflow or live-fetched contract drift.
-- [ ] **P1 — Put a turn budget on coordination.** Sixty-seven provider responses in ten
-  minutes, including 31 from the Lead, repeatedly reprocessed the entire warm context. Replace
-  polling with event-driven waits. Require justification after 20 Lead or 12 specialist
-  responses, and expose turn count beside context high-water metrics.
-- [ ] **P0 — Publish artifacts before close.** KR 7.4 closed while its report was an
-  untracked local file. A path is not durable evidence. `crew_close` must require a resolving
-  GitHub artifact URL and immutable revision, and refuse to close while the artifact is
-  untracked, dirty, or unavailable remotely.
-- [ ] **P1 — Make final outcomes honest.** `crew_close` rendered “Final acceptance” for
-  a `BLOCKED` KR and checked every criterion. Add explicit `PASS | BLOCKED | FAIL` outcome
-  semantics. Only `PASS` may mark criteria accepted; blockers and unmet criteria must remain
-  visibly unresolved.
-- [ ] **P1 — Thread the whole review chain.** Six top-level comments produced only one
-  reply. Add `replyToId` to Lead reviews and qualifications. Top-level comments should be
-  limited to independent findings and the final result; responses and reviews belong under
-  the triggering finding. Add a threading-coverage assertion to protocol tests.
-- [ ] **P1 — Capture metrics before destructive disband.** Actor removal deleted the
-  detailed traces needed to attribute large context jumps. Before removal, persist runtime,
-  per-response context and delta, model-facing tool-result bytes and tool names, token usage,
-  compaction events, failures, and lifecycle timestamps. Observer reconstruction from partial
-  Pi telemetry is not an acceptable design. Add an assertion that every jump above 2k tokens
-  has a retained source operation or an explicit unexplained-growth failure.
-- [ ] **P1 — Verify resident shutdown in a full Crew run.** Fabric commit `3d14aaa`
-  passed focused tests and a live self-removal probe, but that is not the final acceptance
-  gate. The next full Crew must leave zero actors, no `owner.json`, and no launcher/RPC
-  process after the idle window.
+  injects executable code as a delayed user follow-up, and calls that “started.” It must
+  create and wake the Lead directly, return its actor ID, and reject completed-run replay.
+- [ ] **P0 — Publish artifacts before close.** `crew_close` must require a resolving GitHub
+  artifact URL and immutable revision, and refuse to close while evidence is untracked,
+  dirty, or unavailable remotely.
+- [ ] **P1 — Make final outcomes honest.** Add explicit `PASS | BLOCKED | FAIL` semantics.
+  Only `PASS` may mark criteria accepted; blockers must remain visibly unresolved.
+- [ ] **P1 — Thread the whole review chain.** Add `replyToId` to Lead reviews and
+  qualifications; responses and reviews belong under the triggering finding.
+- [ ] **P1 — Verify resident shutdown in a full Crew run.** The next full Crew must leave
+  zero actors, no `owner.json`, and no launcher/RPC process after the idle window.
 
 ## Completed — Discussion protocol
 
