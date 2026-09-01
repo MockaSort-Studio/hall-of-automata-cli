@@ -1,3 +1,5 @@
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
 import { Type } from "typebox";
 import {
   closeDiscussion,
@@ -19,7 +21,8 @@ import {
 } from "./discussion-templates.mjs";
 
 const result = value => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
-const rosterPath = (cwd, runId) => `${cwd}/.pi/fabric/crew-launch/${runId}-roster.json`;
+const rosterPath = (cwd, runId) =>
+  join(cwd, CONFIG_DIR_NAME, "fabric", "crew-launch", `${runId}-roster.json`);
 const sender = {
   from: Type.String({ description: "Canonical role-persona sender handle, without @" }),
   signature: Type.String({ description: "Completed persona signature" }),

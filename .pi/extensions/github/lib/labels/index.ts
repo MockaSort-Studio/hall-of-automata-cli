@@ -27,6 +27,15 @@ export function addLabels(repo: string, issueNumber: number, labels: string[]) {
     "issue", "edit", String(issueNumber), "-R", repo,
     "--add-label", labels.join(","),
   ]);
+  return viewLabels(repo, issueNumber);
+}
+
+export function removeLabel(repo: string, issueNumber: number, label: string) {
+  gh(["issue", "edit", String(issueNumber), "-R", repo, "--remove-label", label]);
+  return viewLabels(repo, issueNumber);
+}
+
+function viewLabels(repo: string, issueNumber: number) {
   return ghJson([
     "issue", "view", String(issueNumber), "-R", repo,
     "--json", "number,title,labels,url",

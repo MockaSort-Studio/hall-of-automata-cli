@@ -55,9 +55,12 @@ Updated: 2026-09-01
 
 ## Remaining KR 7.4 protocol debt
 
-- [ ] **P0 — Make `start_crew` actually start the Crew.** It currently writes config,
-  injects executable code as a delayed user follow-up, and calls that “started.” It must
-  create and wake the Lead directly, return its actor ID, and reject completed-run replay.
+- [ ] **P0 — Add a Fabric host bridge for direct Crew startup.** Pi's supported ExtensionAPI
+  cannot call `agents.create` or invoke another registered tool. `start_crew` therefore
+  prepares portable relative state, returns `queued`, and submits one exact `fabric_exec`
+  follow-up; that launch returns the Lead actor ID and `started`. Add a versioned Fabric
+  request bridge before claiming synchronous startup from the extension tool. Do not use
+  nonexistent `pi.agents` or `pi.tools.call` APIs, and reject completed-run replay.
 - [ ] **P0 — Publish artifacts before close.** `crew_close` must require a resolving GitHub
   artifact URL and immutable revision, and refuse to close while evidence is untracked,
   dirty, or unavailable remotely.

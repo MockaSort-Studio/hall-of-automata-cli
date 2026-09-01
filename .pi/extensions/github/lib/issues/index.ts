@@ -73,11 +73,6 @@ export function updateIssue(repo: string, issueNumber: number, { title, body, mi
   return ghJson(["issue", "view", String(issueNumber), "-R", repo, "--json", "number,title,state,milestone,url"]);
 }
 
-export function removeLabel(repo: string, issueNumber: number, label: string) {
-  gh(["issue", "edit", String(issueNumber), "-R", repo, "--remove-label", label]);
-  return ghJson(["issue", "view", String(issueNumber), "-R", repo, "--json", "number,title,labels,url"]);
-}
-
 // Shared helper function (from dependencies.ts and subissues.ts)
 function issueDbId(repo, number) {
   return Number(gh(["api", `repos/${repo}/issues/${number}`, "--jq", ".id"]));

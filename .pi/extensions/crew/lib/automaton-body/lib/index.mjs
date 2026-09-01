@@ -1,4 +1,5 @@
-export { baseModule } from "./base.mjs";
-export { roleModule } from "./role.mjs";
-export { crewDisciplineModule } from "./crew-discipline.mjs";
-export { soulModule } from "./modules/soul.mjs";
+export { createRobot } from "./robot.mjs";
+export { baseModule, roleModule, crewDisciplineModule, soulModule } from "./modules/index.mjs";
+export { ROLE_DEFINITIONS } from "./roles.mjs";
+export { leadRole } from "./roles/lead.mjs";
+export { architectRole } from "./roles/architect.mjs";
