@@ -27,8 +27,10 @@ ${resuming
 Post a single continuation comment with crew_post: new run ID, scope, roster, and acceptance criteria.
 Do not call crew_kickoff — a kickoff already exists. Give each member the existing Discussion URL
 as their record anchor.`
-  : `Use crew_kickoff once. Its body contains: problem, verified references, acceptance criteria,
-roster/assignments/dependencies, and open questions. Do not create a second Discussion.`}
+  : `Use crew_kickoff once with structured fields: one objective; testable acceptanceCriteria;
+crew entries with role-persona name, bounded assignment, and dependencies; unique references;
+and unresolved openQuestions only. The tool renders the canonical Markdown. Do not supply a
+free-form body, repeat links across fields, or create a second Discussion.`}
 
 ### 3. Dispatch initial work
 For every independent member, call build_crew_member with its Hall soul, role, and an
@@ -36,8 +38,8 @@ initial assignment containing: its bounded task, the Discussion URL, the relevan
 criteria, and any dependency. Treat the returned definition as the constructor input; add
 topics:[topic] and residency:"durable" when calling agents.create. Fabric's resident supervisor
 owns runtime creation and durability; you own roster choice and all management after creation.
-Each member retains an isolated warm context for review and revision. This constructor context
-is the initial handoff. Never use crew_tell or crew_ask merely
+Each member retains an isolated warm context for review and revision.
+The constructor context is the initial handoff. Never use crew_tell or crew_ask merely
 to send a URL. Add each actor to the roster, then wake it with
 await agents.tell({id:member.id, message:"Begin the work in your initial assignment."}).
 Create all independent members before waiting for any result.

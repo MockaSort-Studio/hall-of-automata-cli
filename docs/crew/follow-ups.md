@@ -11,9 +11,9 @@ Updated: 2026-08-31
 
 ## Todo — Discussion protocol (current focus)
 
-- [ ] **Provide a canonical kickoff template.** Focus the Lead's planning while
-  keeping task-specific judgment open. Produce one clean objective, acceptance list,
-  roster, communication contract, and artifact target without repeated links.
+- [x] **Provide a canonical kickoff template.** `crew_kickoff` now accepts structured
+  objective, acceptance criteria, crew assignments/dependencies, unique references, and
+  open questions. The wrapper renders one concise layout and rejects repeated links.
 - [ ] **Render clean, valid Discussion messages.** Remove transport labels such as
   `[Broadcast]`, `[Question]`, and similar internal tags from human-visible text.
   Keep signatures and Markdown structurally consistent.
