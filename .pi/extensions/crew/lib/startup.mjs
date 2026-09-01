@@ -56,7 +56,7 @@ export function launchCode(configPath) {
     "  roster.lead = { name: lead.name, actorId: lead.id, role: 'lead' };",
     "  roster.status = 'starting';",
     "  await pi.write({ path: cfg.rosterFile, content: JSON.stringify(roster, null, 2) });",
-    "  await agents.followUp({ id: lead.id, message: 'Begin the work in your initial assignment.' });",
+    "  await agents.followUp({ id: lead.id, message: cfg.assignment });",
     "  roster.status = 'started';",
     "  await pi.write({ path: cfg.rosterFile, content: JSON.stringify(roster, null, 2) });",
     "  return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: 'started' };",
@@ -80,6 +80,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const paths = crewPaths(configDir, runId);
   const absoluteRoster = join(ctx.cwd, paths.roster);
   const repository = await resolveRepository(pi, ctx.cwd, ctx.signal);
+  const member = assemble("old-major", "lead", "", input);
   const assignment = `${input.task}\n${governance({
     topic,
     runId,
@@ -88,7 +89,6 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     discussionNumber: input.discussionNumber,
     discussionUrl: input.discussionUrl,
   })}`;
-  const member = assemble("old-major", "lead", assignment, input);
   const lead = {
     ...member,
     runner: "pi",
@@ -116,6 +116,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       topic,
       rosterFile: paths.roster,
       lead,
+      assignment,
     }));
   } catch (error) {
     rmSync(absoluteRoster, { force: true });
