@@ -27,7 +27,7 @@ test("terminal Crew removes the monitor", () => {
 });
 
 test("widget is fixed below editor, clickable when supported, and cleaned up", () => {
-  assert.match(source, /placement: "belowEditor"/);
+  assert.match(source, /placement: "aboveEditor"/);
   assert.match(source, /hyperlink\(label, view\.discussionUrl\)/);
   assert.match(source, /getCapabilities\(\)\.hyperlinks/);
   assert.match(source, /watch\(dir/);

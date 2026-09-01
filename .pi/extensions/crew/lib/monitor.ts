@@ -45,7 +45,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       }
       box.addChild(new Text(text, 0, 0));
       return box;
-    }, { placement: "belowEditor" });
+    }, { placement: "aboveEditor" });
   };
 
   const refresh = () => {
