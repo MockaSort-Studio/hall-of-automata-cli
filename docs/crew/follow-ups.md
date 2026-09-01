@@ -56,11 +56,12 @@ Updated: 2026-09-01
 ## Remaining KR 7.4 protocol debt
 
 - [ ] **P0 — Add a Fabric host bridge for direct Crew startup.** Pi's supported ExtensionAPI
-  cannot call `agents.create` or invoke another registered tool. `start_crew` therefore
-  prepares portable relative state, returns `queued`, and submits one exact `fabric_exec`
-  follow-up; that launch returns the Lead actor ID and `started`. Add a versioned Fabric
-  request bridge before claiming synchronous startup from the extension tool. Do not use
-  nonexistent `pi.agents` or `pi.tools.call` APIs, and reject completed-run replay.
+  cannot call `agents.create` or invoke another registered tool. The Fabric-captured
+  `start_crew` therefore prepares portable relative state and its caller must create and wake
+  the Lead within the same `fabric_exec` invocation. No generated code is injected into the
+  user conversation. Add a versioned Fabric request bridge before claiming atomic startup from
+  the extension tool. Do not use nonexistent `pi.agents` or `pi.tools.call` APIs; preserve
+  the queued-state claim and completed-run replay rejection.
 - [ ] **P0 — Publish artifacts before close.** `crew_close` must require a resolving GitHub
   artifact URL and immutable revision, and refuse to close while evidence is untracked,
   dirty, or unavailable remotely.
@@ -84,6 +85,15 @@ Updated: 2026-09-01
   and final-result renderers have focused tests.
 - [x] **Discussion close.** Lead-only, signed, retry-aware `crew_close` posts the final
   record and calls `closeDiscussion` without deleting the canonical record.
+
+## Completed — Main UX and context boundary
+
+- [x] Removed the generated `fabric_exec` user-message bridge and obsolete `/crew-start`
+  command; launch preparation and actor activation now remain in one Fabric invocation.
+- [x] Queued state is rendered through a TUI-only custom entry; terminal state uses a themed
+  Crew result card.
+- [x] Main model context receives one bounded semantic Crew result instead of Fabric XML,
+  actor metadata, or the full structured transport payload.
 
 ## Completed — Crew runtime
 

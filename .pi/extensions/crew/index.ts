@@ -4,7 +4,7 @@ import { Type } from "typebox";
 import { assemble } from "./lib/assembly.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
 import { registerCrewMessageRenderer } from "./lib/rendering.ts";
-import { launchCode, prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -40,7 +40,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "start_crew",
     label: "Crew: start",
-    description: "Prepare a durable Lead and queue its Fabric launch.",
+    description: "Prepare durable Crew state for immediate creation and wake in the same fabric_exec invocation.",
     parameters,
     renderCall(args, theme) {
       const task = args.task.length > 72 ? `${args.task.slice(0, 69)}...` : args.task;
@@ -63,26 +63,9 @@ export default function crewExtension(pi: ExtensionAPI) {
     },
     async execute(_id, input, signal, _update, ctx) {
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
-      pi.sendUserMessage(
-        `Run this using fabric_exec exactly as written:\n\n${launchCode(prepared.configFile)}`,
-        { deliverAs: "followUp" },
-      );
-      return output({ ...prepared, status: "queued" }, queuedMessage(prepared));
+      pi.appendEntry("crew-status-card", { runId: prepared.runId, phase: "queued" });
+      return output({ ...prepared, status: "queued", launchRequired: true }, queuedMessage(prepared));
     },
   });
 
-  pi.registerCommand("crew-start", {
-    description: "Queue a durable Crew dispatch.",
-    handler: async (args, ctx) => {
-      if (!args?.trim()) throw new Error("Usage: /crew-start <problem statement>");
-      const prepared = await prepareCrew(
-        pi, { task: args.trim() }, ctx, CONFIG_DIR_NAME,
-      );
-      pi.sendUserMessage(
-        `Run this using fabric_exec exactly as written:\n\n${launchCode(prepared.configFile)}`,
-        { deliverAs: "followUp" },
-      );
-      ctx.ui.notify(queuedMessage(prepared), "info");
-    },
-  });
 }

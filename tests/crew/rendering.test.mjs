@@ -12,10 +12,17 @@ test("Crew terminal result uses Pi TUI utilities and structured Fabric data", ()
   assert.match(rendering, /pi-fabric-agent-message/);
   assert.match(rendering, /data\?\.kind !== "crew_result"/);
   assert.match(rendering, /data\.outcome === "PASS"/);
+  assert.match(rendering, /registerEntryRenderer\("crew-status-card"/);
+  assert.match(rendering, /pi\.on\("context"/);
 });
 
 test("start_crew provides custom call and result renderers", () => {
   assert.match(extension, /renderCall\(args, theme\)/);
   assert.match(extension, /renderResult\(result, \{ isPartial \}, theme\)/);
   assert.match(extension, /✓ Crew queued/);
+  assert.match(extension, /pi\.appendEntry\("crew-status-card"/);
+  assert.match(extension, /launchRequired: true/);
+  assert.ok(!extension.includes("sendUserMessage"));
+  assert.ok(!extension.includes("Run this using fabric_exec"));
+  assert.ok(!extension.includes("registerCommand"));
 });

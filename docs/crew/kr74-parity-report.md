@@ -37,7 +37,7 @@ runner.py ... --plugin-dir <pr-plugin> --cc-bin claude
 
 The runner bootstraps `/hall-of-automata-cli:hall-open` and passes Claude-only options including `--output-format stream-json`, `--dangerously-skip-permissions`, and `--plugin-dir`.
 
-The Crew target is registered under `.pi/extensions/crew/` through `start_crew` / `crew-start` and Fabric actors. The existing runner has no Pi/Fabric target selector. Consequently:
+The Crew target is registered under `.pi/extensions/crew/` through the Fabric-captured `start_crew` tool and Fabric actors. The existing runner has no Pi/Fabric target selector. Consequently:
 
 - baseline SHA through the harness → Claude-plugin implementation;
 - Crew SHA through the harness → the same Claude-plugin implementation;
