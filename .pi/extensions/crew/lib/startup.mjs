@@ -32,6 +32,10 @@ export async function resolveRepository(pi, cwd, signal) {
   return parseRepository(result.stdout);
 }
 
+export function queuedMessage(prepared) {
+  return `Crew ${prepared.runId} is queued. Its terminal result or launch failure will be returned to this Pi session automatically.`;
+}
+
 export function launchCode(configPath) {
   return [
     `const cfg = JSON.parse(await pi.read(${JSON.stringify(configPath)}));`,

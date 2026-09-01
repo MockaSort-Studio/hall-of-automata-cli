@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { crewPaths, launchCode, parseRepository } from "../../.pi/extensions/crew/lib/startup.mjs";
+import { crewPaths, launchCode, parseRepository, queuedMessage } from "../../.pi/extensions/crew/lib/startup.mjs";
 
 test("crew paths are relative to the install config directory", () => {
   assert.deepEqual(crewPaths(".pi", "run-1"), {
@@ -19,6 +19,13 @@ test("repository coordinates are discovered rather than host-coded", () => {
     repo: "repository",
   });
   assert.throws(() => parseRepository("repository"), /Unable to resolve/);
+});
+
+test("queued acknowledgment is user-facing and promises terminal return", () => {
+  const message = queuedMessage({ runId: "run-1" });
+  assert.equal(message, "Crew run-1 is queued. Its terminal result or launch failure will be returned to this Pi session automatically.");
+  assert.ok(!message.includes("roster"));
+  assert.ok(!message.includes("config"));
 });
 
 test("launch code uses Fabric APIs and relative config paths", () => {

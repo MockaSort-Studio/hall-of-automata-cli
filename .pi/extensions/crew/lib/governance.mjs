@@ -59,9 +59,12 @@ Release dependent work only after accepting its prerequisites. Keep completed me
 ### 5. Close and disband
 Read the accepted evidence, verify every acceptance criterion, and write ${outputPath || "the final Discussion synthesis"}.
 Call crew_close with a concise summary, criterion-level evidence, and named nonblocking gaps;
-it posts the final acceptance record and closes the Discussion. Publish FINAL only after crew_close
-confirms closed:true. After the close record and FINAL are durable, disband the Crew: remove every specialist actor
-listed in the roster, then remove yourself as the absolute last lifecycle action. Use mesh.self()
+it posts the final acceptance record and closes the Discussion. Keep its returned commentUrl as the final record.
+Publish FINAL only after crew_close confirms closed:true. Then return the result to the invoking Pi session exactly once:
+await agents.followUp({ id:"main", message:"Crew ${runId} completed. Status: closed. Discussion: <discussion URL>. Final record: <crew_close commentUrl>. Summary: <concise outcome>.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", outputPath:${JSON.stringify(outputPath || null)} } }).
+This Main delivery is required user-facing output, not Crew-internal mesh traffic. After the close record, FINAL,
+and Main delivery are durable, disband the Crew: remove every specialist actor listed in the roster,
+then remove yourself as the absolute last lifecycle action. Use mesh.self()
 to resolve your actor ID. Self-removal terminates your current activation, so do not place any
 required write, Discussion post, mesh event, or verification after it. The roster and Discussion
 remain as durable history; actor processes and warm sessions do not.

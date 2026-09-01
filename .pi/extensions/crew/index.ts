@@ -2,10 +2,10 @@ import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-ag
 import { Type } from "typebox";
 import { assemble } from "./lib/assembly.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
-import { launchCode, prepareCrew } from "./lib/startup.mjs";
+import { launchCode, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 
-const output = value => ({
-  content: [{ type: "text", text: JSON.stringify(value) }],
+const output = (value, text = JSON.stringify(value)) => ({
+  content: [{ type: "text", text }],
   details: value,
 });
 
@@ -45,7 +45,7 @@ export default function crewExtension(pi: ExtensionAPI) {
         `Run this using fabric_exec exactly as written:\n\n${launchCode(prepared.configFile)}`,
         { deliverAs: "followUp" },
       );
-      return output({ ...prepared, status: "queued" });
+      return output({ ...prepared, status: "queued" }, queuedMessage(prepared));
     },
   });
 
@@ -60,7 +60,7 @@ export default function crewExtension(pi: ExtensionAPI) {
         `Run this using fabric_exec exactly as written:\n\n${launchCode(prepared.configFile)}`,
         { deliverAs: "followUp" },
       );
-      ctx.ui.notify(`Crew ${prepared.runId} launch queued`, "info");
+      ctx.ui.notify(queuedMessage(prepared), "info");
     },
   });
 }
