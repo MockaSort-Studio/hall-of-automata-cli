@@ -9,15 +9,39 @@ Updated: 2026-08-31
   governance now removes every specialist and finally the Lead. Isolated durable
   self-removal passed; verify automatic cleanup in the next uncontaminated Crew run.
 
-## Todo
+## Todo — Discussion protocol (current focus)
 
+- [ ] **Provide a canonical kickoff template.** Focus the Lead's planning while
+  keeping task-specific judgment open. Produce one clean objective, acceptance list,
+  roster, communication contract, and artifact target without repeated links.
+- [ ] **Render clean, valid Discussion messages.** Remove transport labels such as
+  `[Broadcast]`, `[Question]`, and similar internal tags from human-visible text.
+  Keep signatures and Markdown structurally consistent.
+- [ ] **Use explicit canonical addressees.** Ask and tell messages identify their
+  target with the roster-derived `@role-persona` handle; broadcasts use `@all`.
+  Reject malformed or ambiguous addressing before posting.
+- [ ] **Thread responses beneath the triggering comment.** Preserve the source
+  comment ID for ask, tell, and broadcast messages, then post responses as GitHub
+  Discussion replies instead of unrelated top-level comments.
+- [ ] **Define and test message templates by operation.** Cover kickoff, ask, tell,
+  broadcast, response, review, and final close rendering plus malformed-input cases.
 - [ ] **Close the GitHub Discussion after successful Crew close.** Add a signed,
   roster-aware close operation; do not delete the canonical record.
+
+## Todo — Crew runtime
+
+- [ ] Run one uncontaminated end-to-end KR autonomy proof without observer wakeups.
+- [ ] Investigate accumulated orphan resident launcher processes.
+
+## Deferred — Hall CLI state-model port
+
+GitHub Issue, Project, label, dependency, and related state transitions will be
+revisited when the Hall CLI discipline is ported. They are not part of the current
+automata-Crew protocol focus.
+
 - [ ] Move the Project item from `In Progress` to `Done` after verified close.
 - [ ] Decide whether closing the tracked Issue is part of Crew close or a separate
   state-management workflow; current `github_issue_update` state handling is broken.
-- [ ] Run one uncontaminated end-to-end KR autonomy proof without observer wakeups.
-- [ ] Investigate accumulated orphan resident launcher processes.
 
 ## Completed evidence
 
