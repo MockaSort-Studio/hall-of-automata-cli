@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-const ROSTER_DIR = new URL("../../../roster/", import.meta.url);
+const ROSTER_DIR = new URL("../../../../roster/", import.meta.url);
 
 function readSoul(name) {
   if (!name || typeof name !== "string") {
