@@ -23,6 +23,10 @@ test("crew Discussion content is wrapper-owned", () => {
   assert.match(discipline, /Use only registered crew_\* tools/);
   assert.match(discipline, /Never call github_discussion_\* directly/);
   assert.match(protocol, /Immediately call crew_register/);
+  assert.match(protocol, /agents\.remove/);
+  assert.match(protocol, /removed:true/);
+  assert.match(protocol, /Never use\s+agents\.stop as disbanding/);
+  assert.match(discipline, /stop only pauses.*retains/i);
   assert.match(protocol, /crew_reply\(replyToId:commentId/);
   assert.match(protocol, /commentId and commentUrl to the topic/);
   assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);

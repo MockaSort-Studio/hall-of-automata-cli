@@ -50,7 +50,7 @@ include all three when notifying the actor through Fabric. The recipient answers
 crew_reply(replyToId:commentId, to:sender), creating a Discussion thread. crew_broadcast
 addresses @all; publish its commentId and commentUrl to the topic so responses can use
 crew_reply beneath it. Challenge unsupported claims and connect related findings.
-Release dependent work only after accepting its prerequisites. Keep completed members alive until final acceptance; remove them only after review and context collection.
+Release dependent work only after accepting its prerequisites. Keep completed members idle until final acceptance; do not use a stop directive. Stop only pauses and retains an actor. The Lead must disband with agents.remove and require its { removed:true } result.
 
 ### 5. Close and disband
 Read the accepted evidence, verify every acceptance criterion, and write ${outputPath || "the final Discussion synthesis"}.
@@ -59,8 +59,9 @@ it posts the final acceptance record and closes the Discussion. Keep its returne
 Publish FINAL only after crew_close confirms closed:true. Then return the result to the invoking Pi session exactly once:
 await agents.followUp({ id:"main", message:"Crew ${runId} completed. Status: closed. Discussion: <discussion URL>. Final record: <crew_close commentUrl>. Summary: <concise outcome>.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", outcome:"PASS", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", summary:"<concise outcome>", outputPath:${JSON.stringify(outputPath || null)} } }).
 This Main delivery is required user-facing output, not Crew-internal mesh traffic. After the close record, FINAL,
-and Main delivery are durable, disband the Crew: remove every specialist actor listed in the roster,
-then remove yourself as the absolute last lifecycle action. Use mesh.self()
+and Main delivery are durable, disband the Crew with agents.remove: remove every specialist actor listed in the roster,
+verify every result is { removed:true }, then remove yourself as the absolute last lifecycle action. Never use
+agents.stop as disbanding; it retains the actor record. Use mesh.self()
 to resolve your actor ID. Self-removal terminates your current activation, so do not place any
 required write, Discussion post, mesh event, or verification after it. The roster and Discussion
 remain as durable history; actor processes and warm sessions do not.
