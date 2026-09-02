@@ -9,8 +9,9 @@ createRobot().install(module, ctx).build()
 
 ## Modules
 
-- `baseModule()` — live shared contract
-- `soulModule({ name })` — local Hall roster soul
+- `baseModule()` — shared contract (still fetched upstream until its local copy is migrated)
+- `soulModule({ name })` — checked-in local Hall roster soul
+- `agents/agents.json` and `roster/*.md` — authoritative local Crew catalog and specialist souls
 - `roleModule({ role, override })` — behavioral role and model defaults
 - `crewDisciplineModule()` — shared collaboration and communication contract
 
