@@ -67,7 +67,7 @@ export function registerCommunicationTools(pi) {
 
   pi.registerTool({
     name: "crew_register", label: "Crew: register members",
-    description: "Atomically register specialist actors; only the persisted supervisor or Lead may call it.",
+    description: "Atomically register specialist actors; only the persisted Crew Lead may call it.",
     parameters: Type.Object({
       runId: Type.String(), from: Type.String(),
       members: Type.Array(registeredMember, { minItems: 1 }),
