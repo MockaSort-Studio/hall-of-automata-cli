@@ -48,7 +48,12 @@ export function resolveRecipient(roster, value) {
 
 export function registerMembers(roster, from, members) {
   const sender = canonicalHandle(from);
-  if (roster.lead?.name !== sender) throw new Error("Only the Crew Lead may register members.");
+  if (roster.status !== "started" || !roster.discussionNumber) {
+    throw new Error("Members may be registered only on an active Crew with a canonical Discussion.");
+  }
+  if (roster.lead?.name !== sender) {
+    throw new Error("Only the Crew Lead may register members.");
+  }
   const next = [...(roster.members || [])];
   for (const candidate of members) {
     const member = {
@@ -78,6 +83,9 @@ export function assertSubstantive(message) {
 }
 
 export function signedBody(roster, from, message, signature) {
+  if (roster.status !== "started") {
+    throw new Error("Crew Discussion mutations require an active Crew.");
+  }
   const senders = [roster.lead, ...roster.members].filter(Boolean);
   const sender = canonicalHandle(from);
   if (!senders.some(member => member.name === sender)) throw new Error(`Unknown Crew sender "${sender}"`);

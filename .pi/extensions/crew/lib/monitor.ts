@@ -16,6 +16,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   let activePath: string | undefined;
   let watcher: FSWatcher | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
+  let reconciler: ReturnType<typeof setInterval> | undefined;
 
   const root = () => ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "fabric", "crew-launch") : undefined;
   const latestActive = () => {
@@ -63,6 +64,9 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     if (debounce) clearTimeout(debounce);
     debounce = setTimeout(refresh, 60);
   };
+  const reconcile = () => {
+    if (!reconciler) reconciler = setInterval(refresh, 500);
+  };
 
   const ensureWatcher = () => {
     const dir = root();
@@ -75,6 +79,8 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   const stop = () => {
     if (debounce) clearTimeout(debounce);
     debounce = undefined;
+    if (reconciler) clearInterval(reconciler);
+    reconciler = undefined;
     watcher?.close();
     watcher = undefined;
     activePath = undefined;
@@ -86,6 +92,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     ctx = sessionCtx;
     if (ctx.mode !== "tui") return;
     ensureWatcher();
+    reconcile();
     refresh();
   });
   pi.on("session_shutdown", stop);
@@ -96,6 +103,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       if (ctx.mode !== "tui") return;
       activePath = resolve(ctx.cwd, rosterPath);
       ensureWatcher();
+      reconcile();
       refresh();
     },
   };

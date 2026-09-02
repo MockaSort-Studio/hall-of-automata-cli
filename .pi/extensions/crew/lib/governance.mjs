@@ -33,18 +33,14 @@ and unresolved openQuestions only. The tool renders the canonical Markdown. Do n
 free-form body, repeat links across fields, or create a second Discussion.`}
 
 ### 3. Dispatch initial work
-For every independent member, call build_crew_member with its Hall soul, role, and an
-initial assignment containing: its bounded task, the Discussion URL, the relevant acceptance
-criteria, and any dependency. Treat the returned definition as the constructor input; add
-topics:[topic] and residency:"durable" when calling agents.create. Fabric's resident supervisor
-owns runtime creation and durability; you own roster choice and all management after creation.
-Each member retains an isolated warm context for review and revision.
-The constructor context is the initial handoff. Never use crew_tell or crew_ask merely
-to send a URL. Create all independent actors first, then call crew_register once with every
-created actor's exact name, actorId, and role. Do not wake any specialist unless that atomic
-registration succeeds. After registration, wake each actor with
-await agents.followUp({id:member.id, message:"Begin the work in your initial assignment."}).
-If registration fails, remove every actor created in that batch before reporting BLOCKED.
+Immediately before creating any specialist, re-read ROSTER. Proceed only when status is "started", the canonical Discussion number and URL exist, and you remain its listed Lead. If any check fails, create no actor and report BLOCKED to Main. Re-read the same state immediately before every wake-up; remove already-created specialists if it changed. On any terminal or failed roster state, disband every actor on TOPIC (specialists first, then yourself) and do not perform further Crew work.
+For every independent member, call build_crew_member with its Hall soul, role, and bounded
+initial assignment. Re-read ROSTER, then create each definition directly with agents.create.
+Immediately call crew_register with its name, actorId, and role; only after registration succeeds,
+activate it with agents.ask and its substantive bounded assignment. If creation, registration, or
+activation fails, remove every actor you created for this dispatch and report BLOCKED to Main.
+Fabric routes durable actor lifecycle operations to the resident owner; do not create a lifecycle
+supervisor or delegate recruitment to another LLM.
 
 ### 4. Work as a review loop
 A member DONE is a review event, not completion. Read its linked comment and decide:

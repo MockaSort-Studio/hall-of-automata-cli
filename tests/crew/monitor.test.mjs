@@ -34,4 +34,6 @@ test("widget is fixed above editor, clickable when supported, and cleaned up", (
   assert.match(source, /session_shutdown/);
   assert.match(source, /watcher\?\.close\(\)/);
   assert.match(source, /setWidget\(WIDGET, undefined\)/);
+  assert.match(source, /setInterval\(refresh, 500\)/);
+  assert.match(source, /clearInterval\(reconciler\)/);
 });

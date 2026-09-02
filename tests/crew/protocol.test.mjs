@@ -9,21 +9,20 @@ const protocol = governance({ topic: "crew.test", runId: "test", rosterFile: "/t
 
 test("initial dispatch uses kickoff constructor context, not a URL-only tell", () => {
   assert.match(protocol, /crew_kickoff/);
-  assert.match(protocol, /constructor context is the initial handoff/);
-  assert.match(protocol, /Never use crew_tell or crew_ask merely/);
+  assert.match(protocol, /build_crew_member/);
+  assert.match(protocol, /agents\.create/);
+  assert.match(protocol, /crew_register/);
+  assert.match(protocol, /agents\.ask/);
+  assert.match(protocol, /resident owner/);
+  assert.doesNotMatch(protocol, /roster\.supervisor|operation:"RECRUIT"/);
   assert.doesNotMatch(protocol, /publish START/);
-  assert.match(protocol, /Begin the work in your initial assignment/);
-  assert.match(protocol, /crew_register once/);
-  assert.match(protocol, /agents\.followUp/);
-  assert.doesNotMatch(protocol, /agents\.tell/);
-  assert.match(protocol, /residency:"durable"/);
 });
 
 test("crew Discussion content is wrapper-owned", () => {
   const discipline = crewDisciplineModule().instructions;
   assert.match(discipline, /Use only registered crew_\* tools/);
   assert.match(discipline, /Never call github_discussion_\* directly/);
-  assert.match(protocol, /topics:\[topic\]/);
+  assert.match(protocol, /Immediately call crew_register/);
   assert.match(protocol, /crew_reply\(replyToId:commentId/);
   assert.match(protocol, /commentId and commentUrl to the topic/);
   assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);

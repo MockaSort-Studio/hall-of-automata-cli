@@ -56,6 +56,7 @@ export function registerCommunicationTools(pi) {
     async execute(_id, input, _signal, _update, ctx) {
       const path = rosterPath(ctx.cwd, input.runId);
       const roster = readRoster(path);
+      if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
       if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
       const body = signed(roster, input, renderKickoff(roster, input));
       const discussion = createKickoff(roster, input.title, body, input.category);
@@ -66,7 +67,7 @@ export function registerCommunicationTools(pi) {
 
   pi.registerTool({
     name: "crew_register", label: "Crew: register members",
-    description: "Atomically register created specialist actors before they are woken.",
+    description: "Atomically register specialist actors; only the persisted supervisor or Lead may call it.",
     parameters: Type.Object({
       runId: Type.String(), from: Type.String(),
       members: Type.Array(registeredMember, { minItems: 1 }),

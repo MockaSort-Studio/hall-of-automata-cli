@@ -9,7 +9,7 @@ import { closeDiscussion, markDiscussionClosed, postComment, assertSubstantive, 
 let tmpDir;
 const roster = {
   runId: "test-run", topic: "crew.test-run", owner: "org", repo: "repo",
-  discussionNumber: 42, discussionUrl: "https://github.com/org/repo/discussions/42",
+  status: "started", discussionNumber: 42, discussionUrl: "https://github.com/org/repo/discussions/42",
   members: [
     { name: "architect-tomashco", actorId: "actor-a", role: "architect" },
     { name: "developer-snowball", actorId: "actor-b", role: "developer" },
@@ -38,6 +38,12 @@ test("Lead registers members idempotently and rejects identity conflicts", () =>
   assert.deepEqual(registerMembers(registered, "lead-old-major", [member]).members, [member]);
   assert.throws(() => registerMembers(registered, "advisor-wizard", [member]), /Only the Crew Lead/);
   assert.throws(() => registerMembers(registered, "lead-old-major", [{ ...member, actorId: "actor-b" }]), /another actor/);
+});
+
+test("failed Crews reject late registration and Discussion mutations", () => {
+  const failed = { ...roster, status: "failed", lead: { name: "lead-old-major", actorId: "lead-1" } };
+  assert.throws(() => registerMembers(failed, "lead-old-major", [{ name: "architect-tomashco", actorId: "actor-a", role: "architect" }]), /active Crew/);
+  assert.throws(() => signedBody(failed, "lead-old-major", "A substantive finding", "— [Hall-Master | 🦉 Old Major] · no late writes."), /active Crew/);
 });
 
 test("Discussion close records neutral terminal roster status", () => {
