@@ -79,9 +79,18 @@ export function commentOnDiscussion(owner, repo, number, body) {
   ]));
 }
 
+export function flattenDiscussionComments(comments) {
+  return comments.flatMap(comment => [
+    { id: comment.id, url: comment.url, body: comment.body, author: comment.author },
+    ...(comment.replies?.nodes ?? []).map(reply => ({
+      id: reply.id, url: reply.url, body: reply.body, author: reply.author, replyToId: comment.id,
+    })),
+  ]);
+}
+
 export function listComments(owner, repo, number, limit = 20) {
-  const query = "query($owner:String!,$repo:String!,$num:Int!,$limit:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){comments(first:$limit){nodes{id url body author{login}}}}}}";
-  return JSON.parse(gh([
+  const query = "query($owner:String!,$repo:String!,$num:Int!,$limit:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){comments(first:$limit){nodes{id url body author{login} replies(first:100){nodes{id url body author{login}}}}}}}}";
+  const comments = JSON.parse(gh([
     "api", "graphql",
     "-f", `query=${query}`,
     "-f", `owner=${owner}`,
@@ -90,6 +99,7 @@ export function listComments(owner, repo, number, limit = 20) {
     "-F", `limit=${limit}`,
     "--jq", ".data.repository.discussion.comments.nodes",
   ]));
+  return flattenDiscussionComments(comments);
 }
 
 export function deleteDiscussion(owner, repo, number) {
