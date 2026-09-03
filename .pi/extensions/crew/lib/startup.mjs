@@ -52,7 +52,15 @@ export function launchCode(configPath) {
     "  await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
     "  const actorIds = new Set([lead?.id, roster.lead?.actorId, ...(roster.members || []).map(member => member.actorId)].filter(Boolean));",
     "  try { for (const actor of await agents.actors()) if (actor.topics?.includes(cfg.topic)) actorIds.add(actor.id); } catch {}",
-    "  await Promise.all([...actorIds].map(async id => { try { await agents.remove({ id }); } catch {} }));",
+    "  const removedIds = new Set(); const cleanupFailures = [];",
+    "  for (const id of actorIds) { try { const result = await agents.remove({ id }); if (result?.removed) removedIds.add(id); else cleanupFailures.push({ actorId: id, error: 'remove not confirmed' }); } catch (cleanupError) { cleanupFailures.push({ actorId: id, error: String(cleanupError) }); } }",
+    "  try {",
+    "    roster = JSON.parse(await pi.read(cfg.rosterFile));",
+    "    roster.members = (roster.members || []).filter(member => !removedIds.has(member.actorId));",
+    "    if (roster.lead?.actorId && removedIds.has(roster.lead.actorId)) roster.leadRemoved = true;",
+    "    roster.cleanupFailures = cleanupFailures; roster.cleanedActorIds = [...removedIds];",
+    "    await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
+    "  } catch {}",
     "  throw error;",
     "}",
   ].join("\n");
@@ -62,6 +70,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   if (Boolean(input.discussionNumber) !== Boolean(input.discussionUrl)) {
     throw new Error("discussionNumber and discussionUrl must be provided together");
   }
+  if (String(input.task || "").trim().length > 8000) throw new Error("Crew task exceeds 8000 characters");
   const runId = crypto.randomUUID();
   const topic = `crew.${runId}`;
   const completionMode = input.completionMode === "human-gated" ? "human-gated" : "unattended";

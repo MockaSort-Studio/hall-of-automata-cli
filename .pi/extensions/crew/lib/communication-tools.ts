@@ -146,11 +146,7 @@ export function registerCommunicationTools(pi) {
         let roster = readRoster(path);
         if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may close the Discussion.");
         if (roster.discussionClosed) {
-          if (roster.status !== "closed") {
-            roster = { ...roster, status: "closed" };
-            writeRoster(path, roster);
-          }
-          return result({ discussionUrl: roster.discussionUrl, closed: true, status: "closed", commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+          return result({ discussionUrl: roster.discussionUrl, closed: true, status: roster.status, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
         }
         if (!roster.finalCommentId) {
           const comment = postComment(roster, signed(roster, input, renderFinal(input)));
@@ -160,7 +156,7 @@ export function registerCommunicationTools(pi) {
         const closed = closeDiscussion(roster);
         roster = markDiscussionClosed(roster, closed);
         writeRoster(path, roster);
-        return result({ discussionUrl: closed.url, closed: true, status: "closed", commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+        return result({ discussionUrl: closed.url, closed: true, status: roster.status, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
       });
     },
   });

@@ -16,8 +16,8 @@ test("leadRole exposes review and Crew communication tools", async () => {
   assert.ok(r.tools.includes("crew_kickoff"));
   assert.ok(r.tools.includes("crew_register"));
   assert.ok(r.tools.includes("crew_unregister"));
-  assert.ok(r.tools.includes("crew_begin_human_close"));
-  assert.ok(r.tools.includes("crew_finish_human_close"));
+  assert.ok(r.tools.includes("crew_begin_close"));
+  assert.ok(r.tools.includes("crew_finish_close"));
   assert.ok(r.tools.includes("crew_post"));
   assert.ok(r.tools.includes("crew_review"));
   assert.ok(r.tools.includes("crew_reply"));
@@ -71,4 +71,14 @@ test("roleModule wires all four roles without error", async () => {
 test("roleModule throws for unknown role", async () => {
   const { roleModule } = await import(`${BASE}/modules/role.mjs`);
   assert.throws(() => roleModule({ role: "wizard", override: {} }), /not defined/);
+});
+test("specialists share evidence-triggered BMAD collaboration without losing peer tools", async () => {
+  for (const role of ["architect", "developer", "advisor"]) {
+    const module = await loadRole(role);
+    const result = module[`${role}Role`]();
+    assert.ok(result.tools.includes("crew_ask"), `${role}: missing crew_ask`);
+    assert.ok(result.tools.includes("crew_tell"), `${role}: missing crew_tell`);
+    assert.match(result.discipline, /Request peer input only for conflicting findings/);
+    assert.match(result.discipline, /no trigger means no debate/i);
+  }
 });

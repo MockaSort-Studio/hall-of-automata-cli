@@ -1,6 +1,7 @@
 const clean = (value, field) => {
   const text = value?.trim();
   if (!text) throw new Error(`${field} must not be empty.`);
+  if (text.length > 6000) throw new Error(`${field} exceeds 6000 characters.`);
   return text;
 };
 
@@ -28,6 +29,7 @@ function assertUniqueLinks(values) {
 }
 
 function renderReferences(references = []) {
+  if (references.length > 12) throw new Error("Evidence exceeds 12 references.");
   assertUniqueLinks(references.flatMap(reference => [reference.label, reference.url]));
   return references.map(reference =>
     `- [${clean(reference.label, "Reference label")}](${clean(reference.url, "Reference URL")})`
@@ -35,6 +37,7 @@ function renderReferences(references = []) {
 }
 
 function renderCrew(crew) {
+  if (crew.length > 8) throw new Error("Crew exceeds 8 specialists.");
   return [
     "| Member | Assignment | Depends on |",
     "| --- | --- | --- |",
@@ -59,6 +62,7 @@ export function canonicalHandle(value) {
 export function renderKickoff(roster, input) {
   assertCleanMessage(input.title, "Title");
   const criteria = input.acceptanceCriteria.map(item => clean(item, "Acceptance criterion"));
+  if (criteria.length > 20) throw new Error("Kickoff exceeds 20 acceptance criteria.");
   if (!criteria.length) throw new Error("Kickoff requires at least one acceptance criterion.");
   if (!input.crew.length) throw new Error("Kickoff requires at least one specialist.");
   assertUniqueLinks([

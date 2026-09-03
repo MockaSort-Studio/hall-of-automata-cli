@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beginHumanClose, closeDiscussion, finishHumanClose, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { beginClose, closeDiscussion, finishClose, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -54,13 +54,20 @@ test("human replies resolve to the thread root", () => {
   assert.equal(resolveReplyTarget(pending, "crew-root"), "crew-root");
 });
 
-test("human close reaches terminal state only after specialist cleanup", () => {
-  const active = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
-  const closing = beginHumanClose(active, "lead-old-major", "2026-09-03T00:00:00Z");
+test("closure reaches terminal state only after verified specialist cleanup", () => {
+  const active = { ...roster, completionMode: "human-gated", lead: { name: "lead-old-major", actorId: "lead-1" } };
+  const closing = beginClose(active, "lead-old-major", "2026-09-03T00:00:00Z");
   assert.equal(closing.status, "closing");
-  assert.throws(() => finishHumanClose(closing, "lead-old-major"), /All specialists/);
+  assert.throws(() => finishClose(closing, "lead-old-major"), /All specialists/);
   const empty = unregisterMembers(closing, "lead-old-major", ["actor-a", "actor-b"]);
-  assert.equal(finishHumanClose(empty, "lead-old-major").status, "closed");
+  assert.equal(finishClose(empty, "lead-old-major").status, "closed");
+});
+
+test("unattended Crews cannot close without published acceptance", () => {
+  const active = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
+  assert.throws(() => beginClose(active, "lead-old-major", "2026-09-03T00:00:00Z"), /crew_close before closing/);
+  const accepted = { ...active, finalCommentId: "final-1" };
+  assert.equal(beginClose(accepted, "lead-old-major", "2026-09-03T00:00:00Z").status, "closing");
 });
 
 test("failed Crews reject late registration and Discussion mutations", () => {
@@ -69,9 +76,10 @@ test("failed Crews reject late registration and Discussion mutations", () => {
   assert.throws(() => signedBody(failed, "lead-old-major", "A substantive finding", "— [Hall-Master | 🦉 Old Major] · no late writes."), /active Crew/);
 });
 
-test("Discussion close records neutral terminal roster status", () => {
+test("Discussion close stays non-terminal while specialists remain", () => {
   const closed = markDiscussionClosed(roster, { closed: true, closedAt: "2026-09-01T00:00:00Z" });
-  assert.equal(closed.status, "closed");
+  assert.equal(closed.status, "closing");
+  assert.equal(markDiscussionClosed({ ...roster, members: [] }, { closed: true, closedAt: "2026-09-01T00:00:00Z" }).status, "closed");
   assert.equal(closed.discussionClosed, true);
   assert.throws(() => markDiscussionClosed(roster, { closed: false }), /did not report/);
 });

@@ -15,6 +15,7 @@ test("single-Crew view derives useful runtime phases", () => {
   assert.equal(crewMonitorView(roster({ status: "queued" })).phase, "Queued");
   assert.equal(crewMonitorView(roster({ status: "starting" })).phase, "Starting");
   assert.equal(crewMonitorView(roster({ status: "closing" })).phase, "Disbanding");
+  assert.equal(crewMonitorView(roster({ status: "closing", discussionClosed: true, members: [{}] })).phase, "Disbanding");
   assert.equal(crewMonitorView(roster({ discussionUrl: null })).phase, "Framing");
   assert.equal(crewMonitorView(roster({})).phase, "Recruiting");
   assert.equal(crewMonitorView(roster({ members: [{ name: "architect-a" }] })).phase, "Working");
@@ -24,6 +25,8 @@ test("single-Crew view derives useful runtime phases", () => {
 test("terminal Crew removes the monitor", () => {
   assert.equal(isTerminalCrew(roster({ status: "closed" })), true);
   assert.equal(isTerminalCrew(roster({ status: "failed" })), true);
+  assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true })), true);
+  assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true, members: [{}] })), false);
   assert.equal(crewMonitorView(roster({ status: "closed" })), null);
 });
 

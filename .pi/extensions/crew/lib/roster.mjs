@@ -26,13 +26,10 @@ export const AUTOMATA = Object.freeze(catalog.automata);
 export const NAMES = Object.freeze(Object.keys(AUTOMATA));
 
 export const BASE_GITHUB_TOOLS = Object.freeze([
-  "github_issues_list", "github_issue_view", "github_issue_comment", "github_issue_update",
+  "github_issues_list", "github_issue_view",
   "github_dependency_list", "github_subissues_list", "github_label_list",
-  "github_issue_add_label", "github_issue_remove_label", "github_project_fields",
-  "github_project_item_add", "github_project_item_find", "github_project_field_set",
-  "github_pull_requests_list", "github_pull_request_view", "github_pull_request_comment",
-  "github_pull_request_update", "github_pull_request_review", "github_pull_request_merge",
-  "github_pull_request_add_label", "github_pull_request_remove_label",
+  "github_project_fields", "github_project_item_find",
+  "github_pull_requests_list", "github_pull_request_view",
   "github_discussion_comments", "github_discussion_view",
 ]);
 

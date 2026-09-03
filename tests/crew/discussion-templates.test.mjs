@@ -94,3 +94,9 @@ test("final template records criterion evidence and named gaps", () => {
   assert.match(rendered, /- \[x\] Replies are threaded/);
   assert.match(rendered, /### Remaining gaps/);
 });
+test("Discussion templates reject context-bloating payloads", () => {
+  assert.throws(() => renderFinding({ subject: "Oversized", message: "x".repeat(6001) }), /exceeds 6000/);
+  assert.throws(() => renderKickoff(roster, { ...input, acceptanceCriteria: Array(21).fill("Criterion") }), /exceeds 20/);
+  assert.throws(() => renderKickoff(roster, { ...input, crew: Array.from({ length: 9 }, (_, i) => ({ name: `advisor-peer${i}`, assignment: "Review." })) }), /exceeds 8/);
+  assert.throws(() => renderFinding({ subject: "Evidence", message: "Bounded evidence.", evidence: Array.from({ length: 13 }, (_, i) => ({ label: `E${i}`, url: `https://e.test/${i}` })) }), /exceeds 12/);
+});

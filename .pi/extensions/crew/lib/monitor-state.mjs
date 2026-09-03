@@ -1,7 +1,8 @@
 const TERMINAL = new Set(["closed", "failed", "cancelled"]);
 
 export function isTerminalCrew(roster) {
-  return TERMINAL.has(roster?.status);
+  // A closed Discussion with no remaining specialists is done even if disband bookkeeping crashed.
+  return TERMINAL.has(roster?.status) || (roster?.discussionClosed === true && !(roster?.members?.length > 0));
 }
 
 export function crewMonitorView(roster) {
@@ -9,6 +10,7 @@ export function crewMonitorView(roster) {
   let phase = "Queued";
   if (roster.status === "launching" || roster.status === "starting") phase = "Starting";
   if (roster.status === "closing") phase = "Disbanding";
+
   if (roster.status === "started") {
     if (!roster.discussionUrl) phase = "Framing";
     else if (!(roster.members?.length > 0)) phase = "Recruiting";

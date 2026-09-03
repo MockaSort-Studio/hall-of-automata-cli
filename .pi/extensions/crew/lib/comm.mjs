@@ -88,14 +88,17 @@ export function resolveReplyTarget(roster, replyToId) {
   return request?.threadRootId || request?.replyToId || replyToId;
 }
 
-export function beginHumanClose(roster, from, closedAt) {
+export function beginClose(roster, from, closedAt) {
   if (roster.lead?.name !== canonicalHandle(from)) throw new Error("Only the Crew Lead may close a Crew.");
+  if (roster.completionMode !== "human-gated" && !roster.finalCommentId) {
+    throw new Error("Unattended Crews must publish acceptance with crew_close before closing.");
+  }
   if (roster.status === "closed" || roster.status === "closing") return roster;
-  if (roster.status !== "started") throw new Error("Only an active Crew may begin human closure.");
+  if (roster.status !== "started") throw new Error("Only an active Crew may begin closure.");
   return { ...roster, status: "closing", discussionClosed: true, discussionClosedAt: closedAt };
 }
 
-export function finishHumanClose(roster, from) {
+export function finishClose(roster, from) {
   if (roster.lead?.name !== canonicalHandle(from)) throw new Error("Only the Crew Lead may finish closure.");
   if (roster.status === "closed") return roster;
   if (roster.status !== "closing" || (roster.members || []).length) throw new Error("All specialists must be unregistered before closure.");
@@ -128,7 +131,7 @@ export function markDiscussionClosed(roster, closed) {
   if (!closed?.closed) throw new Error("GitHub did not report the Discussion as closed.");
   return {
     ...roster,
-    status: "closed",
+    status: (roster.members || []).length ? "closing" : "closed",
     discussionClosed: true,
     discussionClosedAt: closed.closedAt,
   };

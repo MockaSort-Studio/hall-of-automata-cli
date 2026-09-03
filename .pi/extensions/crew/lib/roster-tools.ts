@@ -2,8 +2,8 @@ import { CONFIG_DIR_NAME, withFileMutationQueue } from "@earendil-works/pi-codin
 import { join } from "node:path";
 import { Type } from "typebox";
 import {
-  beginHumanClose,
-  finishHumanClose,
+  beginClose,
+  finishClose,
   readRoster,
   registerMembers,
   unregisterMembers,
@@ -42,19 +42,19 @@ export function registerRosterTools(pi) {
     },
   });
   pi.registerTool({
-    name: "crew_begin_human_close", label: "Crew: begin verified human close",
+    name: "crew_begin_close", label: "Crew: begin verified close",
     description: "Record GitHub-confirmed closure before disband.",
     parameters: Type.Object({ runId: Type.String(), from: Type.String(), closedAt: Type.String() }),
     async execute(_id, input, _signal, _update, ctx) {
-      return mutate(input, ctx, roster => beginHumanClose(roster, input.from, input.closedAt));
+      return mutate(input, ctx, roster => beginClose(roster, input.from, input.closedAt));
     },
   });
   pi.registerTool({
-    name: "crew_finish_human_close", label: "Crew: finish human close",
+    name: "crew_finish_close", label: "Crew: finish close",
     description: "Mark terminal only after all specialists are unregistered.",
     parameters: Type.Object({ runId: Type.String(), from: Type.String() }),
     async execute(_id, input, _signal, _update, ctx) {
-      return mutate(input, ctx, roster => finishHumanClose(roster, input.from));
+      return mutate(input, ctx, roster => finishClose(roster, input.from));
     },
   });
 }

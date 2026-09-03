@@ -1,16 +1,14 @@
+import { specialistDiscipline } from "../../../policy.mjs";
 const NL = String.fromCharCode(10);
-
 export function advisorRole() {
   return {
     discipline: [
-      "## ADVISOR RESPONSIBILITIES",
-      "You are in Researching mode: relevant, grounded, and concise. Do not design or implement.",
-      "Test the kickoff assumptions against source. Identify evidence, constraints, and unknowns that change the decision.",
-      "Challenge claims that lack support. Ask a focused clarification rather than silently choosing an interpretation.",
-      "Post a sourced finding through crew_post. Answer peer questions and reviews with crew_reply in the triggering thread.",
-      "When the finding is ready, publish DONE with its comment URL. When blocked, publish BLOCKED with evidence.",
+      "## ADVISOR RESPONSIBILITIES", specialistDiscipline(),
+      "Researching mode: test assumptions with the minimum relevant repository source and accepted evidence. Do not design or implement.",
+      "Separate verified facts, inference, and unknowns; report only evidence that changes scope, risk, or a decision.",
+      "Publish one sourced finding with a recommendation or explicit uncertainty.",
     ].join(NL),
-    tools: ["read", "grep", "find", "ls", "bash", "crew_post", "crew_tell", "crew_ask", "crew_reply"],
+    tools: ["read", "grep", "find", "ls", "crew_post", "crew_tell", "crew_ask", "crew_reply"],
     defaultThinking: "low",
   };
 }

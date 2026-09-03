@@ -92,11 +92,14 @@ test("launch failure disbands rostered and late topic actors", async () => {
       { id: "late-specialist", topics: ["crew.run-1"] },
       { id: "other", topics: ["crew.other"] },
     ],
-    remove: async ({ id }) => { removed.push(id); },
+    remove: async ({ id }) => { removed.push(id); return { removed: true }; },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   await assert.rejects(() => new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents), /wake failed/);
-  assert.equal(JSON.parse(files.get("roster.json")).status, "failed");
+  const failed = JSON.parse(files.get("roster.json"));
+  assert.equal(failed.status, "failed");
+  assert.deepEqual(failed.cleanedActorIds.sort(), ["late-specialist", "lead-1"]);
+  assert.deepEqual(failed.cleanupFailures, []);
   assert.deepEqual(removed.sort(), ["late-specialist", "lead-1"]);
 });
 
@@ -121,6 +124,8 @@ test("launch code uses Fabric APIs and relative config paths", () => {
   assert.match(code, /status: 'started'/);
   assert.match(code, /roster\.status = 'failed'/);
   assert.match(code, /agents\.remove/);
+  assert.match(code, /remove not confirmed/);
+  assert.match(code, /cleanupFailures/);
   assert.ok(!code.includes("/Users/"));
   assert.ok(!code.includes("Workspace/"));
 });
