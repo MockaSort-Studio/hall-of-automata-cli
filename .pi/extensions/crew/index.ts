@@ -19,6 +19,8 @@ const parameters = Type.Object({
   thinking: Type.Optional(Type.String()),
   discussionNumber: Type.Optional(Type.Integer({ minimum: 1 })),
   discussionUrl: Type.Optional(Type.String()),
+  completionMode: Type.Optional(Type.Union([Type.Literal("unattended"), Type.Literal("human-gated")])),
+  monitorIntervalMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 604800000 })),
 });
 
 export default function crewExtension(pi: ExtensionAPI) {

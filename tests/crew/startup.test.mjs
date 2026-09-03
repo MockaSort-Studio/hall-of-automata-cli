@@ -106,6 +106,9 @@ test("launch code uses Fabric APIs and relative config paths", () => {
   assert.match(code, /agents\.create\(cfg\.lead\)/);
   assert.ok(!code.includes("supervisor"));
   assert.ok(!code.includes("BOOTSTRAP"));
+  assert.match(source, /completionMode === "human-gated"/);
+  assert.match(source, /leadTickTopic = `\$\{topic\}\.lead-tick`/);
+  assert.match(source, /schedule: \{ topic: leadTickTopic, everyMs: monitorIntervalMs \}/);
   assert.match(source, /delivery: "followUp"/);
   assert.match(source, /triggerTurn: true/);
   assert.match(code, /agents\.tell/);

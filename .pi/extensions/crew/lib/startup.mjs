@@ -62,18 +62,23 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   }
   const runId = crypto.randomUUID();
   const topic = `crew.${runId}`;
+  const completionMode = input.completionMode === "human-gated" ? "human-gated" : "unattended";
+  const leadTickTopic = `${topic}.lead-tick`;
+  const monitorIntervalMs = input.monitorIntervalMs ?? 600_000;
   const paths = crewPaths(configDir, runId);
   const absoluteRoster = join(ctx.cwd, paths.roster);
   const repository = await resolveRepository(pi, ctx.cwd, ctx.signal);
-  const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: paths.roster, outputPath: input.outputPath, discussionNumber: input.discussionNumber, discussionUrl: input.discussionUrl })}`;
+  const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: paths.roster, outputPath: input.outputPath, discussionNumber: input.discussionNumber, discussionUrl: input.discussionUrl, completionMode, leadTickTopic })}`;
   const lead = {
-    ...assemble("old-major", "lead", "", input), runner: "pi", extensions: true, topics: [topic],
+    ...assemble("old-major", "lead", "", input), runner: "pi", extensions: true,
+    topics: completionMode === "human-gated" ? [topic, leadTickTopic] : [topic],
+    ...(completionMode === "human-gated" ? { schedule: { topic: leadTickTopic, everyMs: monitorIntervalMs } } : {}),
     responseMode: "text", delivery: "followUp", triggerTurn: true, residency: "durable",
   };
   const absoluteConfig = join(ctx.cwd, paths.config);
   mkdirSync(dirname(absoluteRoster), { recursive: true });
   try {
-    writeFileSync(absoluteRoster, JSON.stringify({ runId, topic, status: "queued", ...repository, discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
+    writeFileSync(absoluteRoster, JSON.stringify({ runId, topic, status: "queued", completionMode, leadTickTopic: completionMode === "human-gated" ? leadTickTopic : null, monitorIntervalMs: completionMode === "human-gated" ? monitorIntervalMs : null, ...repository, discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
     writeFileSync(absoluteConfig, JSON.stringify({ runId, topic, rosterFile: paths.roster, lead, assignment }));
   } catch (error) {
     rmSync(absoluteRoster, { force: true }); rmSync(absoluteConfig, { force: true }); throw error;

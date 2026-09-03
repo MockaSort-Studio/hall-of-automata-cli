@@ -1,4 +1,4 @@
-export function governance({ topic, runId, rosterFile, outputPath, discussionUrl, discussionNumber }) {
+export function governance({ topic, runId, rosterFile, outputPath, discussionUrl, discussionNumber, completionMode = "unattended", leadTickTopic }) {
   const resuming = discussionNumber && discussionUrl;
   const discussionBlock = resuming
     ? `EXISTING DISCUSSION: ${discussionUrl} (#${discussionNumber})
@@ -15,6 +15,8 @@ TOPIC: ${topic}
 ROSTER: ${rosterFile}
 OUTPUT: ${outputPath || "Discussion final only"}
 ${discussionBlock}
+COMPLETION MODE: ${completionMode}
+${completionMode === "human-gated" ? `LEAD TICK TOPIC: ${leadTickTopic}\nOn a mesh event from this topic, reconcile the canonical Discussion for new human comments or human closure. If nothing changed, return silent; do not stop or disband. Human closure is terminal: delete specialists with agents.remove, then delete yourself.` : ""}
 
 ### 1. Establish the work
 Read enough source to frame the problem and define acceptance criteria. Choose the
