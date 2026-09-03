@@ -7,8 +7,6 @@ import {
   markDiscussionClosed,
   postComment,
   readRoster,
-  registerMembers,
-  unregisterMembers,
   resolveRecipient,
   resolveReplyTarget,
   signedBody,
@@ -37,9 +35,6 @@ const kickoffMember = Type.Object({
   assignment: Type.String(),
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
-const registeredMember = Type.Object({
-  name: Type.String(), actorId: Type.String(), role: Type.String(),
-});
 const commentResult = (comment, extra = {}) => result({ commentId: comment.id, commentUrl: comment.url, ...extra });
 const load = (ctx, runId) => readRoster(rosterPath(ctx.cwd, runId));
 const signed = (roster, input, body) => signedBody(roster, input.from, body, input.signature);
@@ -64,39 +59,6 @@ export function registerCommunicationTools(pi) {
       const discussion = createKickoff(roster, input.title, body, input.category);
       writeRoster(path, { ...roster, discussionNumber: discussion.number, discussionUrl: discussion.url });
       return result({ discussionNumber: discussion.number, discussionUrl: discussion.url });
-    },
-  });
-
-  pi.registerTool({
-    name: "crew_register", label: "Crew: register members",
-    description: "Atomically register specialist actors; only the persisted Crew Lead may call it.",
-    parameters: Type.Object({
-      runId: Type.String(), from: Type.String(),
-      members: Type.Array(registeredMember, { minItems: 1 }),
-    }),
-    async execute(_id, input, _signal, _update, ctx) {
-      const path = rosterPath(ctx.cwd, input.runId);
-      return withFileMutationQueue(path, async () => {
-        const roster = registerMembers(readRoster(path), input.from, input.members);
-        writeRoster(path, roster);
-        return result({ registered: input.members.map(member => member.name), members: roster.members });
-      });
-    },
-  });
-
-  pi.registerTool({
-    name: "crew_unregister", label: "Crew: unregister removed members",
-    description: "Remove roster records only after the Lead has verified agents.remove for those actors.",
-    parameters: Type.Object({
-      runId: Type.String(), from: Type.String(), actorIds: Type.Array(Type.String(), { minItems: 1 }),
-    }),
-    async execute(_id, input, _signal, _update, ctx) {
-      const path = rosterPath(ctx.cwd, input.runId);
-      return withFileMutationQueue(path, async () => {
-        const roster = unregisterMembers(readRoster(path), input.from, input.actorIds);
-        writeRoster(path, roster);
-        return result({ unregistered: input.actorIds, members: roster.members });
-      });
     },
   });
 
@@ -148,6 +110,7 @@ export function registerCommunicationTools(pi) {
     parameters: Type.Object({ runId: Type.String(), message: Type.String(), ...sender }),
     async execute(_id, input, _signal, _update, ctx) {
       const roster = load(ctx, input.runId);
+      if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may broadcast.");
       const comment = postComment(roster, signed(roster, input, renderBroadcast(input.message)));
       return commentResult(comment, { topic: roster.topic });
     },
@@ -162,8 +125,9 @@ export function registerCommunicationTools(pi) {
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const roster = load(ctx, input.runId);
-      const recipient = input.to === "all" ? "all" : resolveRecipient(roster, input.to).name;
-      const body = recipient === "all" ? renderBroadcast(input.message) : renderReply(recipient, input.message);
+      if (input.to === "all") throw new Error("Threaded replies must name one recipient, never @all.");
+      const recipient = resolveRecipient(roster, input.to).name;
+      const body = renderReply(recipient, input.message);
       return commentResult(postComment(roster, signed(roster, input, body), resolveReplyTarget(roster, input.replyToId)));
     },
   });

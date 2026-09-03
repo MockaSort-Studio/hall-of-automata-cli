@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { crewMonitorView } from "./monitor-state.mjs";
 
 const WIDGET = "crew-monitor";
-const ACTIVE = new Set(["queued", "launching", "starting", "started"]);
+const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
 
 const readJson = path => {
   try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; }

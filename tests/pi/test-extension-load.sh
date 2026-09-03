@@ -17,7 +17,8 @@ cat > "$TMP/assert-tools.ts" <<'EOF'
 export default function (pi) {
   const available = new Set(pi.getAllTools().map(tool => tool.name));
   const required = [
-    "start_crew", "build_crew_member", "crew_register", "crew_unregister", "crew_close",
+    "start_crew", "build_crew_member", "crew_register", "crew_unregister",
+    "crew_begin_human_close", "crew_finish_human_close", "crew_close",
     "github_issue_view", "github_issue_remove_label", "github_discussions_list",
     "web_fetch",
   ];

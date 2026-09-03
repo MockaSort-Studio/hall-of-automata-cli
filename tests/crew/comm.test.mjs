@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { closeDiscussion, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { beginHumanClose, closeDiscussion, finishHumanClose, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -52,6 +52,15 @@ test("human replies resolve to the thread root", () => {
   const pending = { ...roster, pendingHumanRequests: [{ id: "human-child", replyToId: "crew-root", threadRootId: "crew-root" }] };
   assert.equal(resolveReplyTarget(pending, "human-child"), "crew-root");
   assert.equal(resolveReplyTarget(pending, "crew-root"), "crew-root");
+});
+
+test("human close reaches terminal state only after specialist cleanup", () => {
+  const active = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
+  const closing = beginHumanClose(active, "lead-old-major", "2026-09-03T00:00:00Z");
+  assert.equal(closing.status, "closing");
+  assert.throws(() => finishHumanClose(closing, "lead-old-major"), /All specialists/);
+  const empty = unregisterMembers(closing, "lead-old-major", ["actor-a", "actor-b"]);
+  assert.equal(finishHumanClose(empty, "lead-old-major").status, "closed");
 });
 
 test("failed Crews reject late registration and Discussion mutations", () => {

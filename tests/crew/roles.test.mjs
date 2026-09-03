@@ -16,6 +16,8 @@ test("leadRole exposes review and Crew communication tools", async () => {
   assert.ok(r.tools.includes("crew_kickoff"));
   assert.ok(r.tools.includes("crew_register"));
   assert.ok(r.tools.includes("crew_unregister"));
+  assert.ok(r.tools.includes("crew_begin_human_close"));
+  assert.ok(r.tools.includes("crew_finish_human_close"));
   assert.ok(r.tools.includes("crew_post"));
   assert.ok(r.tools.includes("crew_review"));
   assert.ok(r.tools.includes("crew_reply"));

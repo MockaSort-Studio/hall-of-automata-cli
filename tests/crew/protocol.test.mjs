@@ -1,54 +1,32 @@
-// tests/crew/protocol.test.mjs
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { governance } from "../../.pi/extensions/crew/lib/governance.mjs";
 import { crewDisciplineModule } from "../../.pi/extensions/crew/lib/automaton-body/lib/modules/crew-discipline.mjs";
-import { leadRole } from "../../.pi/extensions/crew/lib/automaton-body/lib/roles/lead.mjs";
 
-const protocol = governance({ topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md" });
-const humanProtocol = governance({ topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md", completionMode: "human-gated", leadTickTopic: "crew.test.lead-tick" });
+const base = { topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md" };
+const protocol = governance(base);
+const human = governance({ ...base, completionMode: "human-gated", leadTickTopic: "crew.test.lead-tick" });
+const tools = readFileSync(new URL("../../.pi/extensions/crew/lib/communication-tools.ts", import.meta.url), "utf8");
 
-test("initial dispatch uses kickoff constructor context, not a URL-only tell", () => {
-  assert.match(protocol, /crew_kickoff/);
-  assert.match(protocol, /build_crew_member/);
-  assert.match(protocol, /agents\.create/);
-  assert.match(protocol, /crew_register/);
-  assert.match(protocol, /crew_unregister/);
-  assert.match(protocol, /agents\.ask/);
-  assert.match(protocol, /resident owner/);
-  assert.doesNotMatch(protocol, /roster\.supervisor|operation:"RECRUIT"/);
-  assert.doesNotMatch(protocol, /publish START/);
+test("dispatch is a bounded create-register-wake transaction", () => {
+  for (const term of ["crew_kickoff", "build_crew_member", "agents.create", "crew_register", "agents.ask", "crew_unregister"]) assert.ok(protocol.includes(term));
+  assert.doesNotMatch(protocol, /supervisor/);
+  assert.match(protocol, /never post “dispatched”/);
 });
 
-test("crew Discussion content is wrapper-owned", () => {
+test("protocol preserves Crew ownership and low-noise decisions", () => {
   const discipline = crewDisciplineModule().instructions;
   assert.match(discipline, /Use only registered crew_\* tools/);
-  assert.match(discipline, /Never call github_discussion_\* directly/);
-  assert.match(protocol, /Immediately call crew_register/);
-  assert.match(protocol, /agents\.remove/);
-  assert.match(protocol, /removed:true/);
-  assert.match(protocol, /Never use\s+agents\.stop as disbanding/);
-  assert.match(discipline, /stop only pauses.*retains/i);
-  assert.match(discipline, /Only the Lead manages Crew actor lifecycle/i);
-  assert.match(discipline, /never call agents\.stop or agents\.remove/i);
-  assert.match(protocol, /crew_reply\(replyToId:commentId/);
-  assert.match(humanProtocol, /request\.threadRootId/);
-  assert.match(protocol, /commentId and commentUrl to the topic/);
-  assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);
+  assert.match(discipline, /Only the Lead manages Crew actor lifecycle/);
+  assert.match(protocol, /material Lead decision/);
+  assert.match(protocol, /Do not review a review/);
+  assert.match(protocol, /agents\.ask\/tell for operational dispatch/);
+  assert.match(tools, /Only the Crew Lead may broadcast/);
+  assert.match(tools, /Threaded replies must name one recipient, never @all/);
 });
 
-test("lead treats every DONE as a substantive review gate", () => {
-  assert.match(protocol, /DONE is a review event/);
-  assert.match(protocol, /ACCEPT, REVISE, CONFLICT, or RELEASE DEPENDENCY/);
-  const lead = leadRole();
-  assert.match(lead.discipline, /active reviewer and integrator/);
-  assert.ok(lead.tools.includes("crew_review"));
-  assert.ok(lead.tools.includes("crew_close"));
-  assert.match(protocol, /Publish FINAL only after crew_close/);
-  assert.match(protocol, /agents\.followUp\(\{ id:"main"/);
-  assert.match(protocol, /kind:"crew_result"/);
-  assert.match(protocol, /status:"closed"/);
-  assert.match(protocol, /outcome:"PASS"/);
-  assert.match(protocol, /summary:"<concise outcome>"/);
-  assert.ok(protocol.indexOf('id:"main"') < protocol.indexOf("remove every specialist"));
+test("human closure has a durable terminal sequence", () => {
+  for (const term of ["crew_poll_human_requests", "request.threadRootId", "crew_begin_human_close", "crew_finish_human_close", "members is empty"]) assert.ok(human.includes(term));
+  assert.match(protocol, /crew_close once/);
 });

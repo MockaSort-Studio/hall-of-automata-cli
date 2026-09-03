@@ -8,6 +8,7 @@ export function crewMonitorView(roster) {
   if (!roster || isTerminalCrew(roster)) return null;
   let phase = "Queued";
   if (roster.status === "launching" || roster.status === "starting") phase = "Starting";
+  if (roster.status === "closing") phase = "Disbanding";
   if (roster.status === "started") {
     if (!roster.discussionUrl) phase = "Framing";
     else if (!(roster.members?.length > 0)) phase = "Recruiting";

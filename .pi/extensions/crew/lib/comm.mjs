@@ -88,6 +88,20 @@ export function resolveReplyTarget(roster, replyToId) {
   return request?.threadRootId || request?.replyToId || replyToId;
 }
 
+export function beginHumanClose(roster, from, closedAt) {
+  if (roster.lead?.name !== canonicalHandle(from)) throw new Error("Only the Crew Lead may close a Crew.");
+  if (roster.status === "closed" || roster.status === "closing") return roster;
+  if (roster.status !== "started") throw new Error("Only an active Crew may begin human closure.");
+  return { ...roster, status: "closing", discussionClosed: true, discussionClosedAt: closedAt };
+}
+
+export function finishHumanClose(roster, from) {
+  if (roster.lead?.name !== canonicalHandle(from)) throw new Error("Only the Crew Lead may finish closure.");
+  if (roster.status === "closed") return roster;
+  if (roster.status !== "closing" || (roster.members || []).length) throw new Error("All specialists must be unregistered before closure.");
+  return { ...roster, status: "closed" };
+}
+
 export function assertSubstantive(message) {
   const text = message.replace(/https?:\/\/\S+/g, "").replace(/@\S+/g, "").replace(/^#+\s*/gm, "").trim();
   if (text.length < 8) {
