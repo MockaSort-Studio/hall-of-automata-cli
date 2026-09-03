@@ -33,6 +33,14 @@ function discussionNodeId(owner, repo, number) {
   ]);
 }
 
+export function viewDiscussion(owner, repo, number) {
+  const query = "query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){id number url isClosed closedAt}}}";
+  return ghJson([
+    "api", "graphql", "-f", `query=${query}`, "-f", `owner=${owner}`, "-f", `repo=${repo}`,
+    "-F", `num=${number}`, "--jq", ".data.repository.discussion",
+  ]);
+}
+
 export function listDiscussions(owner, repo, limit = 100) {
   const query = "query($owner:String!,$repo:String!,$limit:Int!){repository(owner:$owner,name:$repo){discussions(first:$limit){nodes{id number title url}}}}";
   return ghJson([

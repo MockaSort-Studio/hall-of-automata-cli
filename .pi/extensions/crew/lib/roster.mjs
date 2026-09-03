@@ -33,6 +33,7 @@ export const BASE_GITHUB_TOOLS = Object.freeze([
   "github_pull_requests_list", "github_pull_request_view", "github_pull_request_comment",
   "github_pull_request_update", "github_pull_request_review", "github_pull_request_merge",
   "github_pull_request_add_label", "github_pull_request_remove_label",
+  "github_discussion_comments", "github_discussion_view",
 ]);
 
 export function getAutomaton(name) {

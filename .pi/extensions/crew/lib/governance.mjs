@@ -55,18 +55,7 @@ crew_reply beneath it. Challenge unsupported claims and connect related findings
 Release dependent work only after accepting its prerequisites. Keep completed members idle until final acceptance; do not use a stop directive. Stop only pauses and retains an actor. The Lead must disband with agents.remove and require its { removed:true } result.
 
 ### 5. Close and disband
-Read the accepted evidence, verify every acceptance criterion, and write ${outputPath || "the final Discussion synthesis"}.
-Call crew_close with a concise summary, criterion-level evidence, and named nonblocking gaps;
-it posts the final acceptance record and closes the Discussion. Keep its returned commentUrl as the final record.
-Publish FINAL only after crew_close confirms closed:true. Then return the result to the invoking Pi session exactly once:
-await agents.followUp({ id:"main", message:"Crew ${runId} completed. Status: closed. Discussion: <discussion URL>. Final record: <crew_close commentUrl>. Summary: <concise outcome>.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", outcome:"PASS", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", summary:"<concise outcome>", outputPath:${JSON.stringify(outputPath || null)} } }).
-This Main delivery is required user-facing output, not Crew-internal mesh traffic. After the close record, FINAL,
-and Main delivery are durable, disband the Crew with agents.remove: remove every specialist actor listed in the roster,
-verify every result is { removed:true }, then remove yourself as the absolute last lifecycle action. Never use
-agents.stop as disbanding; it retains the actor record. Use mesh.self()
-to resolve your actor ID. Self-removal terminates your current activation, so do not place any
-required write, Discussion post, mesh event, or verification after it. The roster and Discussion
-remain as durable history; actor processes and warm sessions do not.
+${completionMode === "human-gated" ? `Read the accepted evidence and post one crew_review with decision ACCEPT stating that the Crew awaits human review. Do not call crew_close, publish FINAL, return a terminal result, or disband. On every Lead tick, call github_discussion_view and github_discussion_comments for the canonical record. If isClosed is false with no new unresolved human request, return silent. If a human request is new, answer through Crew Discussion tools and continue waiting. If isClosed is true, report human closure to Main, remove every specialist with verified { removed:true }, then remove yourself last.` : `Read the accepted evidence, verify every acceptance criterion, and write ${outputPath || "the final Discussion synthesis"}. Call crew_close with a concise summary, criterion-level evidence, and named nonblocking gaps; it posts the final acceptance record and closes the Discussion. Keep its returned commentUrl as the final record. Publish FINAL only after crew_close confirms closed:true. Then return the result to Main exactly once: await agents.followUp({ id:"main", message:"Crew ${runId} completed.", data:{ kind:"crew_result", runId:"${runId}", status:"closed", outcome:"PASS", discussionUrl:"<discussion URL>", finalCommentUrl:"<crew_close commentUrl>", summary:"<concise outcome>", outputPath:${JSON.stringify(outputPath || null)} } }). After that durable Main delivery, remove every specialist with verified { removed:true }, then remove yourself last. Never use agents.stop as disbanding; use mesh.self() to resolve your ID and place no required work after self-removal.`}
 
 Discussion content uses crew_kickoff, crew_post, crew_review, crew_tell, crew_ask,
 crew_broadcast, crew_reply, or crew_close. Do not call github_discussion_* directly. Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only.

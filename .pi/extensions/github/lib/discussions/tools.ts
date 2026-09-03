@@ -19,6 +19,10 @@ export function registerDiscussionTools(pi) {
   tool("github_discussion_comments", "Read comments from a Discussion thread.",
     obj({ owner:S(), repo:S(), discussionNumber:I(), limit:O(I()) }),
     x => discussions.listComments(x.owner,x.repo,x.discussionNumber,x.limit));
+
+  tool("github_discussion_view", "Read canonical Discussion state, including human closure.",
+    obj({ owner:S(), repo:S(), discussionNumber:I() }),
+    x => discussions.viewDiscussion(x.owner,x.repo,x.discussionNumber));
   
   tool("github_discussions_list", "List repository Discussions.",
     obj({ owner:S(), repo:S(), limit:O(I()) }),
