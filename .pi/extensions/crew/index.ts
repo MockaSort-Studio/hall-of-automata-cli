@@ -5,6 +5,7 @@ import { assemble } from "./lib/assembly.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
 import { registerCrewMonitor } from "./lib/monitor.ts";
 import { registerCrewMessageRenderer } from "./lib/rendering.ts";
+import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
 import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
@@ -26,6 +27,7 @@ const parameters = Type.Object({
 export default function crewExtension(pi: ExtensionAPI) {
   registerCommunicationTools(pi);
   registerCrewMessageRenderer(pi);
+  registerHumanInboxTools(pi);
   const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({
