@@ -34,7 +34,7 @@ function discussionNodeId(owner, repo, number) {
 }
 
 export function viewDiscussion(owner, repo, number) {
-  const query = "query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){id number url isClosed closedAt}}}";
+  const query = "query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){id number url closed closedAt}}}";
   return ghJson([
     "api", "graphql", "-f", `query=${query}`, "-f", `owner=${owner}`, "-f", `repo=${repo}`,
     "-F", `num=${number}`, "--jq", ".data.repository.discussion",
