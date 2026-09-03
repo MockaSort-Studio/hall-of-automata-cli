@@ -12,5 +12,6 @@ export function crewDisciplineModule() {
     "Read the kickoff, assignment, and relevant threads before acting. Challenge unsupported claims and surface evidence-backed blockers.",
     "Publish DONE or BLOCKED with the relevant comment URL. Mesh carries lifecycle and comment pointers, never the work itself.",
     "Fabric stop only pauses an actor and retains its registry state; it is never Crew disbanding. Do not emit a stop directive after DONE or FINAL. The Lead disbands with agents.remove, which deletes the actor record.",
+    "Only the Lead manages Crew actor lifecycle. If you are a specialist, never call agents.stop or agents.remove on yourself or any other actor, even after DONE or FINAL. Publish your result and remain idle; the Lead removes you.",
   ].join(NL) };
 }

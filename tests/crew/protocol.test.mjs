@@ -27,6 +27,8 @@ test("crew Discussion content is wrapper-owned", () => {
   assert.match(protocol, /removed:true/);
   assert.match(protocol, /Never use\s+agents\.stop as disbanding/);
   assert.match(discipline, /stop only pauses.*retains/i);
+  assert.match(discipline, /Only the Lead manages Crew actor lifecycle/i);
+  assert.match(discipline, /never call agents\.stop or agents\.remove/i);
   assert.match(protocol, /crew_reply\(replyToId:commentId/);
   assert.match(protocol, /commentId and commentUrl to the topic/);
   assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);
