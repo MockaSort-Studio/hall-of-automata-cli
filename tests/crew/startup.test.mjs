@@ -62,7 +62,8 @@ test("launch code persists and activates the Lead without a lifecycle supervisor
   };
   const fakeAgents = {
     create: async definition => { assert.equal(definition.name, "lead-old-major"); return { id: "lead-1", name: "lead-old-major" }; },
-    tell: async ({ id, message }) => { assert.equal(id, "lead-1"); assert.equal(message, "work"); },
+    ask: async ({ id, message }) => { assert.equal(id, "lead-1"); assert.equal(message, "work"); },
+    tell: async () => { throw new Error("continuation should not be needed before kickoff exists"); },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const result = await new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents);
@@ -84,7 +85,8 @@ test("launch failure disbands rostered and late topic actors", async () => {
   const removed = [];
   const fakeAgents = {
     create: async () => ({ id: "lead-1", name: "lead-old-major" }),
-    tell: async () => { throw new Error("wake failed"); },
+    ask: async () => { throw new Error("wake failed"); },
+    tell: async () => {},
     actors: async () => [
       { id: "lead-1", topics: ["crew.run-1"] },
       { id: "late-specialist", topics: ["crew.run-1"] },
@@ -111,7 +113,8 @@ test("launch code uses Fabric APIs and relative config paths", () => {
   assert.match(source, /schedule: \{ topic: leadTickTopic, everyMs: monitorIntervalMs \}/);
   assert.match(source, /delivery: "followUp"/);
   assert.match(source, /triggerTurn: true/);
-  assert.match(code, /agents\.tell/);
+  assert.match(code, /agents\.ask/);
+  assert.match(code, /Continue the protocol from kickoff/);
   assert.match(code, /pi\.write\(\{ path: cfg\.rosterFile, text:/);
   assert.ok(!code.includes("content: JSON.stringify(roster"));
   assert.ok(!code.includes("agents.followUp"));

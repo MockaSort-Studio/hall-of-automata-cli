@@ -1,4 +1,4 @@
-const TERMINAL = new Set(["closed", "failed"]);
+const TERMINAL = new Set(["closed", "failed", "cancelled"]);
 
 export function isTerminalCrew(roster) {
   return TERMINAL.has(roster?.status);
