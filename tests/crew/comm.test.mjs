@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { closeDiscussion, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, resolveRecipient, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { closeDiscussion, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -38,6 +38,20 @@ test("Lead registers members idempotently and rejects identity conflicts", () =>
   assert.deepEqual(registerMembers(registered, "lead-old-major", [member]).members, [member]);
   assert.throws(() => registerMembers(registered, "advisor-wizard", [member]), /Only the Crew Lead/);
   assert.throws(() => registerMembers(registered, "lead-old-major", [{ ...member, actorId: "actor-b" }]), /another actor/);
+});
+
+test("Lead unregisters removed members idempotently", () => {
+  const withLead = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
+  const next = unregisterMembers(withLead, "lead-old-major", ["actor-b"]);
+  assert.deepEqual(next.members.map(member => member.actorId), ["actor-a"]);
+  assert.deepEqual(unregisterMembers(next, "lead-old-major", ["actor-b"]).members, next.members);
+  assert.throws(() => unregisterMembers(withLead, "advisor-wizard", ["actor-b"]), /Only the Crew Lead/);
+});
+
+test("human replies resolve to the thread root", () => {
+  const pending = { ...roster, pendingHumanRequests: [{ id: "human-child", replyToId: "crew-root", threadRootId: "crew-root" }] };
+  assert.equal(resolveReplyTarget(pending, "human-child"), "crew-root");
+  assert.equal(resolveReplyTarget(pending, "crew-root"), "crew-root");
 });
 
 test("failed Crews reject late registration and Discussion mutations", () => {

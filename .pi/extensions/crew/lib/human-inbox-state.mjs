@@ -8,6 +8,7 @@ const request = comment => ({
   url: comment.url,
   body: comment.body,
   author: comment.author?.login ?? "unknown",
+  threadRootId: comment.replyToId || comment.id,
   ...(comment.replyToId ? { replyToId: comment.replyToId } : {}),
 });
 

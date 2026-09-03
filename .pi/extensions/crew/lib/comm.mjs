@@ -75,6 +75,19 @@ export function registerMembers(roster, from, members) {
   return { ...roster, members: next };
 }
 
+export function unregisterMembers(roster, from, actorIds) {
+  const sender = canonicalHandle(from);
+  if (roster.lead?.name !== sender) throw new Error("Only the Crew Lead may unregister members.");
+  const removed = new Set(actorIds.map(id => id.trim()));
+  if (!removed.size || removed.has("")) throw new Error("Crew unregister requires actor IDs.");
+  return { ...roster, members: (roster.members || []).filter(member => !removed.has(member.actorId)) };
+}
+
+export function resolveReplyTarget(roster, replyToId) {
+  const request = (roster.pendingHumanRequests || []).find(item => item.id === replyToId);
+  return request?.threadRootId || request?.replyToId || replyToId;
+}
+
 export function assertSubstantive(message) {
   const text = message.replace(/https?:\/\/\S+/g, "").replace(/@\S+/g, "").replace(/^#+\s*/gm, "").trim();
   if (text.length < 8) {

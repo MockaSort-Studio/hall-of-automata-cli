@@ -15,6 +15,7 @@ test("leadRole exposes review and Crew communication tools", async () => {
   assert.ok(r.discipline.includes("orchestrate") || r.discipline.includes("LEAD"), "discipline missing lead intent");
   assert.ok(r.tools.includes("crew_kickoff"));
   assert.ok(r.tools.includes("crew_register"));
+  assert.ok(r.tools.includes("crew_unregister"));
   assert.ok(r.tools.includes("crew_post"));
   assert.ok(r.tools.includes("crew_review"));
   assert.ok(r.tools.includes("crew_reply"));

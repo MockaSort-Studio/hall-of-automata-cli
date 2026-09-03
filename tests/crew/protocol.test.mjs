@@ -6,12 +6,14 @@ import { crewDisciplineModule } from "../../.pi/extensions/crew/lib/automaton-bo
 import { leadRole } from "../../.pi/extensions/crew/lib/automaton-body/lib/roles/lead.mjs";
 
 const protocol = governance({ topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md" });
+const humanProtocol = governance({ topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md", completionMode: "human-gated", leadTickTopic: "crew.test.lead-tick" });
 
 test("initial dispatch uses kickoff constructor context, not a URL-only tell", () => {
   assert.match(protocol, /crew_kickoff/);
   assert.match(protocol, /build_crew_member/);
   assert.match(protocol, /agents\.create/);
   assert.match(protocol, /crew_register/);
+  assert.match(protocol, /crew_unregister/);
   assert.match(protocol, /agents\.ask/);
   assert.match(protocol, /resident owner/);
   assert.doesNotMatch(protocol, /roster\.supervisor|operation:"RECRUIT"/);
@@ -30,6 +32,7 @@ test("crew Discussion content is wrapper-owned", () => {
   assert.match(discipline, /Only the Lead manages Crew actor lifecycle/i);
   assert.match(discipline, /never call agents\.stop or agents\.remove/i);
   assert.match(protocol, /crew_reply\(replyToId:commentId/);
+  assert.match(humanProtocol, /request\.threadRootId/);
   assert.match(protocol, /commentId and commentUrl to the topic/);
   assert.match(protocol, /Mesh carries DONE, BLOCKED, FINAL, broadcast, and future control signals only/);
 });

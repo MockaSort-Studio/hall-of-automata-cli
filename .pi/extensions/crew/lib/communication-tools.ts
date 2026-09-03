@@ -8,7 +8,9 @@ import {
   postComment,
   readRoster,
   registerMembers,
+  unregisterMembers,
   resolveRecipient,
+  resolveReplyTarget,
   signedBody,
   writeRoster,
 } from "./comm.mjs";
@@ -83,6 +85,22 @@ export function registerCommunicationTools(pi) {
   });
 
   pi.registerTool({
+    name: "crew_unregister", label: "Crew: unregister removed members",
+    description: "Remove roster records only after the Lead has verified agents.remove for those actors.",
+    parameters: Type.Object({
+      runId: Type.String(), from: Type.String(), actorIds: Type.Array(Type.String(), { minItems: 1 }),
+    }),
+    async execute(_id, input, _signal, _update, ctx) {
+      const path = rosterPath(ctx.cwd, input.runId);
+      return withFileMutationQueue(path, async () => {
+        const roster = unregisterMembers(readRoster(path), input.from, input.actorIds);
+        writeRoster(path, roster);
+        return result({ unregistered: input.actorIds, members: roster.members });
+      });
+    },
+  });
+
+  pi.registerTool({
     name: "crew_post", label: "Crew: post finding",
     description: "Post a structured finding with optional evidence links.",
     parameters: Type.Object({
@@ -146,7 +164,7 @@ export function registerCommunicationTools(pi) {
       const roster = load(ctx, input.runId);
       const recipient = input.to === "all" ? "all" : resolveRecipient(roster, input.to).name;
       const body = recipient === "all" ? renderBroadcast(input.message) : renderReply(recipient, input.message);
-      return commentResult(postComment(roster, signed(roster, input, body), input.replyToId));
+      return commentResult(postComment(roster, signed(roster, input, body), resolveReplyTarget(roster, input.replyToId)));
     },
   });
 

@@ -8,7 +8,7 @@ const human = { id: "human", url: "https://example.test/comment", body: "Need a 
 
 test("nested human replies persist until explicitly acknowledged", () => {
   const queued = queueHumanRequests(roster, [crew, human]);
-  assert.deepEqual(queued.pendingHumanRequests, [{ id: "human", url: human.url, body: human.body, author: "human", replyToId: "crew" }]);
+  assert.deepEqual(queued.pendingHumanRequests, [{ id: "human", url: human.url, body: human.body, author: "human", threadRootId: "crew", replyToId: "crew" }]);
   assert.equal(queueHumanRequests(queued, [crew, human]), queued);
   const acknowledged = acknowledgeHumanRequests(queued, ["human"]);
   assert.deepEqual(acknowledged.pendingHumanRequests, []);
