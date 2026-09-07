@@ -7,7 +7,8 @@ import { registerCrewMonitor } from "./lib/monitor.ts";
 import { registerCrewMessageRenderer } from "./lib/rendering.ts";
 import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
 import { registerRosterTools } from "./lib/roster-tools.ts";
-import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { join } from "node:path";
+import { launchCode, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -63,7 +64,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       if (!details?.runId) return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
       const id = details.runId.slice(0, 8);
       return new Text(
-        theme.fg("success", theme.bold("✓ Crew queued")) +
+        theme.fg("success", theme.bold("✓ Crew launching")) +
           theme.fg("muted", `  ${id}`) +
           "\n" + theme.fg("dim", "Terminal result will return to this Pi session."),
         0, 0,
@@ -83,7 +84,12 @@ export default function crewExtension(pi: ExtensionAPI) {
       }
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
       monitor.activate(ctx, prepared.rosterFile);
-      return output({ ...prepared, status: "queued", launchRequired: true }, queuedMessage(prepared));
+      const absoluteConfig = join(ctx.cwd, prepared.configFile);
+      pi.sendUserMessage(
+        `Launch Crew ${prepared.runId}:\n\`\`\`typescript\n${launchCode(absoluteConfig)}\n\`\`\``,
+        { deliverAs: "followUp" },
+      );
+      return output({ ...prepared, status: "queued", launchRequired: false }, queuedMessage(prepared));
     },
   });
 

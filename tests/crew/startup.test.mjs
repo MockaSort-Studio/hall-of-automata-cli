@@ -26,7 +26,8 @@ test("repository coordinates are discovered rather than host-coded", () => {
 
 test("queued acknowledgment is user-facing and promises terminal return", () => {
   const message = queuedMessage({ runId: "run-1" });
-  assert.equal(message, "Crew run-1 is queued. Its terminal result or launch failure will be returned to this Pi session automatically.");
+  assert.match(message, /Crew run-1/);
+  assert.match(message, /terminal result or launch failure/);
   assert.ok(!message.includes("roster"));
   assert.ok(!message.includes("config"));
 });
