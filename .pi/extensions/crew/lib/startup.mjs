@@ -92,7 +92,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   mkdirSync(dirname(absoluteRoster), { recursive: true });
   try {
     writeFileSync(absoluteRoster, JSON.stringify({ runId, topic, status: "queued", completionMode, leadTickTopic: completionMode === "human-gated" ? leadTickTopic : null, monitorIntervalMs: completionMode === "human-gated" ? monitorIntervalMs : null, ...repository, discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
-    writeFileSync(absoluteConfig, JSON.stringify({ runId, topic, rosterFile: paths.roster, lead, assignment }));
+    writeFileSync(absoluteConfig, JSON.stringify({ runId, topic, rosterFile: paths.roster, lead, assignment, launch: launchCode(absoluteConfig) }));
   } catch (error) {
     rmSync(absoluteRoster, { force: true }); rmSync(absoluteConfig, { force: true }); throw error;
   }

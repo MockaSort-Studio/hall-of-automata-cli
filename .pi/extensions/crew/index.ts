@@ -86,7 +86,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       monitor.activate(ctx, prepared.rosterFile);
       const absoluteConfig = join(ctx.cwd, prepared.configFile);
       pi.sendUserMessage(
-        `Launch Crew ${prepared.runId}:\n\`\`\`typescript\n${launchCode(absoluteConfig)}\n\`\`\``,
+        `Launch Crew ${prepared.runId}:\n\`\`\`typescript\nconst cfg = JSON.parse(await pi.read(${JSON.stringify(absoluteConfig)}));\nreturn await new (Object.getPrototypeOf(async()=>{}).constructor)("pi","agents",cfg.launch)(pi,agents);\n\`\`\``,
         { deliverAs: "followUp" },
       );
       return output({ ...prepared, status: "queued", launchRequired: false }, queuedMessage(prepared));
