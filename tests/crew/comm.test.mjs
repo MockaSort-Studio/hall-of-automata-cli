@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beginClose, closeDiscussion, finishClose, markDiscussionClosed, postComment, assertSubstantive, readRoster, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
+import { beginClose, closeDiscussion, finishClose, markDiscussionClosed, postComment, assertSubstantive, readRoster, reconcileAbsentMembers, registerMembers, unregisterMembers, resolveRecipient, resolveReplyTarget, signedBody, writeRoster } from "../../.pi/extensions/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {
@@ -42,10 +42,20 @@ test("Lead registers members idempotently and rejects identity conflicts", () =>
 
 test("Lead unregisters removed members idempotently", () => {
   const withLead = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
-  const next = unregisterMembers(withLead, "lead-old-major", ["actor-b"]);
+  assert.throws(() => unregisterMembers(withLead, "lead-old-major", [{ actorId: "actor-b", removed: false }]), /verified/);
+  const next = unregisterMembers(withLead, "lead-old-major", [{ actorId: "actor-b", removed: true }]);
   assert.deepEqual(next.members.map(member => member.actorId), ["actor-a"]);
-  assert.deepEqual(unregisterMembers(next, "lead-old-major", ["actor-b"]).members, next.members);
-  assert.throws(() => unregisterMembers(withLead, "advisor-wizard", ["actor-b"]), /Only the Crew Lead/);
+  assert.equal(next.cleanup.at(-1).outcome, "removed");
+  assert.throws(() => unregisterMembers(withLead, "advisor-wizard", [{ actorId: "actor-b", removed: true }]), /Only the Crew Lead/);
+});
+
+test("absence reconciliation is audited and bounded to rostered actors", () => {
+  const withLead = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
+  const next = reconcileAbsentMembers(withLead, "lead-old-major", ["actor-b"], "2026-09-03T00:00:00Z");
+  assert.deepEqual(next.members.map(member => member.actorId), ["actor-a"]);
+  assert.deepEqual(next.cleanup.at(-1), { actorId: "actor-b", outcome: "absent", observedAt: "2026-09-03T00:00:00Z" });
+  assert.throws(() => reconcileAbsentMembers(withLead, "advisor-wizard", ["actor-b"], "now"), /Only the Crew Lead/);
+  assert.throws(() => reconcileAbsentMembers(withLead, "lead-old-major", ["unknown"], "now"), /unrostered/);
 });
 
 test("human replies resolve to the thread root", () => {
@@ -56,10 +66,11 @@ test("human replies resolve to the thread root", () => {
 
 test("closure reaches terminal state only after verified specialist cleanup", () => {
   const active = { ...roster, completionMode: "human-gated", lead: { name: "lead-old-major", actorId: "lead-1" } };
-  const closing = beginClose(active, "lead-old-major", "2026-09-03T00:00:00Z");
+  assert.throws(() => beginClose(active, "lead-old-major", "2026-09-03T00:00:00Z"), /GitHub-confirmed/);
+  const closing = beginClose(active, "lead-old-major", "2026-09-03T00:00:00Z", { closed: true, closedAt: "2026-09-03T00:00:00Z" });
   assert.equal(closing.status, "closing");
   assert.throws(() => finishClose(closing, "lead-old-major"), /All specialists/);
-  const empty = unregisterMembers(closing, "lead-old-major", ["actor-a", "actor-b"]);
+  const empty = unregisterMembers(closing, "lead-old-major", [{ actorId: "actor-a", removed: true }, { actorId: "actor-b", removed: true }]);
   assert.equal(finishClose(empty, "lead-old-major").status, "closed");
 });
 

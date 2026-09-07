@@ -1,8 +1,7 @@
 const TERMINAL = new Set(["closed", "failed", "cancelled"]);
 
 export function isTerminalCrew(roster) {
-  // A closed Discussion with no remaining specialists is done even if disband bookkeeping crashed.
-  return TERMINAL.has(roster?.status) || (roster?.discussionClosed === true && !(roster?.members?.length > 0));
+  return TERMINAL.has(roster?.status);
 }
 
 export function crewMonitorView(roster) {

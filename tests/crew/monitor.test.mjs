@@ -25,7 +25,7 @@ test("single-Crew view derives useful runtime phases", () => {
 test("terminal Crew removes the monitor", () => {
   assert.equal(isTerminalCrew(roster({ status: "closed" })), true);
   assert.equal(isTerminalCrew(roster({ status: "failed" })), true);
-  assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true })), true);
+  assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true })), false);
   assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true, members: [{}] })), false);
   assert.equal(crewMonitorView(roster({ status: "closed" })), null);
 });

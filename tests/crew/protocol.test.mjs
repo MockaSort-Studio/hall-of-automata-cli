@@ -28,12 +28,13 @@ test("discipline lives in one place per audience", () => {
 });
 
 test("communication wrappers enforce authority and threading", () => {
+  assert.match(tools, /Only the Crew Lead may create the canonical Discussion/);
   assert.match(tools, /Only the Crew Lead may broadcast/);
   assert.match(tools, /Threaded replies must name one recipient, never @all/);
 });
 
 test("each completion mode has a verified terminal sequence", () => {
-  for (const term of ["crew_poll_human_requests", "crew_begin_close", "crew_finish_close", "members is empty"]) {
+  for (const term of ["crew_poll_human_requests", "crew_begin_close", "crew_finish_close", "crew_reconcile_absent", "agents.actors"]) {
     assert.ok(human.includes(term), `missing ${term}`);
   }
   assert.match(protocol, /crew_close once/);

@@ -54,6 +54,7 @@ export function registerCommunicationTools(pi) {
       const path = rosterPath(ctx.cwd, input.runId);
       const roster = readRoster(path);
       if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
+      if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may create the canonical Discussion.");
       if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
       const body = signed(roster, input, renderKickoff(roster, input));
       const discussion = createKickoff(roster, input.title, body, input.category);
