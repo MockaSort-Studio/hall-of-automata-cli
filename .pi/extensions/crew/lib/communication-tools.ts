@@ -1,7 +1,9 @@
 import { CONFIG_DIR_NAME, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { Type } from "typebox";
 import {
+  assertLead,
   closeDiscussion,
   createKickoff,
   markDiscussionClosed,
@@ -52,14 +54,22 @@ export function registerCommunicationTools(pi) {
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const path = rosterPath(ctx.cwd, input.runId);
-      const roster = readRoster(path);
-      if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
-      if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may create the canonical Discussion.");
-      if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
-      const body = signed(roster, input, renderKickoff(roster, input));
-      const discussion = createKickoff(roster, input.title, body, input.category);
-      writeRoster(path, { ...roster, discussionNumber: discussion.number, discussionUrl: discussion.url });
-      return result({ discussionNumber: discussion.number, discussionUrl: discussion.url });
+      return withFileMutationQueue(path, async () => {
+        let roster = readRoster(path);
+        if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
+        assertLead(roster, input.from);
+        if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
+        if (roster.kickoffIntent) throw new Error(`Crew ${input.runId} kickoff outcome requires recovery before retry.`);
+        const intent = { id: randomUUID(), startedAt: new Date().toISOString() };
+        roster = { ...roster, kickoffIntent: intent };
+        writeRoster(path, roster);
+        const body = signed(roster, input, renderKickoff(roster, input));
+        const discussion = createKickoff(roster, input.title, body, input.category);
+        roster = { ...readRoster(path), discussionNumber: discussion.number, discussionUrl: discussion.url };
+        delete roster.kickoffIntent;
+        writeRoster(path, roster);
+        return result({ discussionNumber: discussion.number, discussionUrl: discussion.url });
+      });
     },
   });
 

@@ -51,11 +51,13 @@ test("Lead unregisters removed members idempotently", () => {
 
 test("absence reconciliation is audited and bounded to rostered actors", () => {
   const withLead = { ...roster, lead: { name: "lead-old-major", actorId: "lead-1" } };
-  const next = reconcileAbsentMembers(withLead, "lead-old-major", ["actor-b"], "2026-09-03T00:00:00Z");
+  const closing = { ...withLead, status: "closing" };
+  const next = reconcileAbsentMembers(closing, "lead-old-major", ["actor-b"], "2026-09-03T00:00:00Z");
   assert.deepEqual(next.members.map(member => member.actorId), ["actor-a"]);
   assert.deepEqual(next.cleanup.at(-1), { actorId: "actor-b", outcome: "absent", observedAt: "2026-09-03T00:00:00Z" });
-  assert.throws(() => reconcileAbsentMembers(withLead, "advisor-wizard", ["actor-b"], "now"), /Only the Crew Lead/);
-  assert.throws(() => reconcileAbsentMembers(withLead, "lead-old-major", ["unknown"], "now"), /unrostered/);
+  assert.throws(() => reconcileAbsentMembers(withLead, "lead-old-major", ["actor-b"], "now"), /only while closing/);
+  assert.throws(() => reconcileAbsentMembers(closing, "advisor-wizard", ["actor-b"], "now"), /Only the Crew Lead/);
+  assert.throws(() => reconcileAbsentMembers(closing, "lead-old-major", ["unknown"], "now"), /unrostered/);
 });
 
 test("human replies resolve to the thread root", () => {
