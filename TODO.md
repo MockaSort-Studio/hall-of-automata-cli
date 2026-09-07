@@ -2,21 +2,17 @@
 
 Tracked implementation backlog for `hall-of-automata-cli`.
 
-## Todo
-
-- [ ] **P1 — Expose one host-side Crew launcher**
-
-  Keep `start_crew` as durable queue preparation. Expose one Fabric host operation
-  that accepts only a queued run/config reference, atomically claims it, and uses
-  the existing `agents.create → persist Lead → agents.ask` launch transaction.
-
-  **Do not add:** a second queue, extension-side agent dispatch, daemon, lifecycle
-  supervisor, scheduler, or duplicate state store.
-
-  **Done when:** replay never creates a second Lead; failures retain diagnostics and
-  bounded cleanup; and tests exercise the host operation, not generated text alone.
-
 ## Done
+
+- [x] **P1 — Auto-launch Crew after start_crew**
+  Commit: `5de59bb`
+
+  `start_crew` now calls `pi.sendUserMessage` with the existing `launchCode()` as a
+  `followUp` immediately after preparing durable state. The LLM executes it on the next
+  turn through the normal Fabric `fabric_exec` path — same approval and budget gates
+  as a manual launch. No Fabric fork, no supervisor, no second queue.
+
+## Done (earlier)
 
 - [x] **P0 — Harden Crew closure retries and reconciliation**
   Commit: `7b77f96`
