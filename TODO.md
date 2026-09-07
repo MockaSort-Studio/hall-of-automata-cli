@@ -2,10 +2,10 @@
 
 Tracked implementation backlog for `hall-of-automata-cli`.
 
-## Todo
+## Done
 
-- [ ] **P0 — Enforce Crew authority and reconcile human-gated closure**  
-  GitHub: [#416](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/416) · Project 8: Todo / Item / P0
+- [x] **P0 — Enforce Crew authority and reconcile human-gated closure**
+  GitHub: [#416](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/416) · Project 8: Done / Item / P0
 
   Tool-enforce Lead-only roster mutation, lifecycle, and broadcasts while preserving
   specialist `crew_ask`, `crew_tell`, `crew_post`, and root-thread `crew_reply`.
