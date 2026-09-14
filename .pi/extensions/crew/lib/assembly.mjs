@@ -20,7 +20,7 @@ export function assemble(name, role, task, override = {}) {
   const tools = [...new Set([...BASE_GITHUB_TOOLS, ...body.tools])];
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}\n\n## ARMORY\n${automaton.extensions.length ? `You bring: ${automaton.extensions.join(", ")}. Use its active tools when relevant.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.`,
+    instructions: `${body.instructions}\n\n## ARMORY\n${automaton.extensions.length ? `Assigned extension declarations: ${automaton.extensions.join(", ")}. Availability is not yet verified.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed persona signature.`,
     tools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),

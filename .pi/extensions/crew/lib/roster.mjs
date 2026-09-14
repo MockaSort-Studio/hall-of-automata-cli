@@ -7,6 +7,7 @@ for (const [name, automaton] of Object.entries(catalog.automata)) {
   if (!NAME.test(name) || !automaton || typeof automaton !== "object") throw new Error(`Invalid automaton: ${name}`);
   const p = automaton.persona;
   if (![p?.intro,p?.tone,p?.voice,p?.signature].every(value => typeof value === "string" && value.trim())) throw new Error(`Invalid persona for automaton: ${name}`);
+  if (p.intro.length > 320 || p.tone.length > 120 || p.voice.length > 240 || p.signature.length > 180) throw new Error(`Persona exceeds compact limits: ${name}`);
   if (!Array.isArray(automaton.extensions) || !automaton.extensions.every(value => typeof value === "string")) throw new Error(`Invalid extensions for automaton: ${name}`);
 }
 export const AUTOMATA = Object.freeze(catalog.automata); export const NAMES = Object.freeze(Object.keys(AUTOMATA));

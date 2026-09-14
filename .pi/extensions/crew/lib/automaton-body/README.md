@@ -1,18 +1,5 @@
-# automaton-body
+# Crew automaton body
 
-Canonical modular Crew member assembler.
+Assembly combines safety, the inline compact persona in `agents/agents.json`, shared Crew discipline, a validated role prompt, and the bounded assignment.
 
-```js
-createRobot().install(module, ctx).build()
-// { instructions, tools, model, thinking }
-```
-
-## Modules
-
-- `safetyModule()` — local prompt-injection and hard-stop contract
-- `soulModule({ name })` — checked-in local Hall roster soul
-- `agents/agents.json` and `roster/*.md` — authoritative local Crew catalog and specialist souls
-- `roleModule({ role, override })` — behavioral role and model defaults
-- `crewDisciplineModule()` — shared collaboration and communication contract
-
-The active Crew extension entrypoint is `.pi/extensions/crew/index.ts`.
+`extensions` are declarative Armory names only. They do not yet install, verify, or activate tools.
