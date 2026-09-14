@@ -1,10 +1,12 @@
 import {
-  createRobot, safetyModule, soulModule, roleModule, crewDisciplineModule,
+  createRobot, ROLE_NAMES, safetyModule, soulModule, roleModule, validateRoleTools, crewDisciplineModule,
 } from "./automaton-body/lib/index.mjs";
 import { BASE_GITHUB_TOOLS, NAMES, getAutomaton } from "./roster.mjs";
 
 export const SOULS = NAMES;
-export const ROLES = ["lead", "architect", "advisor", "developer"];
+export const ROLES = ROLE_NAMES;
+
+export function validateAvailableRoleTools(tools) { validateRoleTools(tools); }
 
 export function assemble(name, role, task, override = {}) {
   const automaton = getAutomaton(name);

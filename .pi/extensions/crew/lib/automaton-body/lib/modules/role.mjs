@@ -7,6 +7,14 @@ for (const [name, role] of Object.entries(catalog)) {
   if (!Array.isArray(role.tools) || new Set(role.tools).size !== role.tools.length || !role.tools.every(tool => typeof tool === "string")) throw new Error(`Invalid role tools: ${name}`);
   if (!THINKING.has(role.thinking)) throw new Error(`Invalid role thinking: ${name}`);
 }
+export const ROLE_NAMES = Object.freeze(Object.keys(catalog));
+export function validateRoleTools(availableTools) {
+  const available = new Set(availableTools);
+  for (const [name, role] of Object.entries(catalog)) {
+    const missing = role.tools.filter(tool => !available.has(tool));
+    if (missing.length) throw new Error(`Role ${name} requires unavailable tools: ${missing.join(", ")}`);
+  }
+}
 export function roleModule(ctx) {
   const role = catalog[ctx.role];
   if (!role) throw new Error(`Role "${ctx.role}" not defined. Available: ${Object.keys(catalog).join(", ")}`);

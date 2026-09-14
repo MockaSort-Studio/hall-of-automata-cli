@@ -15,3 +15,7 @@ export const AUTOMATA = Object.freeze(catalog.automata); export const NAMES = Ob
 export const BASE_GITHUB_TOOLS = Object.freeze(["github_issues_list","github_issue_view","github_dependency_list","github_subissues_list","github_label_list","github_project_fields","github_project_item_find","github_pull_requests_list","github_pull_request_view","github_discussion_comments","github_discussion_view"]);
 export function getAutomaton(name) { const value = AUTOMATA[name]; if (!value) throw new Error(`Unknown automaton "${name}". Available: ${NAMES.join(", ")}`); return { name, ...value }; }
 export function listAutomata() { return NAMES.map(getAutomaton); }
+export function rankAutomata(text) {
+  const haystack = String(text || "").toLowerCase();
+  return listAutomata().map(actor => ({ actor, score: actor.domains.filter(term => haystack.includes(term.replaceAll("-", " ")) || haystack.includes(term)).length })).filter(result => result.score > 0).sort((a, b) => b.score - a.score || a.actor.name.localeCompare(b.actor.name));
+}

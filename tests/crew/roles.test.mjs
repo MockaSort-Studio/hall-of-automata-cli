@@ -21,7 +21,7 @@ test("developer has bounded implementation and validation authority", () => {
   const result = roleModule({ role: "developer", override: {} });
   for (const tool of ["read", "edit", "write", "bash"]) assert.ok(result.tools.includes(tool));
   assert.ok(!result.tools.includes("crew_finish_close"));
-  assert.match(result.instructions, /Plan the smallest bounded change/);
-  assert.match(result.instructions, /verification/);
+  assert.match(result.instructions, /Plan before editing/);
+  assert.match(result.instructions, /validation/);
 });
 test("unknown roles fail", () => assert.throws(() => roleModule({ role: "wizard", override: {} }), /not defined/));

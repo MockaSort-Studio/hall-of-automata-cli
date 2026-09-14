@@ -1,7 +1,7 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { assemble } from "./lib/assembly.mjs";
+import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
 import { registerCrewMonitor } from "./lib/monitor.ts";
 import { registerCrewMessageRenderer } from "./lib/rendering.ts";
@@ -9,6 +9,7 @@ import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
 import { registerRosterTools } from "./lib/roster-tools.ts";
 import { join } from "node:path";
 import { launchCode, prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { registerCrewObservability } from "./lib/observability.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -24,9 +25,11 @@ const parameters = Type.Object({
   discussionUrl: Type.Optional(Type.String()),
   completionMode: Type.Optional(Type.Union([Type.Literal("unattended"), Type.Literal("human-gated")])),
   monitorIntervalMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 604800000 })),
+  resultSummaryMaxBytes: Type.Optional(Type.Integer({ minimum: 512, maximum: 50000 })),
 });
 
 export default function crewExtension(pi: ExtensionAPI) {
+  registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerRosterTools(pi);
   registerCommunicationTools(pi);
   registerCrewMessageRenderer(pi);
@@ -42,6 +45,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()),
     }),
     async execute(_id, input) {
+      validateAvailableRoleTools(pi.getAllTools().map(tool => tool.name));
       return output(assemble(input.name, input.role, input.task, input));
     },
   });
