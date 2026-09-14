@@ -4,7 +4,7 @@ import {
 import { BASE_GITHUB_TOOLS, NAMES, getAutomaton } from "./roster.mjs";
 
 export const SOULS = NAMES;
-export const ROLES = ["lead", "architect", "advisor"];
+export const ROLES = ["lead", "architect", "advisor", "developer"];
 
 export function assemble(name, role, task, override = {}) {
   const automaton = getAutomaton(name);
@@ -13,14 +13,14 @@ export function assemble(name, role, task, override = {}) {
   if (!ROLES.includes(role)) throw new Error(`Unknown role "${role}". Available: ${ROLES.join(", ")}`);
   const body = createRobot({ id: `${role}-${name}`, name, role })
     .install(safetyModule)
-    .install(soulModule, { name })
+    .install(soulModule, { persona: automaton.persona })
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
   const tools = [...new Set([...BASE_GITHUB_TOOLS, ...body.tools])];
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}\n\n## DOMAIN\n${automaton.domain.join(", ")}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.`,
+    instructions: `${body.instructions}\n\n## ARMORY\n${automaton.extensions.length ? `You bring: ${automaton.extensions.join(", ")}. Use its active tools when relevant.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.`,
     tools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),
