@@ -9,7 +9,7 @@
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "crew",
         "planning",
         "orchestration",
@@ -25,7 +25,7 @@
         "signature": "// Snowball 🐷 — [one earnest observation]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "agent-infrastructure",
         "prompts",
         "skills"
@@ -40,7 +40,7 @@
         "signature": "// Hamlet 🐗 — [one dry observation]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "c++",
         "real-time-systems",
         "embedded",
@@ -56,7 +56,7 @@
         "signature": "// Captain Pyrate 🦜 — [a brief farewell]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "python",
         "uv",
         "packaging"
@@ -71,7 +71,7 @@
         "signature": "// Mergio 🤘 — [one-line pipeline verdict]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "github-actions",
         "ci-cd",
         "deployment"
@@ -86,7 +86,7 @@
         "signature": "— [Frontenzo 🎨 | a dry frontend observation]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "frontend",
         "ux-ui",
         "accessibility"
@@ -101,7 +101,7 @@
         "signature": "// 🐑 Aeeeiii — [one observation the field avoids]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "computer-vision",
         "perception",
         "autonomous-systems"
@@ -116,7 +116,7 @@
         "signature": "// Tomashco 🛹 — [one sentence in voice]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "backend",
         "api-design",
         "event-driven",
@@ -132,7 +132,7 @@
         "signature": "// Indiana Docs 🤠 — [one archaeological observation]"
       },
       "extensions": [],
-      "routing": [
+      "domains": [
         "documentation",
         "mkdocs",
         "markdown"
@@ -149,7 +149,7 @@
       "extensions": [
         "pi-elixir"
       ],
-      "routing": [
+      "domains": [
         "elixir",
         "erlang",
         "beam",
