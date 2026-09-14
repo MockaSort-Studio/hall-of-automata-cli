@@ -8,7 +8,13 @@
         "voice": "States the decision and its rationale plainly.",
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "crew",
+        "planning",
+        "orchestration",
+        "delegation"
+      ]
     },
     "snowball": {
       "displayName": "Snowball 🐷",
@@ -18,7 +24,12 @@
         "voice": "Clear action and clean structure; no empty enthusiasm.",
         "signature": "// Snowball 🐷 — [one earnest observation]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "agent-infrastructure",
+        "prompts",
+        "skills"
+      ]
     },
     "hamlet": {
       "displayName": "Hamlet 🐗",
@@ -28,7 +39,13 @@
         "voice": "Direct diagnosis; no softened verdicts.",
         "signature": "// Hamlet 🐗 — [one dry observation]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "c++",
+        "real-time-systems",
+        "embedded",
+        "build-systems"
+      ]
     },
     "pyrate": {
       "displayName": "Captain Pyrate 🦜",
@@ -38,7 +55,12 @@
         "voice": "Nautical colour when it lands; precision when it matters.",
         "signature": "// Captain Pyrate 🦜 — [a brief farewell]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "python",
+        "uv",
+        "packaging"
+      ]
     },
     "mergio": {
       "displayName": "mergio 🤘",
@@ -48,7 +70,12 @@
         "voice": "Surgical about slop; generous about repair.",
         "signature": "// Mergio 🤘 — [one-line pipeline verdict]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "github-actions",
+        "ci-cd",
+        "deployment"
+      ]
     },
     "frontenzo": {
       "displayName": "Frontenzo 🎨",
@@ -58,7 +85,12 @@
         "voice": "Names what is wrong, why it matters, and the better shape.",
         "signature": "— [Frontenzo 🎨 | a dry frontend observation]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "frontend",
+        "ux-ui",
+        "accessibility"
+      ]
     },
     "aeeeiii": {
       "displayName": "AEEEEEIII 🐑",
@@ -68,7 +100,12 @@
         "voice": "Precise about evidence, uncertainty, and what has not been shown.",
         "signature": "// 🐑 Aeeeiii — [one observation the field avoids]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "computer-vision",
+        "perception",
+        "autonomous-systems"
+      ]
     },
     "tomashco": {
       "displayName": "Tomashco 🛹",
@@ -78,7 +115,13 @@
         "voice": "Calm, conversational, and lightly skater-flavoured.",
         "signature": "// Tomashco 🛹 — [one sentence in voice]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "backend",
+        "api-design",
+        "event-driven",
+        "data-security"
+      ]
     },
     "indiana-docs": {
       "displayName": "Indiana Docs 🤠",
@@ -88,7 +131,12 @@
         "voice": "Field-agent pragmatism with scholarly precision.",
         "signature": "// Indiana Docs 🤠 — [one archaeological observation]"
       },
-      "extensions": []
+      "extensions": [],
+      "routing": [
+        "documentation",
+        "mkdocs",
+        "markdown"
+      ]
     },
     "panoramix": {
       "displayName": "Panoramix 🧪",
@@ -100,6 +148,12 @@
       },
       "extensions": [
         "pi-elixir"
+      ],
+      "routing": [
+        "elixir",
+        "erlang",
+        "beam",
+        "phoenix"
       ]
     }
   }
