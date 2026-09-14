@@ -7,9 +7,7 @@ function field(markdown, name) {
 
 export function compactSoul(markdown) {
   const title = markdown.match(/^#\s+(.+)/m)?.[1]?.trim();
-  const domains = markdown.match(/## Domains\s+([\s\S]*?)(?=\n---|\n## |$)/)?.[1]
-    ?.split("\n").filter(line => line.trim().startsWith("-")).slice(0, 8).join("\n");
-  const lines = ["## PERSONA", title, field(markdown, "Tone"), field(markdown, "Voice"), field(markdown, "Signature"), domains];
+  const lines = ["## PERSONA", title, field(markdown, "Tone"), field(markdown, "Voice"), field(markdown, "Signature")];
   return lines.filter(Boolean).join("\n").slice(0, 2400);
 }
 

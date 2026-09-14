@@ -4,7 +4,7 @@ import {
 import { BASE_GITHUB_TOOLS, NAMES, getAutomaton } from "./roster.mjs";
 
 export const SOULS = NAMES;
-export const ROLES = ["lead", "architect", "developer", "advisor"];
+export const ROLES = ["lead", "architect", "advisor"];
 
 export function assemble(name, role, task, override = {}) {
   const automaton = getAutomaton(name);
@@ -17,10 +17,10 @@ export function assemble(name, role, task, override = {}) {
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
-  const tools = [...new Set([...BASE_GITHUB_TOOLS, ...body.tools, ...automaton.allowed_tools])];
+  const tools = [...new Set([...BASE_GITHUB_TOOLS, ...body.tools])];
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.`,
+    instructions: `${body.instructions}\n\n## DOMAIN\n${automaton.domain.join(", ")}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Every crew_* Discussion call requires from: this name and your completed funny persona signature.`,
     tools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),
