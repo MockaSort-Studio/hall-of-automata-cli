@@ -72,5 +72,11 @@ check "no dangling /hall:reconcile references" \
 check "no dangling board-context.md references" \
   "! grep -rl 'board-context\.md' --include='*.md' --include='*.sh' --include='*.py' . 2>/dev/null | grep -qv '^\./tests/'"
 
+# Pi migration
+check "Pi extension load test is executable" "test -x tests/pi/test-extension-load.sh"
+if command -v pi >/dev/null 2>&1; then
+  check "Pi extensions load from relocated tree" "bash tests/pi/test-extension-load.sh"
+fi
+
 echo; echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
