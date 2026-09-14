@@ -6,7 +6,7 @@ import { BASE_GITHUB_TOOLS, NAMES, getAutomaton } from "./roster.mjs";
 export const SOULS = NAMES;
 export const ROLES = ROLE_NAMES;
 
-export function validateAvailableRoleTools(tools) { validateRoleTools(tools); }
+export function validateAvailableRoleTools(tools, role) { validateRoleTools(tools, role); }
 
 export function assemble(name, role, task, override = {}) {
   const automaton = getAutomaton(name);

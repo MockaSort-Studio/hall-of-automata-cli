@@ -8,9 +8,11 @@ for (const [name, role] of Object.entries(catalog)) {
   if (!THINKING.has(role.thinking)) throw new Error(`Invalid role thinking: ${name}`);
 }
 export const ROLE_NAMES = Object.freeze(Object.keys(catalog));
-export function validateRoleTools(availableTools) {
+export function validateRoleTools(availableTools, roleName) {
   const available = new Set(availableTools);
-  for (const [name, role] of Object.entries(catalog)) {
+  const entries = roleName ? [[roleName, catalog[roleName]]] : Object.entries(catalog);
+  for (const [name, role] of entries) {
+    if (!role) throw new Error(`Role "${name}" not defined`);
     const missing = role.tools.filter(tool => !available.has(tool));
     if (missing.length) throw new Error(`Role ${name} requires unavailable tools: ${missing.join(", ")}`);
   }

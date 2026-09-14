@@ -45,7 +45,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()),
     }),
     async execute(_id, input) {
-      validateAvailableRoleTools(pi.getAllTools().map(tool => tool.name));
+      validateAvailableRoleTools(["read", "grep", "find", "ls", "bash", "edit", "write", ...pi.getAllTools().map(tool => tool.name)], input.role);
       return output(assemble(input.name, input.role, input.task, input));
     },
   });
