@@ -8,13 +8,13 @@ const ARMORY = {
   "computer-vision": {}, perception: {}, "autonomous-systems": {},
   "api-design": {}, "event-driven-architecture": {}, "data-security": {},
   documentation: {}, mkdocs: {}, react: {}, typescript: {}, vite: {}, astro: {}, css: {},
-  elixir: { extension: "elixir-pi", tools: ["mix_compile", "mix_test", "phoenix_logs", "elixir_debug_live"] },
-  "otp-beam": { extension: "elixir-pi", tools: ["mix_compile", "mix_test", "elixir_debug_live"] },
-  erlang: { extension: "elixir-pi", tools: ["mix_compile", "mix_test"] },
-  mix: { extension: "elixir-pi", tools: ["mix_compile", "mix_test"] },
-  phoenix: { extension: "elixir-pi", tools: ["phoenix_logs", "elixir_debug_live"] },
-  ecto: { extension: "elixir-pi", tools: ["mix_test", "elixir_debug_live"] },
-  liveview: { extension: "elixir-pi", tools: ["phoenix_logs", "elixir_debug_live"] },
+  elixir: { extension: "pi-elixir", tools: ["mix_compile", "mix_test", "phoenix_logs", "elixir_debug_live"] },
+  "otp-beam": { extension: "pi-elixir", tools: ["mix_compile", "mix_test", "elixir_debug_live"] },
+  erlang: { extension: "pi-elixir", tools: ["mix_compile", "mix_test"] },
+  mix: { extension: "pi-elixir", tools: ["mix_compile", "mix_test"] },
+  phoenix: { extension: "pi-elixir", tools: ["phoenix_logs", "elixir_debug_live"] },
+  ecto: { extension: "pi-elixir", tools: ["mix_test", "elixir_debug_live"] },
+  liveview: { extension: "pi-elixir", tools: ["phoenix_logs", "elixir_debug_live"] },
 };
 export const ARMORY_DOMAINS = Object.freeze(Object.keys(ARMORY));
 export function resolveArmory(domain, availableTools = []) {

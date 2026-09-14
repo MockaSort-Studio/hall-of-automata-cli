@@ -4,7 +4,7 @@ import { ARMORY_DOMAINS, resolveArmory } from "../../.pi/extensions/crew/lib/arm
 import { AUTOMATA } from "../../.pi/extensions/crew/lib/roster.mjs";
 test("Armory activates only installed domain tools", () => {
   const result = resolveArmory(["elixir", "phoenix"], ["mix_test", "phoenix_logs"]);
-  assert.deepEqual(result.extensions, ["elixir-pi"]);
+  assert.deepEqual(result.extensions, ["pi-elixir"]);
   assert.deepEqual(result.tools, ["mix_test", "phoenix_logs"]);
   assert.ok(result.missing.includes("elixir_debug_live"));
 });
