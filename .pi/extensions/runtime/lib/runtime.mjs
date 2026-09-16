@@ -1,20 +1,71 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { resolveBundles } from "./tool-bundles.mjs";
+import { CommController } from "./comm-controller.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 
 export class Runtime {
   #agents = new Map();
+  #comm;
+  #commUrl;
 
-  constructor(cwd, sdkModule) {
+  constructor(cwd, sdkModule = process.env.PI_SDK_MODULE) {
     this.cwd = cwd;
-    this.sdkModule = sdkModule;
+    this.sdkModule =
+      sdkModule ??
+      pathToFileURL(
+        join(
+          dirname(dirname(process.execPath)),
+          "lib",
+          "node_modules",
+          "@earendil-works",
+          "pi-coding-agent",
+          "dist",
+          "index.js",
+        ),
+      ).href;
   }
 
-  spawn({ name, task, model, thinking = "off", tools = defaultTools, extensionPaths = [] }) {
-    const id = randomUUID();
+  async startComm(actorIds = []) {
+    if (!this.#comm) {
+      this.#comm = new CommController();
+      const port = await this.#comm.start();
+      this.#commUrl = `ws://127.0.0.1:${port}`;
+    }
+    actorIds.forEach((actorId) => this.#comm.registerActor(actorId));
+    return { url: this.#commUrl };
+  }
+
+  send(to, payload) {
+    if (!this.#comm) throw new Error("Communication controller is not running");
+    return this.#comm.emit("main", to, payload);
+  }
+
+  receive(actorId = "main") {
+    if (!this.#comm) throw new Error("Communication controller is not running");
+    return this.#comm.claim(actorId) ?? null;
+  }
+
+  spawn({
+    name,
+    task,
+    actorId,
+    model,
+    thinking = "off",
+    tools = defaultTools,
+    extensionPaths = [],
+    bundles = [],
+    comm,
+    resident = false,
+  }) {
+    const bundle = resolveBundles(this.cwd, bundles);
+    tools = [...new Set([...tools, ...bundle.tools])];
+    extensionPaths = [...new Set([...extensionPaths, ...bundle.extensionPaths])];
+    const id = actorId ?? randomUUID();
     const root = join(this.cwd, ".pi", "runtime", "runs", id);
     const worktree = join(root, "worktree");
     mkdirSync(root, { recursive: true });
@@ -35,6 +86,9 @@ export class Runtime {
         thinking,
         tools,
         extensionPaths,
+        comm: comm ?? (this.#commUrl ? { url: this.#commUrl, actorId: id } : undefined),
+        delivery: this.#comm ? (this.#comm.registerActor(id), this.#comm.claim(id)) : undefined,
+        resident,
         logFile,
         sdkModule: this.sdkModule,
       }),

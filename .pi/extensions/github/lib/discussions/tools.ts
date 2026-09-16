@@ -31,7 +31,7 @@ export function registerDiscussionTools(pi) {
   );
 
   tool(
-    "github_discussion_comment",
+    "github_discussion_post",
     "Post a comment to a Discussion thread.",
     obj({ owner: S(), repo: S(), discussionNumber: I(), body: S() }),
     (x) => discussions.commentOnDiscussion(x.owner, x.repo, x.discussionNumber, x.body),

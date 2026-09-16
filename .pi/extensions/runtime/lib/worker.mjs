@@ -1,4 +1,6 @@
 import { appendFileSync, readFileSync } from "node:fs";
+import { Type } from "typebox";
+import { connectComm } from "./comm-client.mjs";
 
 const config = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const sdk = await import(config.sdkModule);
@@ -7,6 +9,18 @@ const toolStarts = new Map();
 const estimate = (value) => Math.ceil(JSON.stringify(value ?? "").length / 4);
 const log = (event) =>
   appendFileSync(config.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
+const comm = config.comm ? await connectComm(config.comm) : undefined;
+const commTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_emit",
+    label: "Communication: emit",
+    description: "Emit one atomic payload to a Crew recipient.",
+    parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      return { content: [{ type: "text", text: JSON.stringify(await comm.emit(input)) }] };
+    },
+  });
 const runtime = await sdk.ModelRuntime.create();
 const model = config.model ? runtime.getModel(...config.model.split("/")) : undefined;
 const loader = new sdk.DefaultResourceLoader({
@@ -20,7 +34,8 @@ const { session } = await sdk.createAgentSession({
   modelRuntime: runtime,
   model,
   thinkingLevel: config.thinking,
-  tools: config.tools,
+  tools: commTool ? [...config.tools, "comm_emit"] : config.tools,
+  customTools: commTool ? [commTool] : [],
   resourceLoader: loader,
   sessionManager: sdk.SessionManager.inMemory(config.cwd),
 });
@@ -40,7 +55,7 @@ session.subscribe((event) => {
       type: "tool_start",
       id: event.toolCallId,
       name: event.toolName,
-      source: nativeTools.has(event.toolName) ? "native" : "extension",
+      source: event.toolName === "comm_emit" ? "custom" : nativeTools.has(event.toolName) ? "native" : "extension",
       callTokens: estimate(event.args),
     });
   }
@@ -49,7 +64,7 @@ session.subscribe((event) => {
       type: "tool_end",
       id: event.toolCallId,
       name: event.toolName,
-      source: nativeTools.has(event.toolName) ? "native" : "extension",
+      source: event.toolName === "comm_emit" ? "custom" : nativeTools.has(event.toolName) ? "native" : "extension",
       resultTokens: estimate(event.result),
       elapsedMs: Date.now() - (toolStarts.get(event.toolCallId) ?? Date.now()),
       error: event.isError,
@@ -60,11 +75,23 @@ session.subscribe((event) => {
   }
 });
 try {
-  await session.prompt(config.task);
+  const initialTask = config.delivery
+    ? `${config.task}\n\nCommunication delivery: ${JSON.stringify(config.delivery.payload)}`
+    : config.task;
+  await session.prompt(initialTask);
+  if (config.resident) {
+    let deliveries = Promise.resolve();
+    comm.onDelivery((message) => {
+      deliveries = deliveries.then(() => session.prompt(`Communication delivery: ${JSON.stringify(message.payload)}`));
+    });
+    await new Promise((resolve) => process.once("SIGTERM", resolve));
+    await deliveries;
+  }
   log({ type: "agent_end", elapsedMs: Date.now() - startedAt, context: session.getContextUsage() });
 } catch (error) {
   log({ type: "agent_error", message: error instanceof Error ? error.message : String(error) });
   process.exitCode = 1;
 } finally {
   session.dispose();
+  comm?.close();
 }

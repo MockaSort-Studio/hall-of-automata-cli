@@ -1,9 +1,8 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { Runtime } from "./lib/runtime.mjs";
 
-export default function runtimeExtension(pi: ExtensionAPI): void {
-  const runtime = new Runtime(process.cwd(), import.meta.resolve("@earendil-works/pi-coding-agent"));
+export default function runtimeExtension(pi: any): void {
+  const runtime = new Runtime(process.cwd());
   pi.registerTool({
     name: "runtime_spawn_agent",
     label: "Runtime: spawn agent",
@@ -11,12 +10,15 @@ export default function runtimeExtension(pi: ExtensionAPI): void {
     parameters: Type.Object({
       name: Type.String(),
       task: Type.String(),
+      actorId: Type.Optional(Type.String()),
       model: Type.Optional(Type.String()),
       thinking: Type.Optional(
         Type.Union([Type.Literal("off"), Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")]),
       ),
       tools: Type.Optional(Type.Array(Type.String())),
       extensionPaths: Type.Optional(Type.Array(Type.String())),
+      bundles: Type.Optional(Type.Array(Type.String())),
+      resident: Type.Optional(Type.Boolean()),
     }),
     async execute(_id, input) {
       const agent = runtime.spawn(input);
@@ -31,6 +33,36 @@ export default function runtimeExtension(pi: ExtensionAPI): void {
     async execute() {
       const agents = runtime.list();
       return { content: [{ type: "text", text: JSON.stringify(agents) }], details: agents };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_start_comm",
+    label: "Runtime: start communication",
+    description: "Start this Crew runtime communication controller.",
+    parameters: Type.Object({ actors: Type.Optional(Type.Array(Type.String())) }),
+    async execute(_id, input) {
+      const result = await runtime.startComm(input.actors);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_send_message",
+    label: "Runtime: send message",
+    description: "Send one opaque payload from Main to an agent through the communication controller.",
+    parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      const result = runtime.send(input.to, input.payload);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_receive_message",
+    label: "Runtime: receive message",
+    description: "Claim one queued message for Main or a Crew actor.",
+    parameters: Type.Object({ actorId: Type.Optional(Type.String()) }),
+    async execute(_id, input) {
+      const result = runtime.receive(input.actorId);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });
   pi.registerTool({

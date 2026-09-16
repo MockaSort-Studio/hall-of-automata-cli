@@ -10,32 +10,56 @@
 
 Estimates are serialized model-facing content ÷ 4. Context after is Pi `getContextUsage().tokens` after settlement. SDK case: [Discussion #445](https://github.com/MockaSort-Studio/hall-of-automata-cli/discussions/445).
 
-SDK native Discussion comment: disposable Discussion #450; `github_discussion_comment` extension call; 1,702 ms tool duration; marker externally verified, then the Discussion and worktree were deleted.
+SDK native Discussion comment: disposable Discussion #450; `github_discussion_post` extension call; 1,702 ms tool duration; marker externally verified, then the Discussion and worktree were deleted.
 
-## v0 design
+## Runtime design
+
+### Current implementation
 
 ```mermaid
 flowchart TB
-  Main[Main session]
-  Lifecycle[Lifecycle runtime]
-  A[SDK agent process + worktree]
-  B[SDK agent process + worktree]
-  Logs[Run logs]
+  Main[Main Pi session]
+  Client[Runtime native tools]
+  Lifecycle[In-memory lifecycle manager]
+  Workers[SDK worker processes + worktrees]
+  Logs[Per-agent JSONL]
 
-  Main -->|spawn, monitor, delete| Lifecycle
-  Lifecycle --> A
-  Lifecycle --> B
-  A --> Logs
-  B --> Logs
+  Main --> Client --> Lifecycle --> Workers
+  Workers --> Logs
 ```
 
-- One agent = one fresh worktree + one standalone Pi SDK runner process.
-- Each runner owns its own `AgentSession`, model context, selected extensions, and tools.
-- Agents run in parallel.
-- `bash` remains available as a fallback; supply role-relevant extensions first.
-- Delete = stop runner process + remove worktree.
+- One agent is one fresh worktree and one standalone Pi SDK process.
+- The worker owns its `AgentSession`, selected tools/extensions, and telemetry.
+- The lifecycle manager is currently in Main's runtime extension and is intentionally in-memory.
+- Agents run in parallel; delete stops the process and removes its worktree.
 
-Not in v0: durability, recovery, communication, sandboxing.
+### Next boundary
+
+```mermaid
+flowchart TB
+  Main[Main Pi session]
+  Client[Runtime client tools]
+  Lifecycle[Lifecycle runtime process]
+  Workers[SDK worker processes + worktrees]
+
+  Main --> Client --> Lifecycle --> Workers
+```
+
+Move the lifecycle manager into its own process without changing its four operations: `spawn`, `list`, `inspect`, `delete`.
+
+### Next subsystem: communication
+
+Communication is separate from lifecycle. It will provide typed messages between Main and workers; lifecycle remains responsible only for worker lifetime.
+
+## Source map
+
+| Concern                                                | Source                                                                                                 |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Main-facing lifecycle tools                            | [.pi/extensions/runtime/index.ts](../../.pi/extensions/runtime/index.ts)                               |
+| Current lifecycle manager and worktree/process control | [.pi/extensions/runtime/lib/runtime.mjs](../../.pi/extensions/runtime/lib/runtime.mjs)                 |
+| SDK worker and JSONL telemetry                         | [.pi/extensions/runtime/lib/worker.mjs](../../.pi/extensions/runtime/lib/worker.mjs)                   |
+| Named tool bundles                                     | [.pi/extensions/runtime/lib/tool-bundles.mjs](../../.pi/extensions/runtime/lib/tool-bundles.mjs)       |
+| Native Discussion tools                                | [.pi/extensions/github/lib/discussions/tools.ts](../../.pi/extensions/github/lib/discussions/tools.ts) |
 
 ## Observability
 
