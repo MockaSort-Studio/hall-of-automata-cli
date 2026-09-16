@@ -1,5 +1,4 @@
 import WebSocket from "ws";
-
 export async function connectComm({ url, actorId }) {
   const socket = new WebSocket(url);
   await new Promise((resolve, reject) => {
@@ -14,7 +13,7 @@ export async function connectComm({ url, actorId }) {
         const message = JSON.parse(String(raw));
         if (message.id === id) {
           socket.off("message", onMessage);
-          resolve(message.result);
+          message.error ? reject(new Error(message.error.message)) : resolve(message.result);
         }
       };
       socket.on("message", onMessage);
@@ -28,6 +27,9 @@ export async function connectComm({ url, actorId }) {
   });
   return {
     emit: (params) => request("comm.emit", params),
+    registerActor: (id) => request("comm.register_actor", { actorId: id }),
+    claim: (actor) => request("comm.claim", { actorId: actor }),
+    acknowledge: (id) => request("comm.ack", { messageId: id }),
     onDelivery: (listener) => listeners.add(listener),
     close: () => socket.close(),
   };

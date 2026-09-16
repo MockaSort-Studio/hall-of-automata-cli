@@ -10,15 +10,52 @@ const estimate = (value) => Math.ceil(JSON.stringify(value ?? "").length / 4);
 const log = (event) =>
   appendFileSync(config.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
 const comm = config.comm ? await connectComm(config.comm) : undefined;
-const commTool =
+let replyContext = config.delivery;
+const notifyTool =
   comm &&
   sdk.defineTool({
-    name: "comm_emit",
-    label: "Communication: emit",
-    description: "Emit one atomic payload to a Crew recipient.",
-    parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
+    name: "comm_notify",
+    label: "Communication: notify",
+    description: "Notify a Crew recipient without requiring a reply.",
+    parameters: Type.Object({
+      to: Type.String(),
+      payload: Type.Unknown(),
+      replyRequired: Type.Optional(Type.Boolean()),
+    }),
     async execute(_id, input) {
       return { content: [{ type: "text", text: JSON.stringify(await comm.emit(input)) }] };
+    },
+  });
+const requestTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_request",
+    label: "Communication: request",
+    description: "Send a Crew recipient a message that requires a reply.",
+    parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      return { content: [{ type: "text", text: JSON.stringify(await comm.emit({ ...input, replyRequired: true })) }] };
+    },
+  });
+const replyTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_reply",
+    label: "Communication: reply",
+    description: "Reply to the current communication delivery.",
+    parameters: Type.Object({ payload: Type.Unknown() }),
+    async execute(_id, input) {
+      if (!replyContext?.replyRequired) throw new Error("Current delivery does not require a reply");
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              await comm.emit({ to: replyContext.from, payload: input.payload, replyTo: replyContext.id }),
+            ),
+          },
+        ],
+      };
     },
   });
 const runtime = await sdk.ModelRuntime.create();
@@ -34,8 +71,8 @@ const { session } = await sdk.createAgentSession({
   modelRuntime: runtime,
   model,
   thinkingLevel: config.thinking,
-  tools: commTool ? [...config.tools, "comm_emit"] : config.tools,
-  customTools: commTool ? [commTool] : [],
+  tools: notifyTool ? [...config.tools, "comm_notify", "comm_request", "comm_reply"] : config.tools,
+  customTools: notifyTool ? [notifyTool, requestTool, replyTool] : [],
   resourceLoader: loader,
   sessionManager: sdk.SessionManager.inMemory(config.cwd),
 });
@@ -55,7 +92,11 @@ session.subscribe((event) => {
       type: "tool_start",
       id: event.toolCallId,
       name: event.toolName,
-      source: event.toolName === "comm_emit" ? "custom" : nativeTools.has(event.toolName) ? "native" : "extension",
+      source: ["comm_notify", "comm_request", "comm_reply"].includes(event.toolName)
+        ? "custom"
+        : nativeTools.has(event.toolName)
+          ? "native"
+          : "extension",
       callTokens: estimate(event.args),
     });
   }
@@ -79,10 +120,14 @@ try {
     ? `${config.task}\n\nCommunication delivery: ${JSON.stringify(config.delivery.payload)}`
     : config.task;
   await session.prompt(initialTask);
+  if (config.delivery) await comm.acknowledge(config.delivery.id);
   if (config.resident) {
     let deliveries = Promise.resolve();
     comm.onDelivery((message) => {
-      deliveries = deliveries.then(() => session.prompt(`Communication delivery: ${JSON.stringify(message.payload)}`));
+      deliveries = deliveries.then(async () => {
+        await session.prompt(`Communication delivery: ${JSON.stringify(message.payload)}`);
+        await comm.acknowledge(message.id);
+      });
     });
     await new Promise((resolve) => process.once("SIGTERM", resolve));
     await deliveries;

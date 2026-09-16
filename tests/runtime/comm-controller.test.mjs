@@ -14,6 +14,8 @@ const connect = async (port, actorId) => {
 
 test("routes an atomic payload through a per-controller mailbox", async () => {
   const comm = new CommController();
+  comm.registerActor("a");
+  comm.registerActor("b");
   const port = await comm.start();
   const sender = await connect(port, "a");
   const recipient = await connect(port, "b");
@@ -41,6 +43,8 @@ test("routes an atomic payload through a per-controller mailbox", async () => {
 
 test("keeps a message until its recipient registers", async () => {
   const comm = new CommController();
+  comm.registerActor("sender");
+  comm.registerActor("later");
   const port = await comm.start();
   const sender = await connect(port, "sender");
   sender.send(
@@ -76,4 +80,16 @@ test("claims a queued Main message", () => {
   comm.emit("agent", "main", { marker: "main" });
   assert.deepEqual(comm.claim("main").payload, { marker: "main" });
   assert.equal(comm.claim("main"), undefined);
+});
+
+test("validates and correlates a required reply", () => {
+  const comm = new CommController();
+  comm.registerActor("a");
+  comm.registerActor("b");
+  const request = comm.emit("a", "b", { ask: "marker" }, true);
+  const delivered = comm.claim("b");
+  assert.equal(delivered.replyRequired, true);
+  assert.equal(comm.emit("b", "a", { marker: "reply" }, false, request.id).accepted, true);
+  assert.ok(comm.events().some((event) => event.type === "message_replied" && event.replyTo === request.id));
+  assert.throws(() => comm.emit("b", "a", {}, false, "unknown"), /Unknown reply request/);
 });

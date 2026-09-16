@@ -33,23 +33,26 @@ flowchart TB
 - The lifecycle manager is currently in Main's runtime extension and is intentionally in-memory.
 - Agents run in parallel; delete stops the process and removes its worktree.
 
-### Next boundary
+### Communication controller
 
 ```mermaid
 flowchart TB
   Main[Main Pi session]
-  Client[Runtime client tools]
-  Lifecycle[Lifecycle runtime process]
-  Workers[SDK worker processes + worktrees]
+  Client[Runtime client]
+  Comm[Dedicated Crew Comm process]
+  Workers[SDK worker processes]
+  Adapters[Future adapters]
 
-  Main --> Client --> Lifecycle --> Workers
+  Main <--> Client <--> Comm
+  Workers <--> Comm
+  Comm --> Adapters
 ```
 
-Move the lifecycle manager into its own process without changing its four operations: `spawn`, `list`, `inspect`, `delete`.
-
-### Next subsystem: communication
-
-Communication is separate from lifecycle. It will provide typed messages between Main and workers; lifecycle remains responsible only for worker lifetime.
+- One Comm process owns the Crew actor registry, mailboxes, connections, and protocol ledger.
+- Main and workers use WebSocket JSON-RPC; no process shares mailbox state.
+- The process serializes mailbox operations; messages are queued, claimed for one-shot startup, or delivered to a connected resident worker.
+- Adapters attach to Comm; they do not own mailbox state or worker lifecycle.
+- `comm_emit` optionally requests a reply; `comm_reply` binds to the current delivery, so agents never supply recipient or correlation metadata.
 
 ## Source map
 

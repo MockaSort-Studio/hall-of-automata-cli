@@ -21,7 +21,7 @@ export default function runtimeExtension(pi: any): void {
       resident: Type.Optional(Type.Boolean()),
     }),
     async execute(_id, input) {
-      const agent = runtime.spawn(input);
+      const agent = await runtime.spawn(input);
       return { content: [{ type: "text", text: JSON.stringify(agent) }], details: agent };
     },
   });
@@ -51,7 +51,7 @@ export default function runtimeExtension(pi: any): void {
     description: "Send one opaque payload from Main to an agent through the communication controller.",
     parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
     async execute(_id, input) {
-      const result = runtime.send(input.to, input.payload);
+      const result = await runtime.send(input.to, input.payload);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });
@@ -61,7 +61,7 @@ export default function runtimeExtension(pi: any): void {
     description: "Claim one queued message for Main or a Crew actor.",
     parameters: Type.Object({ actorId: Type.Optional(Type.String()) }),
     async execute(_id, input) {
-      const result = runtime.receive(input.actorId);
+      const result = await runtime.receive(input.actorId);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });
