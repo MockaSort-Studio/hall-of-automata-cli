@@ -35,24 +35,26 @@ export function launchCode(configPath) {
     "  roster = JSON.parse(await pi.read(cfg.rosterFile));",
     "  return { runId: cfg.runId, topic: cfg.topic, leadId: roster.lead?.actorId, status: roster.status, alreadyLaunched: true };",
     "}",
-    "let lead;",
+    "let lead; let members = [];",
     "try {",
-    "  lead = await agents.create(cfg.lead);",
+    "  roster = JSON.parse(await pi.read(cfg.rosterFile)); roster.batchStartedAt = new Date().toISOString(); await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
+    "  const createdActors = await agents.createMany({ actors: [...cfg.members, cfg.lead] });",
+    "  members = createdActors.slice(0, -1).map((actor, index) => ({ definition: cfg.members[index], actor }));",
+    "  lead = createdActors.at(-1);",
     "  roster = JSON.parse(await pi.read(cfg.rosterFile));",
     "  roster.lead = { name: lead.name, actorId: lead.id };",
-    "  roster.status = 'started';",
+    "  roster.members = members.map(({ definition, actor }) => ({ name: actor.name, actorId: actor.id, role: definition.role }));",
+    "  roster.status = 'started'; roster.batchCreatedAt = new Date().toISOString(); roster.leadWokenAt = new Date().toISOString();",
     "  await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
-    "  await agents.ask({ id: lead.id, message: cfg.assignment });",
-    "  roster = JSON.parse(await pi.read(cfg.rosterFile));",
-    "  if (roster.status === 'started' && roster.discussionNumber && !(roster.members || []).length) await agents.tell({ id: lead.id, message: 'Continue the protocol from kickoff: recruit, register, and wake the bounded specialist roster now. Do not stop after kickoff.' });",
-    "  return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: 'started' };",
+    "  await agents.tell({ id: lead.id, message: cfg.assignment });",
+    "  return { runId: cfg.runId, topic: cfg.topic, leadId: lead.id, status: 'started', memberIds: members.map(member => member.actor.id) };",
     "} catch (error) {",
     "  roster = JSON.parse(await pi.read(cfg.rosterFile));",
     "  roster = JSON.parse(await pi.read(cfg.rosterFile));",
     "  if (roster.status === 'closed') return { runId: cfg.runId, topic: cfg.topic, leadId: roster.lead?.actorId, status: 'closed' };",
     "  roster.status = 'failed'; roster.launchError = String(error);",
     "  await pi.write({ path: cfg.rosterFile, text: JSON.stringify(roster, null, 2) });",
-    "  const actorIds = new Set([lead?.id, roster.lead?.actorId, ...(roster.members || []).map(member => member.actorId)].filter(Boolean));",
+    "  const actorIds = new Set([lead?.id, roster.lead?.actorId, ...members.map(member => member.actor.id), ...(roster.members || []).map(member => member.actorId)].filter(Boolean));",
     "  try { for (const actor of await agents.actors()) if (actor.topics?.includes(cfg.topic)) actorIds.add(actor.id); } catch {}",
     "  const removedIds = new Set(); const cleanupFailures = [];",
     "  for (const id of actorIds) { try { const result = await agents.remove({ id }); if (result?.removed) removedIds.add(id); else cleanupFailures.push({ actorId: id, error: 'remove not confirmed' }); } catch (cleanupError) { if (String(cleanupError).includes('Unknown Fabric actor')) removedIds.add(id); else cleanupFailures.push({ actorId: id, error: String(cleanupError) }); } }",
@@ -73,6 +75,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     throw new Error("discussionNumber and discussionUrl must be provided together");
   }
   if (String(input.task || "").trim().length > 8000) throw new Error("Crew task exceeds 8000 characters");
+  if (input.resultSummaryMaxBytes !== undefined && (!Number.isInteger(input.resultSummaryMaxBytes) || input.resultSummaryMaxBytes < 512 || input.resultSummaryMaxBytes > 50000)) throw new Error("resultSummaryMaxBytes must be an integer from 512 to 50000");
   const runId = crypto.randomUUID();
   const topic = `crew.${runId}`;
   const completionMode = input.completionMode === "human-gated" ? "human-gated" : "unattended";
@@ -81,7 +84,18 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const paths = crewPaths(configDir, runId);
   const absoluteRoster = join(ctx.cwd, paths.roster);
   const repository = await resolveRepository(pi, ctx.cwd, ctx.signal);
-  const assignment = `${input.task}\n${governance({ topic, runId, rosterFile: paths.roster, outputPath: input.outputPath, discussionNumber: input.discussionNumber, discussionUrl: input.discussionUrl, completionMode, leadTickTopic })}`;
+  const seenMembers = new Set();
+  for (const member of input.members) {
+    if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
+    const identity = `${member.role}-${member.name}`;
+    if (seenMembers.has(identity)) throw new Error(`Duplicate Crew member: ${identity}`);
+    seenMembers.add(identity);
+  }
+  const members = input.members.map(member => ({
+    ...assemble(member.name, member.role, "", { runtimeTools: pi.getAllTools() }), role: member.role, runner: "pi", extensions: true,
+    topics: [topic], responseMode: "text", delivery: "steer", triggerTurn: false, residency: "durable",
+  }));
+  const assignment = `${input.task}\n${governance({ topic, runId, members, discussionNumber: input.discussionNumber, discussionUrl: input.discussionUrl, completionMode, leadTickTopic })}`;
   const lead = {
     ...assemble("old-major", "lead", "", input), runner: "pi", extensions: true,
     topics: completionMode === "human-gated" ? [topic, leadTickTopic] : [topic],
@@ -91,8 +105,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const absoluteConfig = join(ctx.cwd, paths.config);
   mkdirSync(dirname(absoluteRoster), { recursive: true });
   try {
-    writeFileSync(absoluteRoster, JSON.stringify({ runId, topic, status: "queued", completionMode, leadTickTopic: completionMode === "human-gated" ? leadTickTopic : null, monitorIntervalMs: completionMode === "human-gated" ? monitorIntervalMs : null, ...repository, discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
-    writeFileSync(absoluteConfig, JSON.stringify({ runId, topic, rosterFile: paths.roster, lead, assignment, launch: launchCode(absoluteConfig) }));
+    writeFileSync(absoluteRoster, JSON.stringify({ runId, topic, status: "queued", preparedAt: new Date().toISOString(), resultSummaryMaxBytes: input.resultSummaryMaxBytes ?? null, completionMode, leadTickTopic: completionMode === "human-gated" ? leadTickTopic : null, monitorIntervalMs: completionMode === "human-gated" ? monitorIntervalMs : null, ...repository, discussionNumber: input.discussionNumber ?? null, discussionUrl: input.discussionUrl ?? null, outputPath: input.outputPath ?? null, members: [] }, null, 2));
+    writeFileSync(absoluteConfig, JSON.stringify({ runId, topic, rosterFile: paths.roster, members, lead, assignment, launch: launchCode(absoluteConfig) }));
   } catch (error) {
     rmSync(absoluteRoster, { force: true }); rmSync(absoluteConfig, { force: true }); throw error;
   }

@@ -2,48 +2,32 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { governance } from "../../.pi/extensions/crew/lib/governance.mjs";
-import { leadDiscipline, specialistDiscipline } from "../../.pi/extensions/crew/lib/policy.mjs";
 import { crewDisciplineModule } from "../../.pi/extensions/crew/lib/automaton-body/lib/modules/crew-discipline.mjs";
 
-const base = { topic: "crew.test", runId: "test", rosterFile: "/tmp/roster.json", outputPath: "out.md" };
+const base = { topic: "crew.test", runId: "test", members: [{ name: "architect-tomashco", role: "architect" }] };
 const protocol = governance(base);
 const human = governance({ ...base, completionMode: "human-gated", leadTickTopic: "crew.test.lead-tick" });
 const tools = readFileSync(new URL("../../.pi/extensions/crew/lib/communication-tools.ts", import.meta.url), "utf8");
 
-test("the run assignment carries only run state and its bounded transaction", () => {
-  for (const term of ["crew_kickoff", "build_crew_member", "agents.create", "crew_register", "agents.ask", "crew_unregister", "request.threadRootId"]) {
-    assert.ok(protocol.includes(term), `missing ${term}`);
-  }
+test("run context carries canonical preassembled member names", () => {
+  for (const term of ["CREW CONTEXT", "RUN: test", "TOPIC: crew.test", "MEMBERS: architect-tomashco", "crew_kickoff"]) assert.ok(protocol.includes(term), `missing ${term}`);
+  assert.doesNotMatch(protocol, /MEMBERS: @/);
   assert.doesNotMatch(protocol, /supervisor/);
   assert.ok(protocol.length < 1600, "run assignment must stay compact");
 });
 
-test("discipline lives in one place per audience", () => {
-  assert.match(leadDiscipline(), /Publish only evidence and changed decisions/);
-  assert.match(leadDiscipline(), /smallest complementary roster/);
-  assert.match(specialistDiscipline(), /Request peer input only for conflicting findings/);
+test("specialist discipline retains the shared-start boundary", () => {
   assert.match(crewDisciplineModule().instructions, /Only the Lead manages lifecycle/);
-  assert.doesNotMatch(protocol, /Publish only evidence and changed decisions/);
-  assert.doesNotMatch(crewDisciplineModule().instructions, /DONE or BLOCKED with its URL/);
+  assert.match(crewDisciplineModule().instructions, /github_discussion_view/);
 });
 
-test("communication wrappers enforce authority and threading", () => {
-  assert.match(tools, /assertLead\(roster, input.from\)/);
-  assert.match(tools, /Only the Crew Lead may broadcast/);
-  assert.match(tools, /Threaded replies must name one recipient, never @all/);
+test("communication wrappers enforce authority, canonical identity, and recovery", () => {
+  for (const term of ["assertLead(roster, input.from)", "Only the Crew Lead may broadcast", "Canonical role-persona handle, without @", "kickoffIntent"]) assert.ok(tools.includes(term), `missing ${term}`);
 });
 
-test("kickoff serializes and preserves a recovery marker", () => {
-  assert.match(tools, /withFileMutationQueue\(path/);
-  assert.match(tools, /kickoffIntent/);
-  assert.match(tools, /kickoff outcome requires recovery/);
-});
-
-test("each completion mode has a verified terminal sequence", () => {
-  for (const term of ["crew_poll_human_requests", "crew_begin_close", "crew_finish_close", "crew_reconcile_absent", "agents.actors"]) {
-    assert.ok(human.includes(term), `missing ${term}`);
-  }
-  assert.match(human, /If status is closing, do not poll/);
-  assert.match(protocol, /crew_close once/);
-  assert.match(protocol, /crew_finish_close/);
+test("human-gated context retains its tick and terminal path", () => {
+  assert.match(human, /TICK TOPIC: crew.test.lead-tick/);
+  assert.match(human, /If started, poll and acknowledge human requests/);
+  assert.match(protocol, /close once/);
+  assert.match(protocol, /finish closing/);
 });

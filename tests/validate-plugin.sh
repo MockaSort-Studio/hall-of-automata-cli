@@ -68,9 +68,9 @@ check "hooks/hooks.json valid JSON"            "python3 -m json.tool hooks/hooks
 check "hooks/scripts/guard-writes.sh exists"   "test -f hooks/scripts/guard-writes.sh"
 check "guard-writes.sh is executable"          "test -x hooks/scripts/guard-writes.sh"
 check "no dangling /hall:reconcile references" \
-  "! grep -rlE 'hall-reconcile|hall:reconcile' --include='*.md' --include='*.sh' --include='*.py' . 2>/dev/null | grep -qv '^\./tests/'"
+  "! git grep -nE 'hall-reconcile|hall:reconcile' -- ':(exclude)tests/**' '*.md' '*.sh' '*.py'"
 check "no dangling board-context.md references" \
-  "! grep -rl 'board-context\.md' --include='*.md' --include='*.sh' --include='*.py' . 2>/dev/null | grep -qv '^\./tests/'"
+  "! git grep -n 'board-context\\.md' -- ':(exclude)tests/**' '*.md' '*.sh' '*.py'"
 
 # Pi migration
 check "Pi extension load test is executable" "test -x tests/pi/test-extension-load.sh"

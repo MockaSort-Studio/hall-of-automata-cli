@@ -7,9 +7,16 @@ test("assembly embeds a bounded assignment and preserves durable peer tools", ()
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT\nDesign one focused behavior/);
   assert.ok(actor.tools.includes("crew_ask"));
   assert.ok(actor.tools.includes("crew_tell"));
-  assert.ok(actor.tools.includes("github_issue_view"));
+  assert.ok(actor.tools.includes("github_discussion_view"));
+  assert.ok(!actor.tools.includes("github_issue_view"));
   assert.ok(!actor.tools.includes("github_issue_update"));
   assert.ok(!actor.tools.includes("github_pull_request_merge"));
+});
+
+test("assembly does not claim unverified Armory tools", () => {
+  const actor = assemble("panoramix", "developer", "Implement one BEAM change.");
+  assert.ok(!actor.tools.includes("mix_test"));
+  assert.match(actor.instructions, /No domain extension is assigned/);
 });
 
 test("assembly rejects oversized work rather than bloating actor context", () => {

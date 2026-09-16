@@ -146,9 +146,7 @@
         "voice": "States the intended result, evidence, and consequence.",
         "signature": "— Panoramix 🧪"
       },
-      "extensions": [
-        "pi-elixir"
-      ],
+      "extensions": [],
       "domains": [
         "elixir",
         "erlang",

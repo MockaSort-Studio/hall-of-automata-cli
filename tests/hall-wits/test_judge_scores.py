@@ -88,7 +88,8 @@ class TestWriteJudgeScores(unittest.TestCase):
             run_dir = self._setup_run_dir(tmpdir, CALIBRATION)
             with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
                 judge_scores.collect(run_dir, "claude-opus-5", "claude-sonnet-4-6")
-            scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
+            with open(os.path.join(run_dir, "judge-scores.json")) as f:
+                scores = json.load(f)
             self.assertTrue(scores["calibration_agreement"])
             self.assertAlmostEqual(scores["overall"], 4.5)
             self.assertEqual(len(scores["dimensions"]), 2)
@@ -103,7 +104,8 @@ class TestWriteJudgeScores(unittest.TestCase):
             run_dir = self._setup_run_dir(tmpdir, CALIBRATION)
             with patch.dict(os.environ, {"JUDGE_STRUCTURED_OUTPUT": structured}):
                 judge_scores.collect(run_dir, "claude-opus-5", "claude-sonnet-4-6")
-            scores = json.loads(open(os.path.join(run_dir, "judge-scores.json")).read())
+            with open(os.path.join(run_dir, "judge-scores.json")) as f:
+                scores = json.load(f)
             self.assertEqual(scores["assessment"], "")
 
     def test_missing_env_var_exits(self):

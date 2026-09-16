@@ -35,11 +35,22 @@ const evidence = Type.Array(Type.Object({ label: Type.String(), url: Type.String
 const kickoffMember = Type.Object({
   name: Type.String({ description: "Canonical role-persona handle, without @" }),
   assignment: Type.String(),
+  acceptanceCriteria: Type.Array(Type.String(), { minItems: 1 }),
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
 const commentResult = (comment, extra = {}) => result({ commentId: comment.id, commentUrl: comment.url, ...extra });
 const load = (ctx, runId) => readRoster(rosterPath(ctx.cwd, runId));
 const signed = (roster, input, body) => signedBody(roster, input.from, body, input.signature);
+export function kickoffPlan(roster, crew) {
+  const members = new Set((roster.members || []).map(member => member.name));
+  if (crew.length !== members.size || new Set(crew.map(item => item.name)).size !== crew.length) throw new Error("Kickoff requires exactly one assignment for every rostered specialist.");
+  for (const item of crew) {
+    if (!members.has(item.name)) throw new Error(`Kickoff assignment names unknown specialist ${item.name}`);
+    if (!(item.assignment || "").trim()) throw new Error(`Kickoff assignment is empty for ${item.name}`);
+    if ((item.dependsOn || []).some(name => !members.has(name) || name === item.name)) throw new Error(`Kickoff has invalid dependency for ${item.name}`);
+  }
+  return crew.map(item => ({ name: item.name, assignment: item.assignment, acceptanceCriteria: item.acceptanceCriteria, dependsOn: item.dependsOn || [] }));
+}
 
 export function registerCommunicationTools(pi) {
   pi.registerTool({
@@ -60,15 +71,16 @@ export function registerCommunicationTools(pi) {
         assertLead(roster, input.from);
         if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
         if (roster.kickoffIntent) throw new Error(`Crew ${input.runId} kickoff outcome requires recovery before retry.`);
+        const plan = kickoffPlan(roster, input.crew);
         const intent = { id: randomUUID(), startedAt: new Date().toISOString() };
         roster = { ...roster, kickoffIntent: intent };
         writeRoster(path, roster);
         const body = signed(roster, input, renderKickoff(roster, input));
         const discussion = createKickoff(roster, input.title, body, input.category);
-        roster = { ...readRoster(path), discussionNumber: discussion.number, discussionUrl: discussion.url };
+        roster = { ...readRoster(path), discussionNumber: discussion.number, discussionUrl: discussion.url, kickoffAt: new Date().toISOString(), workPlan: plan };
         delete roster.kickoffIntent;
         writeRoster(path, roster);
-        return result({ discussionNumber: discussion.number, discussionUrl: discussion.url });
+        return result({ discussionNumber: discussion.number, discussionUrl: discussion.url, activation: { runId: roster.runId, topic: roster.topic, text: `Kickoff ready: Discussion ${discussion.url} (runId=${roster.runId}; owner=${roster.owner}; repo=${roster.repo}; discussionNumber=${discussion.number})` } });
       });
     },
   });

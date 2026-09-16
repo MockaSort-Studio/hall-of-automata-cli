@@ -15,6 +15,34 @@ export function viewPullRequest(repo: string, number: number) {
   ]);
 }
 
+const REVIEW_THREADS_QUERY = `query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100) {
+        nodes { isResolved comments(first: 100) { nodes { path line originalLine body url author { login } } } }
+      }
+    }
+  }
+}`;
+
+export function reviewThreadComments(data: any, includeResolved = false) {
+  const threads = data?.data?.repository?.pullRequest?.reviewThreads?.nodes ?? [];
+  return threads
+    .filter(thread => includeResolved || !thread.isResolved)
+    .flatMap(thread => thread.comments?.nodes?.map(comment => ({
+      resolved: Boolean(thread.isResolved), path: comment.path,
+      line: comment.line ?? comment.originalLine ?? null, body: comment.body,
+      url: comment.url, author: comment.author?.login ?? null,
+    })) ?? []);
+}
+
+export function listPullRequestReviewThreads(repo: string, number: number, includeResolved = false) {
+  const [owner, name] = repo.split("/");
+  if (!owner || !name || repo.split("/").length !== 2) throw new Error(`Invalid repository: ${repo}`);
+  const data = ghJson(["api", "graphql", "-f", `owner=${owner}`, "-f", `repo=${name}`, "-F", `number=${number}`, "-f", `query=${REVIEW_THREADS_QUERY}`]);
+  return reviewThreadComments(data, includeResolved);
+}
+
 export function commentOnPullRequest(repo: string, number: number, body: string) {
   gh(["pr", "comment", String(number), "-R", repo, "--body", body]);
   return { repo, pullNumber: number, commented: true };

@@ -16,8 +16,10 @@ const output = (value, text = JSON.stringify(value)) => ({
   details: value,
 });
 
+const initialMember = Type.Object({ name: Type.String(), role: Type.String() });
 const parameters = Type.Object({
   task: Type.String(),
+  members: Type.Array(initialMember, { minItems: 1 }),
   outputPath: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
   thinking: Type.Optional(Type.String()),
@@ -45,8 +47,9 @@ export default function crewExtension(pi: ExtensionAPI) {
       model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()),
     }),
     async execute(_id, input) {
-      validateAvailableRoleTools(["read", "grep", "find", "ls", "bash", "edit", "write", ...pi.getAllTools().map(tool => tool.name)], input.role);
-      return output(assemble(input.name, input.role, input.task, input));
+      const actor = assemble(input.name, input.role, input.task, { ...input, runtimeTools: pi.getAllTools() });
+      validateAvailableRoleTools(actor.tools, input.role);
+      return output(actor);
     },
   });
 

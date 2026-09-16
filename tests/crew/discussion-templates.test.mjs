@@ -15,41 +15,37 @@ const input = {
   objective: "Identify protocol gaps and recommend bounded fixes.",
   acceptanceCriteria: ["Map the current path.", "Name verified gaps."],
   crew: [
-    { name: "architect-tomashco", assignment: "Review protocol boundaries." },
-    { name: "advisor-indiana-docs", assignment: "Verify behavior.", dependsOn: ["architect-tomashco"] },
+    { name: "architect-tomashco", assignment: "Review protocol boundaries.", acceptanceCriteria: ["Map boundaries."] },
+    { name: "advisor-indiana-docs", assignment: "Verify behavior.", acceptanceCriteria: ["Name verified gaps."], dependsOn: ["architect-tomashco"] },
   ],
   references: [{ label: "Protocol", url: "https://example.test/protocol" }],
   openQuestions: ["Should retries remain bounded?"],
 };
 
 test("kickoff renders one concise canonical structure", () => {
-  assert.equal(renderKickoff(roster, input), `**Run:** \`run-1\`  
-**Lead:** @lead-old-major  
-**Deliverable:** \`docs/result.md\`
-
-## Objective
-Identify protocol gaps and recommend bounded fixes.
-
-## Acceptance criteria
+  assert.equal(renderKickoff(roster, input), `## HALL/KICKOFF v1
+GOAL: Identify protocol gaps and recommend bounded fixes.
+SUCCESS:
 - [ ] Map the current path.
 - [ ] Name verified gaps.
 
-## Crew
-| Member | Assignment | Depends on |
-| --- | --- | --- |
-| @architect-tomashco | Review protocol boundaries. | — |
-| @advisor-indiana-docs | Verify behavior. | @architect-tomashco |
+=== ASSIGNMENT @architect-tomashco ===
+TASK: Review protocol boundaries.
+DONE:
+- [ ] Map boundaries.
 
-## Communication
-- Durable work and decisions: this Discussion.
-- Lifecycle events: \`crew.run-1\`.
-- Directed message: @role-persona. Shared message: @all.
+=== ASSIGNMENT @advisor-indiana-docs ===
+TASK: Verify behavior.
+DONE:
+- [ ] Name verified gaps.
 
 ## References
 - [Protocol](https://example.test/protocol)
 
 ## Open questions
-- Should retries remain bounded?`);
+- Should retries remain bounded?
+
+## HALL/SCRATCHPAD`);
 });
 
 test("kickoff rejects repeated links instead of rendering duplicates", () => {

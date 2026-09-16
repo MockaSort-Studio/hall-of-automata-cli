@@ -8,7 +8,7 @@ const clean = (value, field) => {
 const forbiddenTag = /\[(broadcast|question|ask|tell|response|message)\]/i;
 const bullets = items => items.map(item => `- ${item}`).join("\n");
 const checks = items => items.map(item => `- [ ] ${item}`).join("\n");
-const escapeCell = value => value.replaceAll("|", "\\|").replaceAll("\n", " ");
+
 
 export function assertCleanMessage(value, field = "Message") {
   const text = clean(value, field);
@@ -38,17 +38,12 @@ function renderReferences(references = []) {
 
 function renderCrew(crew) {
   if (crew.length > 8) throw new Error("Crew exceeds 8 specialists.");
-  return [
-    "| Member | Assignment | Depends on |",
-    "| --- | --- | --- |",
-    ...crew.map(member => {
-      const name = canonicalHandle(member.name);
-      const dependency = member.dependsOn?.length
-        ? member.dependsOn.map(item => `@${canonicalHandle(item)}`).join(", ")
-        : "—";
-      return `| @${name} | ${escapeCell(clean(member.assignment, `Assignment for ${name}`))} | ${dependency} |`;
-    }),
-  ].join("\n");
+  return crew.map(member => {
+    const name = canonicalHandle(member.name);
+    const criteria = member.acceptanceCriteria?.map(item => `- [ ] ${clean(item, `Acceptance criterion for ${name}`)}`).join("\n");
+    if (!criteria) throw new Error(`Kickoff requires acceptance criteria for ${name}`);
+    return `=== ASSIGNMENT @${name} ===\nTASK: ${clean(member.assignment, `Task for ${name}`)}\nDONE:\n${criteria}`;
+  }).join("\n\n");
 }
 
 export function canonicalHandle(value) {
@@ -74,21 +69,16 @@ export function renderKickoff(roster, input) {
   ]);
 
   const sections = [
-    `**Run:** \`${roster.runId}\`  `,
-    `**Lead:** @${canonicalHandle(roster.lead.name)}  `,
-    `**Deliverable:** ${roster.outputPath ? `\`${roster.outputPath}\`` : "Discussion synthesis"}`,
-    "", "## Objective", assertCleanMessage(input.objective, "Objective"),
-    "", "## Acceptance criteria", checks(criteria),
-    "", "## Crew", renderCrew(input.crew),
-    "", "## Communication",
-    "- Durable work and decisions: this Discussion.",
-    `- Lifecycle events: \`${roster.topic}\`.`,
-    "- Directed message: @role-persona. Shared message: @all.",
+    "## HALL/KICKOFF v1",
+    `GOAL: ${assertCleanMessage(input.objective, "Objective")}`,
+    "SUCCESS:", checks(criteria),
+    "", renderCrew(input.crew),
   ];
   if (input.references?.length) sections.push("", "## References", renderReferences(input.references));
   if (input.openQuestions?.length) {
     sections.push("", "## Open questions", bullets(input.openQuestions.map(item => assertCleanMessage(item, "Open question"))));
   }
+  sections.push("", "## HALL/SCRATCHPAD");
   return sections.join("\n");
 }
 

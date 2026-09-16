@@ -25,6 +25,10 @@ export function registerPullRequestTools(pi) {
     obj({ repo:S(), pullNumber:I() }),
     x => pulls.viewPullRequest(x.repo, x.pullNumber));
 
+  tool("github_pull_request_review_threads", "Read inline pull-request review threads; unresolved only by default.",
+    obj({ repo:S(), pullNumber:I(), includeResolved:O(Type.Boolean()) }),
+    x => pulls.listPullRequestReviewThreads(x.repo, x.pullNumber, x.includeResolved));
+
   tool("github_pull_request_comment", "Post a comment on a pull request.",
     obj({ repo:S(), pullNumber:I(), body:S() }),
     x => pulls.commentOnPullRequest(x.repo, x.pullNumber, x.body));

@@ -20,7 +20,7 @@ export function registerDiscussionTools(pi) {
     obj({ owner:S(), repo:S(), discussionNumber:I(), limit:O(I()) }),
     x => discussions.listComments(x.owner,x.repo,x.discussionNumber,x.limit));
 
-  tool("github_discussion_view", "Read canonical Discussion state, including human closure.",
+  tool("github_discussion_view", "Read canonical Discussion title, body, and closure state.",
     obj({ owner:S(), repo:S(), discussionNumber:I() }),
     x => discussions.viewDiscussion(x.owner,x.repo,x.discussionNumber));
   

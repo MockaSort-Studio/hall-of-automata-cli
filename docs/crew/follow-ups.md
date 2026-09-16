@@ -2,37 +2,29 @@
 
 Updated: 2026-09-01
 
-## Gate 0 — Clean `dev` before further runtime work
+## Completed — Gate 0 migration cleanup
 
-- [ ] **P0 — Audit and clean the migration branch.** Inventory `master...dev`, identify the
-  canonical Pi Crew execution path, and remove obsolete spikes, duplicate implementations,
-  stale compatibility code, generated runtime state, and documentation that describes paths
-  we no longer support. Preserve the stable Fabric sibling commits and current GitHub tools.
-  Finish with the full validation suite, a reviewable tree, and a documented folder structure.
-  No observability or context-policy implementation starts before this gate passes.
+- [x] **P0 — Audit and clean the migration branch.** `master...dev` was inventoried; the
+  canonical Crew path is documented in `runtime-structure.md`. Historical host-specific
+  durability/remediation documents and the unsupported code-writing `developer` role were
+  removed. The remaining runtime is the project-local Crew, GitHub, and web extensions.
+  Full validation remains the release check for this gate.
 
-## Phase 1 — Observability before intervention
+## Phase 1 — Local evidence before intervention
 
-- [ ] **P0 — Evaluate and pin `pi-langfuse`.** Review the third-party extension source and
-  choose cloud versus self-hosted Langfuse before installation. Pin an exact package version;
-  never commit credentials. Define a privacy policy explicitly—metadata-only cannot diagnose
-  tool payload growth, while full-debug can upload prompts, source, and tool I/O. Keep source
-  metadata disabled unless separately approved.
-- [ ] **P0 — Prove Langfuse sees the whole durable Crew.** A root Pi trace is insufficient.
-  Verify that Lead and specialist generations, tool calls/results, errors, usage, cost, and
-  resumed durable activations appear in Langfuse. Correlate every trace with Crew run ID,
-  actor ID, role-persona, activation, Discussion, and git revision. If `pi-langfuse` cannot
-  carry those fields through Fabric children, add the smallest Fabric/Crew bridge required.
-- [ ] **P0 — Establish an untouched baseline trace.** Rerun one representative Crew task
-  without context limits or turn limits. Produce a queryable timeline of prompt size,
-  model-facing tool-result size, context high-water, compaction, latency, failures, and final
-  quality for each actor. Langfuse payload truncation protects telemetry ingestion; it must
-  not be mistaken for model-context truncation.
-- [ ] **P1 — Keep a durable local run artifact.** Langfuse augments rather than replaces
-  repository evidence. Before disband, persist the trace/session IDs, runtime, per-response
-  context delta, tool name and model-facing result bytes, usage, compaction events, errors,
-  and lifecycle timestamps. Every unexplained jump above 2k tokens must remain visible as an
-  observability failure rather than disappear with actor-local sessions.
+- [x] **P0 — Recover the KR 7.4 evidence.** `kr74-context-growth-analysis.md` records the
+  unchanged-run baseline: 203,339 aggregate retained-context growth, with 79.9% concentrated
+  in nineteen jumps of at least 3k tokens. It rules out durable-resume duplication and shows
+  that unbounded outer tool results, stale constructor prompts, and turn churn are the causes
+  to test rather than assumptions to act on.
+- [ ] **P0 — Capture the next run locally before disband.** Persist a queryable per-actor
+  timeline containing run/actor identity, role-persona, activation, context high-water and
+  delta, response usage, tool-result bytes and names, compactions, errors, and timestamps.
+  Keep raw content out of the artifact. Every jump above 2k tokens must have a retained source
+  operation or be reported as unexplained growth.
+- [ ] **P0 — Establish an untouched comparable baseline.** Rerun one representative Crew
+  task with no context limits, result shaping, turn limits, or prompt reduction. Compare its
+  final quality and Discussion evidence with KR 7.4 before changing policy.
 
 ## Phase 2 — Evidence-driven context and discipline
 
@@ -67,6 +59,7 @@ Updated: 2026-09-01
   dirty, or unavailable remotely.
 - [ ] **P1 — Make final outcomes honest.** Add explicit `PASS | BLOCKED | FAIL` semantics.
   Only `PASS` may mark criteria accepted; blockers must remain visibly unresolved.
+- [ ] **P0 — Terminalize unattended blocked runs.** When a Lead has recorded that mandatory evidence cannot be obtained, transition the roster to a terminal `BLOCKED` outcome, remove all actors, and return a durable blocked result without falsely accepting or silently leaving a `started` run idle. Preserve the canonical Discussion and blocker evidence for human follow-up; make cancellation idempotent.
 - [ ] **P1 — Thread the whole review chain.** Add `replyToId` to Lead reviews and
   qualifications; responses and reviews belong under the triggering finding.
 - [ ] **P1 — Verify resident shutdown in a full Crew run.** The next full Crew must leave

@@ -50,32 +50,34 @@ test("replayed launch returns existing terminal state without creating an actor"
   assert.equal(creates, 0);
 });
 
-test("launch code persists and activates the Lead without a lifecycle supervisor", async () => {
+test("Main preassembles and registers specialists before waking the Lead", async () => {
   const files = new Map([
-    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", lead: { name: "lead-old-major" }, assignment: "work" })],
+    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", members: [{ name: "architect-tomashco", role: "architect" }], lead: { name: "lead-old-major" }, assignment: "work" })],
     ["roster.json", JSON.stringify({ runId: "run-1", status: "queued", members: [] })],
   ]);
-  const writes = [];
+  const writes = []; const created = [];
   const fakePi = {
     read: async path => files.get(path),
     edit: async ({ path, oldText, newText }) => files.set(path, files.get(path).replace(oldText, newText)),
     write: async ({ path, text }) => { writes.push(JSON.parse(text)); files.set(path, text); },
   };
   const fakeAgents = {
-    create: async definition => { assert.equal(definition.name, "lead-old-major"); return { id: "lead-1", name: "lead-old-major" }; },
-    ask: async ({ id, message }) => { assert.equal(id, "lead-1"); assert.equal(message, "work"); },
-    tell: async () => { throw new Error("continuation should not be needed before kickoff exists"); },
+    createMany: async ({ actors }) => { created.push(...actors.map(actor => actor.name)); return actors.map(actor => ({ id: `${actor.name}-id`, name: actor.name })); },
+    create: async definition => { created.push(definition.name); return { id: `${definition.name}-id`, name: definition.name }; },
+    tell: async ({ id, message }) => { assert.equal(id, "lead-old-major-id"); assert.equal(message, "work"); },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const result = await new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents);
-  assert.deepEqual(result, { runId: "run-1", topic: "crew.run-1", leadId: "lead-1", status: "started" });
-  assert.deepEqual(writes.at(-1).lead, { name: "lead-old-major", actorId: "lead-1" });
+  assert.deepEqual(created, ["architect-tomashco", "lead-old-major"]);
+  assert.deepEqual(result, { runId: "run-1", topic: "crew.run-1", leadId: "lead-old-major-id", status: "started", memberIds: ["architect-tomashco-id"] });
+  assert.deepEqual(writes.at(-1).members, [{ name: "architect-tomashco", actorId: "architect-tomashco-id", role: "architect" }]);
+  for (const field of ["batchStartedAt", "batchCreatedAt", "leadWokenAt"]) assert.match(writes.at(-1)[field], /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(writes.at(-1).supervisor, undefined);
 });
 
 test("launch failure disbands rostered and late topic actors", async () => {
   const files = new Map([
-    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", lead: { name: "lead-old-major" }, assignment: "work" })],
+    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", members: [], lead: { name: "lead-old-major" }, assignment: "work" })],
     ["roster.json", JSON.stringify({ runId: "run-1", status: "queued", members: [] })],
   ]);
   const fakePi = {
@@ -85,9 +87,8 @@ test("launch failure disbands rostered and late topic actors", async () => {
   };
   const removed = [];
   const fakeAgents = {
-    create: async () => ({ id: "lead-1", name: "lead-old-major" }),
-    ask: async () => { throw new Error("wake failed"); },
-    tell: async () => {},
+    createMany: async ({ actors }) => actors.map(actor => ({ id: "lead-1", name: actor.name })),
+    tell: async () => { throw new Error("wake failed"); },
     actors: async () => [
       { id: "lead-1", topics: ["crew.run-1"] },
       { id: "late-specialist", topics: ["crew.run-1"] },
@@ -109,16 +110,18 @@ test("launch code uses Fabric APIs and relative config paths", () => {
   assert.match(code, /roster\.status !== 'queued'/);
   assert.match(code, /alreadyLaunched: true/);
   assert.match(code, /newText: '"status": "launching"'/);
-  assert.match(code, /agents\.create\(cfg\.lead\)/);
+  assert.match(code, /agents\.createMany\(\{ actors: \[\.\.\.cfg\.members, cfg\.lead\] \}\)/);
   assert.ok(!code.includes("supervisor"));
   assert.ok(!code.includes("BOOTSTRAP"));
+  assert.match(source, /resultSummaryMaxBytes must be an integer/);
+  assert.match(source, /resultSummaryMaxBytes: input\.resultSummaryMaxBytes \?\? null/);
   assert.match(source, /completionMode === "human-gated"/);
   assert.match(source, /leadTickTopic = `\$\{topic\}\.lead-tick`/);
   assert.match(source, /schedule: \{ topic: leadTickTopic, everyMs: monitorIntervalMs \}/);
   assert.match(source, /delivery: "followUp"/);
   assert.match(source, /triggerTurn: true/);
-  assert.match(code, /agents\.ask/);
-  assert.match(code, /Continue the protocol from kickoff/);
+  assert.match(code, /agents\.tell\(\{ id: lead\.id, message: cfg\.assignment \}\)/);
+  assert.doesNotMatch(code, /Continue the protocol from kickoff/);
   assert.match(code, /pi\.write\(\{ path: cfg\.rosterFile, text:/);
   assert.ok(!code.includes("content: JSON.stringify(roster"));
   assert.ok(!code.includes("agents.followUp"));
