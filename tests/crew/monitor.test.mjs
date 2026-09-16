@@ -5,9 +5,12 @@ import { crewMonitorView, isTerminalCrew } from "../../.pi/extensions/crew/lib/m
 
 const source = readFileSync(new URL("../../.pi/extensions/crew/lib/monitor.ts", import.meta.url), "utf8");
 
-const roster = overrides => ({
-  runId: "run-123456", status: "started", discussionNumber: 42,
-  discussionUrl: "https://github.com/org/repo/discussions/42", members: [],
+const roster = (overrides) => ({
+  runId: "run-123456",
+  status: "started",
+  discussionNumber: 42,
+  discussionUrl: "https://github.com/org/repo/discussions/42",
+  members: [],
   ...overrides,
 });
 
@@ -15,7 +18,10 @@ test("single-Crew view derives useful runtime phases", () => {
   assert.equal(crewMonitorView(roster({ status: "queued" })).phase, "Queued");
   assert.equal(crewMonitorView(roster({ status: "starting" })).phase, "Starting");
   assert.equal(crewMonitorView(roster({ status: "closing" })).phase, "Disbanding");
-  assert.equal(crewMonitorView(roster({ status: "closing", discussionClosed: true, members: [{}] })).phase, "Disbanding");
+  assert.equal(
+    crewMonitorView(roster({ status: "closing", discussionClosed: true, members: [{}] })).phase,
+    "Disbanding",
+  );
   assert.equal(crewMonitorView(roster({ discussionUrl: null })).phase, "Framing");
   assert.equal(crewMonitorView(roster({})).phase, "Recruiting");
   assert.equal(crewMonitorView(roster({ members: [{ name: "architect-a" }] })).phase, "Working");

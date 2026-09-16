@@ -24,9 +24,8 @@ import {
   renderReview,
 } from "./discussion-templates.mjs";
 
-const result = value => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
-const rosterPath = (cwd, runId) =>
-  join(cwd, CONFIG_DIR_NAME, "fabric", "crew-launch", `${runId}-roster.json`);
+const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
+const rosterPath = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "fabric", "crew-launch", `${runId}-roster.json`);
 const sender = {
   from: Type.String({ description: "Canonical role-persona sender handle, without @" }),
   signature: Type.String({ description: "Completed persona signature" }),
@@ -42,26 +41,38 @@ const commentResult = (comment, extra = {}) => result({ commentId: comment.id, c
 const load = (ctx, runId) => readRoster(rosterPath(ctx.cwd, runId));
 const signed = (roster, input, body) => signedBody(roster, input.from, body, input.signature);
 export function kickoffPlan(roster, crew) {
-  const members = new Set((roster.members || []).map(member => member.name));
-  if (crew.length !== members.size || new Set(crew.map(item => item.name)).size !== crew.length) throw new Error("Kickoff requires exactly one assignment for every rostered specialist.");
+  const members = new Set((roster.members || []).map((member) => member.name));
+  if (crew.length !== members.size || new Set(crew.map((item) => item.name)).size !== crew.length)
+    throw new Error("Kickoff requires exactly one assignment for every rostered specialist.");
   for (const item of crew) {
     if (!members.has(item.name)) throw new Error(`Kickoff assignment names unknown specialist ${item.name}`);
     if (!(item.assignment || "").trim()) throw new Error(`Kickoff assignment is empty for ${item.name}`);
-    if ((item.dependsOn || []).some(name => !members.has(name) || name === item.name)) throw new Error(`Kickoff has invalid dependency for ${item.name}`);
+    if ((item.dependsOn || []).some((name) => !members.has(name) || name === item.name))
+      throw new Error(`Kickoff has invalid dependency for ${item.name}`);
   }
-  return crew.map(item => ({ name: item.name, assignment: item.assignment, acceptanceCriteria: item.acceptanceCriteria, dependsOn: item.dependsOn || [] }));
+  return crew.map((item) => ({
+    name: item.name,
+    assignment: item.assignment,
+    acceptanceCriteria: item.acceptanceCriteria,
+    dependsOn: item.dependsOn || [],
+  }));
 }
 
 export function registerCommunicationTools(pi) {
   pi.registerTool({
-    name: "crew_kickoff", label: "Crew: create kickoff",
+    name: "crew_kickoff",
+    label: "Crew: create kickoff",
     description: "Create one canonical Discussion from structured objective, criteria, crew, and references.",
     parameters: Type.Object({
-      runId: Type.String(), title: Type.String(), objective: Type.String(),
+      runId: Type.String(),
+      title: Type.String(),
+      objective: Type.String(),
       acceptanceCriteria: Type.Array(Type.String(), { minItems: 1 }),
       crew: Type.Array(kickoffMember, { minItems: 1 }),
-      references: Type.Optional(evidence), openQuestions: Type.Optional(Type.Array(Type.String())),
-      category: Type.Optional(Type.String()), ...sender,
+      references: Type.Optional(evidence),
+      openQuestions: Type.Optional(Type.Array(Type.String())),
+      category: Type.Optional(Type.String()),
+      ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const path = rosterPath(ctx.cwd, input.runId);
@@ -70,27 +81,46 @@ export function registerCommunicationTools(pi) {
         if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
         assertLead(roster, input.from);
         if (roster.discussionNumber) throw new Error(`Crew ${input.runId} already has a Discussion`);
-        if (roster.kickoffIntent) throw new Error(`Crew ${input.runId} kickoff outcome requires recovery before retry.`);
+        if (roster.kickoffIntent)
+          throw new Error(`Crew ${input.runId} kickoff outcome requires recovery before retry.`);
         const plan = kickoffPlan(roster, input.crew);
         const intent = { id: randomUUID(), startedAt: new Date().toISOString() };
         roster = { ...roster, kickoffIntent: intent };
         writeRoster(path, roster);
         const body = signed(roster, input, renderKickoff(roster, input));
         const discussion = createKickoff(roster, input.title, body, input.category);
-        roster = { ...readRoster(path), discussionNumber: discussion.number, discussionUrl: discussion.url, kickoffAt: new Date().toISOString(), workPlan: plan };
+        roster = {
+          ...readRoster(path),
+          discussionNumber: discussion.number,
+          discussionUrl: discussion.url,
+          kickoffAt: new Date().toISOString(),
+          workPlan: plan,
+        };
         delete roster.kickoffIntent;
         writeRoster(path, roster);
-        return result({ discussionNumber: discussion.number, discussionUrl: discussion.url, activation: { runId: roster.runId, topic: roster.topic, text: `Kickoff ready: Discussion ${discussion.url} (runId=${roster.runId}; owner=${roster.owner}; repo=${roster.repo}; discussionNumber=${discussion.number})` } });
+        return result({
+          discussionNumber: discussion.number,
+          discussionUrl: discussion.url,
+          activation: {
+            runId: roster.runId,
+            topic: roster.topic,
+            text: `Kickoff ready: Discussion ${discussion.url} (runId=${roster.runId}; owner=${roster.owner}; repo=${roster.repo}; discussionNumber=${discussion.number})`,
+          },
+        });
       });
     },
   });
 
   pi.registerTool({
-    name: "crew_post", label: "Crew: post finding",
+    name: "crew_post",
+    label: "Crew: post finding",
     description: "Post a structured finding with optional evidence links.",
     parameters: Type.Object({
-      runId: Type.String(), subject: Type.String(), message: Type.String(),
-      evidence: Type.Optional(evidence), ...sender,
+      runId: Type.String(),
+      subject: Type.String(),
+      message: Type.String(),
+      evidence: Type.Optional(evidence),
+      ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const roster = load(ctx, input.runId);
@@ -99,12 +129,21 @@ export function registerCommunicationTools(pi) {
   });
 
   pi.registerTool({
-    name: "crew_review", label: "Crew: post review",
+    name: "crew_review",
+    label: "Crew: post review",
     description: "Post a structured Lead review and explicit decision.",
     parameters: Type.Object({
-      runId: Type.String(), subject: Type.String(),
-      decision: Type.Union([Type.Literal("ACCEPT"), Type.Literal("REVISE"), Type.Literal("CONFLICT"), Type.Literal("RELEASE DEPENDENCY")]),
-      reason: Type.String(), evidence: Type.Optional(evidence), ...sender,
+      runId: Type.String(),
+      subject: Type.String(),
+      decision: Type.Union([
+        Type.Literal("ACCEPT"),
+        Type.Literal("REVISE"),
+        Type.Literal("CONFLICT"),
+        Type.Literal("RELEASE DEPENDENCY"),
+      ]),
+      reason: Type.String(),
+      evidence: Type.Optional(evidence),
+      ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const roster = load(ctx, input.runId);
@@ -113,9 +152,13 @@ export function registerCommunicationTools(pi) {
     },
   });
 
-  for (const [name, field] of [["crew_tell", "message"], ["crew_ask", "question"]]) {
+  for (const [name, field] of [
+    ["crew_tell", "message"],
+    ["crew_ask", "question"],
+  ]) {
     pi.registerTool({
-      name, label: `Crew: ${name === "crew_tell" ? "tell member" : "ask member"}`,
+      name,
+      label: `Crew: ${name === "crew_tell" ? "tell member" : "ask member"}`,
       description: "Post a clean directed message to one exact @role-persona recipient.",
       parameters: Type.Object({ runId: Type.String(), to: Type.String(), [field]: Type.String(), ...sender }),
       async execute(_id, input, _signal, _update, ctx) {
@@ -128,7 +171,8 @@ export function registerCommunicationTools(pi) {
   }
 
   pi.registerTool({
-    name: "crew_broadcast", label: "Crew: broadcast",
+    name: "crew_broadcast",
+    label: "Crew: broadcast",
     description: "Post a clean @all shared decision.",
     parameters: Type.Object({ runId: Type.String(), message: Type.String(), ...sender }),
     async execute(_id, input, _signal, _update, ctx) {
@@ -140,28 +184,39 @@ export function registerCommunicationTools(pi) {
   });
 
   pi.registerTool({
-    name: "crew_reply", label: "Crew: reply in thread",
+    name: "crew_reply",
+    label: "Crew: reply in thread",
     description: "Reply beneath a specific ask, tell, or broadcast Discussion comment.",
     parameters: Type.Object({
-      runId: Type.String(), replyToId: Type.String({ description: "GraphQL ID returned with the parent comment" }),
-      to: Type.String(), message: Type.String(), ...sender,
+      runId: Type.String(),
+      replyToId: Type.String({ description: "GraphQL ID returned with the parent comment" }),
+      to: Type.String(),
+      message: Type.String(),
+      ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const roster = load(ctx, input.runId);
       if (input.to === "all") throw new Error("Threaded replies must name one recipient, never @all.");
       const recipient = resolveRecipient(roster, input.to).name;
       const body = renderReply(recipient, input.message);
-      return commentResult(postComment(roster, signed(roster, input, body), resolveReplyTarget(roster, input.replyToId)));
+      return commentResult(
+        postComment(roster, signed(roster, input, body), resolveReplyTarget(roster, input.replyToId)),
+      );
     },
   });
 
   pi.registerTool({
-    name: "crew_close", label: "Crew: accept and close",
+    name: "crew_close",
+    label: "Crew: accept and close",
     description: "Post the Lead's final acceptance record, then close the canonical Discussion.",
     parameters: Type.Object({
-      runId: Type.String(), summary: Type.String(),
-      acceptance: Type.Array(Type.Object({ criterion: Type.String(), evidenceUrl: Type.Optional(Type.String()) }), { minItems: 1 }),
-      gaps: Type.Optional(Type.Array(Type.String())), ...sender,
+      runId: Type.String(),
+      summary: Type.String(),
+      acceptance: Type.Array(Type.Object({ criterion: Type.String(), evidenceUrl: Type.Optional(Type.String()) }), {
+        minItems: 1,
+      }),
+      gaps: Type.Optional(Type.Array(Type.String())),
+      ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const path = rosterPath(ctx.cwd, input.runId);
@@ -169,7 +224,13 @@ export function registerCommunicationTools(pi) {
         let roster = readRoster(path);
         if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may close the Discussion.");
         if (roster.discussionClosed) {
-          return result({ discussionUrl: roster.discussionUrl, closed: true, status: roster.status, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+          return result({
+            discussionUrl: roster.discussionUrl,
+            closed: true,
+            status: roster.status,
+            commentId: roster.finalCommentId,
+            commentUrl: roster.finalCommentUrl,
+          });
         }
         if (!roster.finalCommentId) {
           const comment = postComment(roster, signed(roster, input, renderFinal(input)));
@@ -179,7 +240,13 @@ export function registerCommunicationTools(pi) {
         const closed = closeDiscussion(roster);
         roster = markDiscussionClosed(roster, closed);
         writeRoster(path, roster);
-        return result({ discussionUrl: closed.url, closed: true, status: roster.status, commentId: roster.finalCommentId, commentUrl: roster.finalCommentUrl });
+        return result({
+          discussionUrl: closed.url,
+          closed: true,
+          status: roster.status,
+          commentId: roster.finalCommentId,
+          commentUrl: roster.finalCommentUrl,
+        });
       });
     },
   });

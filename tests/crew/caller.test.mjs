@@ -10,6 +10,9 @@ const roster = {
 test("Fabric actor provenance binds Crew sender identity when available", () => {
   assert.doesNotThrow(() => assertActorOwnsSender(roster, "lead-old-major", { PI_FABRIC_ACTOR_ID: "lead-1" }));
   assert.doesNotThrow(() => assertActorOwnsSender(roster, "advisor-snowball", { PI_FABRIC_ACTOR_ID: "advisor-1" }));
-  assert.throws(() => assertActorOwnsSender(roster, "lead-old-major", { PI_FABRIC_ACTOR_ID: "advisor-1" }), /does not match/);
+  assert.throws(
+    () => assertActorOwnsSender(roster, "lead-old-major", { PI_FABRIC_ACTOR_ID: "advisor-1" }),
+    /does not match/,
+  );
   assert.doesNotThrow(() => assertActorOwnsSender(roster, "lead-old-major", {}));
 });

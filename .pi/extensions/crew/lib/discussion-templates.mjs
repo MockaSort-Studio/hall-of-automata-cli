@@ -6,9 +6,8 @@ const clean = (value, field) => {
 };
 
 const forbiddenTag = /\[(broadcast|question|ask|tell|response|message)\]/i;
-const bullets = items => items.map(item => `- ${item}`).join("\n");
-const checks = items => items.map(item => `- [ ] ${item}`).join("\n");
-
+const bullets = (items) => items.map((item) => `- ${item}`).join("\n");
+const checks = (items) => items.map((item) => `- [ ] ${item}`).join("\n");
 
 export function assertCleanMessage(value, field = "Message") {
   const text = clean(value, field);
@@ -30,20 +29,24 @@ function assertUniqueLinks(values) {
 
 function renderReferences(references = []) {
   if (references.length > 12) throw new Error("Evidence exceeds 12 references.");
-  assertUniqueLinks(references.flatMap(reference => [reference.label, reference.url]));
-  return references.map(reference =>
-    `- [${clean(reference.label, "Reference label")}](${clean(reference.url, "Reference URL")})`
-  ).join("\n");
+  assertUniqueLinks(references.flatMap((reference) => [reference.label, reference.url]));
+  return references
+    .map((reference) => `- [${clean(reference.label, "Reference label")}](${clean(reference.url, "Reference URL")})`)
+    .join("\n");
 }
 
 function renderCrew(crew) {
   if (crew.length > 8) throw new Error("Crew exceeds 8 specialists.");
-  return crew.map(member => {
-    const name = canonicalHandle(member.name);
-    const criteria = member.acceptanceCriteria?.map(item => `- [ ] ${clean(item, `Acceptance criterion for ${name}`)}`).join("\n");
-    if (!criteria) throw new Error(`Kickoff requires acceptance criteria for ${name}`);
-    return `=== ASSIGNMENT @${name} ===\nTASK: ${clean(member.assignment, `Task for ${name}`)}\nDONE:\n${criteria}`;
-  }).join("\n\n");
+  return crew
+    .map((member) => {
+      const name = canonicalHandle(member.name);
+      const criteria = member.acceptanceCriteria
+        ?.map((item) => `- [ ] ${clean(item, `Acceptance criterion for ${name}`)}`)
+        .join("\n");
+      if (!criteria) throw new Error(`Kickoff requires acceptance criteria for ${name}`);
+      return `=== ASSIGNMENT @${name} ===\nTASK: ${clean(member.assignment, `Task for ${name}`)}\nDONE:\n${criteria}`;
+    })
+    .join("\n\n");
 }
 
 export function canonicalHandle(value) {
@@ -56,27 +59,33 @@ export function canonicalHandle(value) {
 
 export function renderKickoff(roster, input) {
   assertCleanMessage(input.title, "Title");
-  const criteria = input.acceptanceCriteria.map(item => clean(item, "Acceptance criterion"));
+  const criteria = input.acceptanceCriteria.map((item) => clean(item, "Acceptance criterion"));
   if (criteria.length > 20) throw new Error("Kickoff exceeds 20 acceptance criteria.");
   if (!criteria.length) throw new Error("Kickoff requires at least one acceptance criterion.");
   if (!input.crew.length) throw new Error("Kickoff requires at least one specialist.");
   assertUniqueLinks([
     input.objective,
     ...criteria,
-    ...input.crew.flatMap(member => [member.assignment, ...(member.dependsOn || [])]),
+    ...input.crew.flatMap((member) => [member.assignment, ...(member.dependsOn || [])]),
     ...(input.openQuestions || []),
-    ...(input.references || []).flatMap(reference => [reference.label, reference.url]),
+    ...(input.references || []).flatMap((reference) => [reference.label, reference.url]),
   ]);
 
   const sections = [
     "## HALL/KICKOFF v1",
     `GOAL: ${assertCleanMessage(input.objective, "Objective")}`,
-    "SUCCESS:", checks(criteria),
-    "", renderCrew(input.crew),
+    "SUCCESS:",
+    checks(criteria),
+    "",
+    renderCrew(input.crew),
   ];
   if (input.references?.length) sections.push("", "## References", renderReferences(input.references));
   if (input.openQuestions?.length) {
-    sections.push("", "## Open questions", bullets(input.openQuestions.map(item => assertCleanMessage(item, "Open question"))));
+    sections.push(
+      "",
+      "## Open questions",
+      bullets(input.openQuestions.map((item) => assertCleanMessage(item, "Open question"))),
+    );
   }
   sections.push("", "## HALL/SCRATCHPAD");
   return sections.join("\n");
@@ -109,7 +118,7 @@ export function renderBroadcast(message) {
 export const renderReply = renderDirected;
 
 export function renderFinal(input) {
-  const acceptance = input.acceptance.map(item => {
+  const acceptance = input.acceptance.map((item) => {
     const criterion = assertCleanMessage(item.criterion, "Acceptance criterion");
     return `- [x] ${criterion}${item.evidenceUrl ? ` — ${clean(item.evidenceUrl, "Evidence URL")}` : ""}`;
   });
@@ -122,6 +131,7 @@ export function renderFinal(input) {
     "### Acceptance criteria",
     acceptance.join("\n"),
   ];
-  if (input.gaps?.length) sections.push("", "### Remaining gaps", bullets(input.gaps.map(gap => assertCleanMessage(gap, "Gap"))));
+  if (input.gaps?.length)
+    sections.push("", "### Remaining gaps", bullets(input.gaps.map((gap) => assertCleanMessage(gap, "Gap"))));
   return sections.join("\n");
 }

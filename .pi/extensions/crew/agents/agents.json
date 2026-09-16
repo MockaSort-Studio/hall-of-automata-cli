@@ -9,12 +9,7 @@
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
       "extensions": [],
-      "domains": [
-        "crew",
-        "planning",
-        "orchestration",
-        "delegation"
-      ]
+      "domains": ["crew", "planning", "orchestration", "delegation"]
     },
     "snowball": {
       "displayName": "Snowball 🐷",
@@ -25,11 +20,7 @@
         "signature": "// Snowball 🐷 — [one earnest observation]"
       },
       "extensions": [],
-      "domains": [
-        "agent-infrastructure",
-        "prompts",
-        "skills"
-      ]
+      "domains": ["agent-infrastructure", "prompts", "skills"]
     },
     "hamlet": {
       "displayName": "Hamlet 🐗",
@@ -40,12 +31,7 @@
         "signature": "// Hamlet 🐗 — [one dry observation]"
       },
       "extensions": [],
-      "domains": [
-        "c++",
-        "real-time-systems",
-        "embedded",
-        "build-systems"
-      ]
+      "domains": ["c++", "real-time-systems", "embedded", "build-systems"]
     },
     "pyrate": {
       "displayName": "Captain Pyrate 🦜",
@@ -56,11 +42,7 @@
         "signature": "// Captain Pyrate 🦜 — [a brief farewell]"
       },
       "extensions": [],
-      "domains": [
-        "python",
-        "uv",
-        "packaging"
-      ]
+      "domains": ["python", "uv", "packaging"]
     },
     "mergio": {
       "displayName": "mergio 🤘",
@@ -71,11 +53,7 @@
         "signature": "// Mergio 🤘 — [one-line pipeline verdict]"
       },
       "extensions": [],
-      "domains": [
-        "github-actions",
-        "ci-cd",
-        "deployment"
-      ]
+      "domains": ["github-actions", "ci-cd", "deployment"]
     },
     "frontenzo": {
       "displayName": "Frontenzo 🎨",
@@ -86,11 +64,7 @@
         "signature": "— [Frontenzo 🎨 | a dry frontend observation]"
       },
       "extensions": [],
-      "domains": [
-        "frontend",
-        "ux-ui",
-        "accessibility"
-      ]
+      "domains": ["frontend", "ux-ui", "accessibility"]
     },
     "aeeeiii": {
       "displayName": "AEEEEEIII 🐑",
@@ -101,11 +75,7 @@
         "signature": "// 🐑 Aeeeiii — [one observation the field avoids]"
       },
       "extensions": [],
-      "domains": [
-        "computer-vision",
-        "perception",
-        "autonomous-systems"
-      ]
+      "domains": ["computer-vision", "perception", "autonomous-systems"]
     },
     "tomashco": {
       "displayName": "Tomashco 🛹",
@@ -116,12 +86,7 @@
         "signature": "// Tomashco 🛹 — [one sentence in voice]"
       },
       "extensions": [],
-      "domains": [
-        "backend",
-        "api-design",
-        "event-driven",
-        "data-security"
-      ]
+      "domains": ["backend", "api-design", "event-driven", "data-security"]
     },
     "indiana-docs": {
       "displayName": "Indiana Docs 🤠",
@@ -132,11 +97,7 @@
         "signature": "// Indiana Docs 🤠 — [one archaeological observation]"
       },
       "extensions": [],
-      "domains": [
-        "documentation",
-        "mkdocs",
-        "markdown"
-      ]
+      "domains": ["documentation", "mkdocs", "markdown"]
     },
     "panoramix": {
       "displayName": "Panoramix 🧪",
@@ -147,12 +108,7 @@
         "signature": "— Panoramix 🧪"
       },
       "extensions": [],
-      "domains": [
-        "elixir",
-        "erlang",
-        "beam",
-        "phoenix"
-      ]
+      "domains": ["elixir", "erlang", "beam", "phoenix"]
     }
   }
 }

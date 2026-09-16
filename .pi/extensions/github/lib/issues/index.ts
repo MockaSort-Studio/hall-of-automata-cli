@@ -1,4 +1,3 @@
-
 import { gh, ghJson } from "../core/gh.ts";
 
 // Original issues.ts functions
@@ -12,8 +11,13 @@ export function createIssue(repo, { title, bodyFile, labels = [], milestone }) {
 
 export function viewIssue(repo, number) {
   return ghJson([
-    "issue", "view", String(number), "-R", repo,
-    "--json", "number,title,body,labels,milestone,state,url",
+    "issue",
+    "view",
+    String(number),
+    "-R",
+    repo,
+    "--json",
+    "number,title,body,labels,milestone,state,url",
   ]);
 }
 
@@ -21,32 +25,49 @@ export function viewIssue(repo, number) {
 export function addSubIssue(repo, parentNumber, childNumber) {
   const subIssueId = issueDbId(repo, childNumber);
   return gh([
-    "api", `repos/${repo}/issues/${parentNumber}/sub_issues`,
-    "-X", "POST", "-F", `sub_issue_id=${subIssueId}`,
-    "--jq", ".sub_issues_summary",
+    "api",
+    `repos/${repo}/issues/${parentNumber}/sub_issues`,
+    "-X",
+    "POST",
+    "-F",
+    `sub_issue_id=${subIssueId}`,
+    "--jq",
+    ".sub_issues_summary",
   ]);
 }
 
 export function listSubIssues(repo, parentNumber) {
-  return gh([
-    "api", `repos/${repo}/issues/${parentNumber}/sub_issues`,
-    "--jq", ".[] | {number, title}",
-  ]);
+  return gh(["api", `repos/${repo}/issues/${parentNumber}/sub_issues`, "--jq", ".[] | {number, title}"]);
 }
 
 // Merged from dependencies.ts
 export function addBlockedBy(repo, issueNumber, blockingNumber) {
   const issueId = issueDbId(repo, blockingNumber);
   return gh([
-    "api", `repos/${repo}/issues/${issueNumber}/dependencies/blocked_by`,
-    "-X", "POST", "-F", `issue_id=${issueId}`,
-    "--jq", ".number",
+    "api",
+    `repos/${repo}/issues/${issueNumber}/dependencies/blocked_by`,
+    "-X",
+    "POST",
+    "-F",
+    `issue_id=${issueId}`,
+    "--jq",
+    ".number",
   ]);
 }
 
-
 export function listIssues(repo: string, state = "open", labels?: string[], milestone?: string, limit = 30) {
-  const args = ["issue", "list", "-R", repo, "--state", state, "--limit", String(limit), "--json", "number,title,labels,milestone,state,url,assignees"];
+  const args = [
+    "issue",
+    "list",
+    "-R",
+    repo,
+    "--state",
+    state,
+    "--limit",
+    String(limit),
+    "--json",
+    "number,title,labels,milestone,state,url,assignees",
+  ];
   if (labels?.length) args.push("--label", labels.join(","));
   if (milestone) args.push("--milestone", milestone);
   return ghJson(args) ?? [];
@@ -62,7 +83,11 @@ export function commentOnIssue(repo: string, issueNumber: number, body: string) 
   return { repo, issueNumber, commented: true };
 }
 
-export function updateIssue(repo: string, issueNumber: number, { title, body, milestone, state }: { title?: string; body?: string; milestone?: string; state?: string }) {
+export function updateIssue(
+  repo: string,
+  issueNumber: number,
+  { title, body, milestone, state }: { title?: string; body?: string; milestone?: string; state?: string },
+) {
   const args = ["issue", "edit", String(issueNumber), "-R", repo];
   if (title) args.push("--title", title);
   if (body) args.push("--body", body);

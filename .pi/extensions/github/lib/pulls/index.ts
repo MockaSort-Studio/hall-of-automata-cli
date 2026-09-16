@@ -2,16 +2,31 @@ import { gh, ghJson } from "../core/gh.ts";
 import * as labels from "../labels/index.ts";
 
 export function listPullRequests(repo: string, state = "open", limit = 30) {
-  return ghJson([
-    "pr", "list", "-R", repo, "--state", state, "--limit", String(limit),
-    "--json", "number,title,state,isDraft,author,headRefName,baseRefName,url",
-  ]) ?? [];
+  return (
+    ghJson([
+      "pr",
+      "list",
+      "-R",
+      repo,
+      "--state",
+      state,
+      "--limit",
+      String(limit),
+      "--json",
+      "number,title,state,isDraft,author,headRefName,baseRefName,url",
+    ]) ?? []
+  );
 }
 
 export function viewPullRequest(repo: string, number: number) {
   return ghJson([
-    "pr", "view", String(number), "-R", repo,
-    "--json", "number,title,body,state,isDraft,author,headRefName,baseRefName,labels,reviews,statusCheckRollup,url",
+    "pr",
+    "view",
+    String(number),
+    "-R",
+    repo,
+    "--json",
+    "number,title,body,state,isDraft,author,headRefName,baseRefName,labels,reviews,statusCheckRollup,url",
   ]);
 }
 
@@ -28,18 +43,35 @@ const REVIEW_THREADS_QUERY = `query($owner: String!, $repo: String!, $number: In
 export function reviewThreadComments(data: any, includeResolved = false) {
   const threads = data?.data?.repository?.pullRequest?.reviewThreads?.nodes ?? [];
   return threads
-    .filter(thread => includeResolved || !thread.isResolved)
-    .flatMap(thread => thread.comments?.nodes?.map(comment => ({
-      resolved: Boolean(thread.isResolved), path: comment.path,
-      line: comment.line ?? comment.originalLine ?? null, body: comment.body,
-      url: comment.url, author: comment.author?.login ?? null,
-    })) ?? []);
+    .filter((thread) => includeResolved || !thread.isResolved)
+    .flatMap(
+      (thread) =>
+        thread.comments?.nodes?.map((comment) => ({
+          resolved: Boolean(thread.isResolved),
+          path: comment.path,
+          line: comment.line ?? comment.originalLine ?? null,
+          body: comment.body,
+          url: comment.url,
+          author: comment.author?.login ?? null,
+        })) ?? [],
+    );
 }
 
 export function listPullRequestReviewThreads(repo: string, number: number, includeResolved = false) {
   const [owner, name] = repo.split("/");
   if (!owner || !name || repo.split("/").length !== 2) throw new Error(`Invalid repository: ${repo}`);
-  const data = ghJson(["api", "graphql", "-f", `owner=${owner}`, "-f", `repo=${name}`, "-F", `number=${number}`, "-f", `query=${REVIEW_THREADS_QUERY}`]);
+  const data = ghJson([
+    "api",
+    "graphql",
+    "-f",
+    `owner=${owner}`,
+    "-f",
+    `repo=${name}`,
+    "-F",
+    `number=${number}`,
+    "-f",
+    `query=${REVIEW_THREADS_QUERY}`,
+  ]);
   return reviewThreadComments(data, includeResolved);
 }
 
@@ -48,7 +80,11 @@ export function commentOnPullRequest(repo: string, number: number, body: string)
   return { repo, pullNumber: number, commented: true };
 }
 
-export function updatePullRequest(repo: string, number: number, { title, body, base, state }: { title?: string; body?: string; base?: string; state?: string }) {
+export function updatePullRequest(
+  repo: string,
+  number: number,
+  { title, body, base, state }: { title?: string; body?: string; base?: string; state?: string },
+) {
   const args = ["pr", "edit", String(number), "-R", repo];
   if (title) args.push("--title", title);
   if (body) args.push("--body", body);

@@ -39,65 +39,122 @@ test("replayed launch returns existing terminal state without creating an actor"
     ["roster.json", JSON.stringify({ status: "closed", lead: { actorId: "lead-1" } })],
   ]);
   let creates = 0;
-  const fakePi = { read: async path => files.get(path) };
-  const fakeAgents = { create: async () => { creates += 1; } };
+  const fakePi = { read: async (path) => files.get(path) };
+  const fakeAgents = {
+    create: async () => {
+      creates += 1;
+    },
+  };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const result = await new AsyncFunction("pi", "agents", code)(fakePi, fakeAgents);
   assert.deepEqual(result, {
-    runId: "run-1", topic: "crew.run-1", leadId: "lead-1",
-    status: "closed", alreadyLaunched: true,
+    runId: "run-1",
+    topic: "crew.run-1",
+    leadId: "lead-1",
+    status: "closed",
+    alreadyLaunched: true,
   });
   assert.equal(creates, 0);
 });
 
 test("Main preassembles and registers specialists before waking the Lead", async () => {
   const files = new Map([
-    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", members: [{ name: "architect-tomashco", role: "architect" }], lead: { name: "lead-old-major" }, assignment: "work" })],
+    [
+      "config.json",
+      JSON.stringify({
+        runId: "run-1",
+        topic: "crew.run-1",
+        rosterFile: "roster.json",
+        members: [{ name: "architect-tomashco", role: "architect" }],
+        lead: { name: "lead-old-major" },
+        assignment: "work",
+      }),
+    ],
     ["roster.json", JSON.stringify({ runId: "run-1", status: "queued", members: [] })],
   ]);
-  const writes = []; const created = [];
+  const writes = [];
+  const created = [];
   const fakePi = {
-    read: async path => files.get(path),
+    read: async (path) => files.get(path),
     edit: async ({ path, oldText, newText }) => files.set(path, files.get(path).replace(oldText, newText)),
-    write: async ({ path, text }) => { writes.push(JSON.parse(text)); files.set(path, text); },
+    write: async ({ path, text }) => {
+      writes.push(JSON.parse(text));
+      files.set(path, text);
+    },
   };
   const fakeAgents = {
-    createMany: async ({ actors }) => { created.push(...actors.map(actor => actor.name)); return actors.map(actor => ({ id: `${actor.name}-id`, name: actor.name })); },
-    create: async definition => { created.push(definition.name); return { id: `${definition.name}-id`, name: definition.name }; },
-    tell: async ({ id, message }) => { assert.equal(id, "lead-old-major-id"); assert.equal(message, "work"); },
+    createMany: async ({ actors }) => {
+      created.push(...actors.map((actor) => actor.name));
+      return actors.map((actor) => ({ id: `${actor.name}-id`, name: actor.name }));
+    },
+    create: async (definition) => {
+      created.push(definition.name);
+      return { id: `${definition.name}-id`, name: definition.name };
+    },
+    tell: async ({ id, message }) => {
+      assert.equal(id, "lead-old-major-id");
+      assert.equal(message, "work");
+    },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const result = await new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents);
   assert.deepEqual(created, ["architect-tomashco", "lead-old-major"]);
-  assert.deepEqual(result, { runId: "run-1", topic: "crew.run-1", leadId: "lead-old-major-id", status: "started", memberIds: ["architect-tomashco-id"] });
-  assert.deepEqual(writes.at(-1).members, [{ name: "architect-tomashco", actorId: "architect-tomashco-id", role: "architect" }]);
-  for (const field of ["batchStartedAt", "batchCreatedAt", "leadWokenAt"]) assert.match(writes.at(-1)[field], /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(result, {
+    runId: "run-1",
+    topic: "crew.run-1",
+    leadId: "lead-old-major-id",
+    status: "started",
+    memberIds: ["architect-tomashco-id"],
+  });
+  assert.deepEqual(writes.at(-1).members, [
+    { name: "architect-tomashco", actorId: "architect-tomashco-id", role: "architect" },
+  ]);
+  for (const field of ["batchStartedAt", "batchCreatedAt", "leadWokenAt"])
+    assert.match(writes.at(-1)[field], /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(writes.at(-1).supervisor, undefined);
 });
 
 test("launch failure disbands rostered and late topic actors", async () => {
   const files = new Map([
-    ["config.json", JSON.stringify({ runId: "run-1", topic: "crew.run-1", rosterFile: "roster.json", members: [], lead: { name: "lead-old-major" }, assignment: "work" })],
+    [
+      "config.json",
+      JSON.stringify({
+        runId: "run-1",
+        topic: "crew.run-1",
+        rosterFile: "roster.json",
+        members: [],
+        lead: { name: "lead-old-major" },
+        assignment: "work",
+      }),
+    ],
     ["roster.json", JSON.stringify({ runId: "run-1", status: "queued", members: [] })],
   ]);
   const fakePi = {
-    read: async path => files.get(path),
+    read: async (path) => files.get(path),
     edit: async ({ path, oldText, newText }) => files.set(path, files.get(path).replace(oldText, newText)),
     write: async ({ path, text }) => files.set(path, text),
   };
   const removed = [];
   const fakeAgents = {
-    createMany: async ({ actors }) => actors.map(actor => ({ id: "lead-1", name: actor.name })),
-    tell: async () => { throw new Error("wake failed"); },
+    createMany: async ({ actors }) => actors.map((actor) => ({ id: "lead-1", name: actor.name })),
+    tell: async () => {
+      throw new Error("wake failed");
+    },
     actors: async () => [
       { id: "lead-1", topics: ["crew.run-1"] },
       { id: "late-specialist", topics: ["crew.run-1"] },
       { id: "other", topics: ["crew.other"] },
     ],
-    remove: async ({ id }) => { removed.push(id); return { removed: true }; },
+    remove: async ({ id }) => {
+      removed.push(id);
+      return { removed: true };
+    },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  await assert.rejects(() => new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents), /wake failed/);
+  await assert.rejects(
+    () => new AsyncFunction("pi", "agents", launchCode("config.json"))(fakePi, fakeAgents),
+    /wake failed/,
+  );
   const failed = JSON.parse(files.get("roster.json"));
   assert.equal(failed.status, "failed");
   assert.deepEqual(failed.cleanedActorIds.sort(), ["late-specialist", "lead-1"]);

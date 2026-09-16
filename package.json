@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .pi/extensions scripts tests",
+    "format:check": "prettier --check .pi/extensions scripts tests"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}

@@ -10,7 +10,8 @@ const human = governance({ ...base, completionMode: "human-gated", leadTickTopic
 const tools = readFileSync(new URL("../../.pi/extensions/crew/lib/communication-tools.ts", import.meta.url), "utf8");
 
 test("run context carries canonical preassembled member names", () => {
-  for (const term of ["CREW CONTEXT", "RUN: test", "TOPIC: crew.test", "MEMBERS: architect-tomashco", "crew_kickoff"]) assert.ok(protocol.includes(term), `missing ${term}`);
+  for (const term of ["CREW CONTEXT", "RUN: test", "TOPIC: crew.test", "MEMBERS: architect-tomashco", "crew_kickoff"])
+    assert.ok(protocol.includes(term), `missing ${term}`);
   assert.doesNotMatch(protocol, /MEMBERS: @/);
   assert.doesNotMatch(protocol, /supervisor/);
   assert.ok(protocol.length < 1600, "run assignment must stay compact");
@@ -22,7 +23,13 @@ test("specialist discipline retains the shared-start boundary", () => {
 });
 
 test("communication wrappers enforce authority, canonical identity, and recovery", () => {
-  for (const term of ["assertLead(roster, input.from)", "Only the Crew Lead may broadcast", "Canonical role-persona handle, without @", "kickoffIntent"]) assert.ok(tools.includes(term), `missing ${term}`);
+  for (const term of [
+    "assertLead(roster, input.from)",
+    "Only the Crew Lead may broadcast",
+    "Canonical role-persona handle, without @",
+    "kickoffIntent",
+  ])
+    assert.ok(tools.includes(term), `missing ${term}`);
 });
 
 test("human-gated context retains its tick and terminal path", () => {

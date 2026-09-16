@@ -9,10 +9,8 @@ function roleCatalog() {
 }
 
 export function crewNativeToolNames(catalog = roleCatalog()) {
-  const roleTools = Object.values(catalog).flatMap(role => role.tools || []);
-  return [...new Set([...BASE_GITHUB_TOOLS, ...roleTools])]
-    .filter(name => !CORE_PI_TOOLS.has(name))
-    .sort();
+  const roleTools = Object.values(catalog).flatMap((role) => role.tools || []);
+  return [...new Set([...BASE_GITHUB_TOOLS, ...roleTools])].filter((name) => !CORE_PI_TOOLS.has(name)).sort();
 }
 
 export function withCrewNativeToolVisibility(config = {}) {

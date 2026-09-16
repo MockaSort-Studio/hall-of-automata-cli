@@ -1,10 +1,7 @@
 import { gh, ghJson } from "../core/gh.ts";
 
 export function listLabels(repo: string) {
-  return ghJson([
-    "label", "list", "-R", repo,
-    "--json", "name,color,description",
-  ]);
+  return ghJson(["label", "list", "-R", repo, "--json", "name,color,description"]);
 }
 
 export function createLabel(repo: string, name: string, color: string, description?: string) {
@@ -23,10 +20,7 @@ export function updateLabel(repo: string, name: string, color?: string, descript
 }
 
 export function addLabels(repo: string, issueNumber: number, labels: string[]) {
-  gh([
-    "issue", "edit", String(issueNumber), "-R", repo,
-    "--add-label", labels.join(","),
-  ]);
+  gh(["issue", "edit", String(issueNumber), "-R", repo, "--add-label", labels.join(",")]);
   return viewLabels(repo, issueNumber);
 }
 
@@ -36,8 +30,5 @@ export function removeLabel(repo: string, issueNumber: number, label: string) {
 }
 
 function viewLabels(repo: string, issueNumber: number) {
-  return ghJson([
-    "issue", "view", String(issueNumber), "-R", repo,
-    "--json", "number,title,labels,url",
-  ]);
+  return ghJson(["issue", "view", String(issueNumber), "-R", repo, "--json", "number,title,labels,url"]);
 }

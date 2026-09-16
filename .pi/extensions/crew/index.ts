@@ -43,8 +43,11 @@ export default function crewExtension(pi: ExtensionAPI) {
     label: "Crew: build member",
     description: "Assemble a Hall soul and role with a bounded assignment.",
     parameters: Type.Object({
-      name: Type.String(), role: Type.String(), task: Type.String(),
-      model: Type.Optional(Type.String()), thinking: Type.Optional(Type.String()),
+      name: Type.String(),
+      role: Type.String(),
+      task: Type.String(),
+      model: Type.Optional(Type.String()),
+      thinking: Type.Optional(Type.String()),
     }),
     async execute(_id, input) {
       const actor = assemble(input.name, input.role, input.task, { ...input, runtimeTools: pi.getAllTools() });
@@ -60,10 +63,7 @@ export default function crewExtension(pi: ExtensionAPI) {
     parameters,
     renderCall(args, theme) {
       const task = args.task.length > 72 ? `${args.task.slice(0, 69)}...` : args.task;
-      return new Text(
-        theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", task),
-        0, 0,
-      );
+      return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", task), 0, 0);
     },
     renderResult(result, { isPartial }, theme) {
       if (isPartial) return new Text(theme.fg("warning", "Preparing durable Crew..."), 0, 0);
@@ -73,8 +73,10 @@ export default function crewExtension(pi: ExtensionAPI) {
       return new Text(
         theme.fg("success", theme.bold("✓ Crew launching")) +
           theme.fg("muted", `  ${id}`) +
-          "\n" + theme.fg("dim", "Terminal result will return to this Pi session."),
-        0, 0,
+          "\n" +
+          theme.fg("dim", "Terminal result will return to this Pi session."),
+        0,
+        0,
       );
     },
     async execute(_id, input, signal, _update, ctx) {
@@ -82,10 +84,10 @@ export default function crewExtension(pi: ExtensionAPI) {
       const THINKING_UNSUPPORTED = ["mistral-small", "mistral-medium", "mistral-tiny"];
       if (input.model) {
         const m = input.model.toLowerCase();
-        if (THINKING_UNSUPPORTED.some(blocked => m.includes(blocked))) {
+        if (THINKING_UNSUPPORTED.some((blocked) => m.includes(blocked))) {
           throw new Error(
             `Model "${input.model}" does not support thinking mode, which is required for the Crew Lead role. ` +
-            `Use a model that supports reasoning, e.g. anthropic/claude-sonnet-4-5 or mistral/devstral-latest.`
+              `Use a model that supports reasoning, e.g. anthropic/claude-sonnet-4-5 or mistral/devstral-latest.`,
           );
         }
       }
@@ -99,5 +101,4 @@ export default function crewExtension(pi: ExtensionAPI) {
       return output({ ...prepared, status: "queued", launchRequired: false }, queuedMessage(prepared));
     },
   });
-
 }

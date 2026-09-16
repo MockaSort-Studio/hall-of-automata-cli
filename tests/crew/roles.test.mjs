@@ -3,7 +3,12 @@ import { test } from "node:test";
 import { roleModule } from "../../.pi/extensions/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../.pi/extensions/crew/lib/assembly.mjs";
 
-const expected = { lead: ["crew_kickoff", "medium"], architect: ["read", "high"], advisor: ["read", "low"], developer: ["edit", "medium"] };
+const expected = {
+  lead: ["crew_kickoff", "medium"],
+  architect: ["read", "high"],
+  advisor: ["read", "low"],
+  developer: ["edit", "medium"],
+};
 test("canonical role catalog supplies prompt, tools, and thinking", () => {
   for (const [role, [tool, thinking]] of Object.entries(expected)) {
     const result = roleModule({ role, override: {} });
@@ -27,7 +32,10 @@ test("roles enforce object-form Fabric calls and shared collaboration", () => {
   assert.match(assembledArchitect.instructions, /Reserve `fabric_exec` for Fabric-only coordination/);
   assert.match(assembledArchitect.instructions, /exact UUID in activation's `runId` field/);
   assert.match(assembledArchitect.instructions, /topic` is only the mesh topic, never a run ID/);
-  assert.match(assembledArchitect.instructions, /`crew_ask` requests concrete cross-role judgment and `crew_tell` records a material handoff/);
+  assert.match(
+    assembledArchitect.instructions,
+    /`crew_ask` requests concrete cross-role judgment and `crew_tell` records a material handoff/,
+  );
   assert.match(assembledArchitect.instructions, /Specialists do not call `agents\.\*` themselves/);
   assert.match(lead.instructions, /use them directly/);
   assert.match(lead.instructions, /Do not read ROSTER, call `tools\.list`/);
