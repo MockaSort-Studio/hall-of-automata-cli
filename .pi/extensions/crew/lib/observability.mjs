@@ -1,5 +1,13 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  assistantTextTokens,
+  staticContextTokens,
+  toolCallTokens,
+  toolKind,
+  toolResultTokens,
+  toolWindowTotals,
+} from "./observability-ledger.mjs";
 
 const SUMMARY_TOOLS = new Set(["read", "bash", "fabric_exec"]);
 const bytes = (value) => Buffer.byteLength(typeof value === "string" ? value : JSON.stringify(value ?? null));
@@ -38,6 +46,12 @@ export function contextDelta(previous, current) {
   return Number.isFinite(current) && Number.isFinite(previous) ? current - previous : null;
 }
 
+export function contextSource(toolNames) {
+  if (!toolNames.length) return "none";
+  if (toolNames.every((name) => name === "fabric_exec")) return "fabric_exec";
+  return toolNames.includes("fabric_exec") ? "mixed" : "native";
+}
+
 export function resultBytes(result) {
   return bytes({ content: result?.content, details: result?.details });
 }
@@ -63,7 +77,11 @@ function usageSummary(usage) {
 
 export function registerCrewObservability(pi, configDir) {
   const contextByActor = new Map();
+  const toolWindowByActor = new Map();
+  const pendingToolCalls = new Map();
   const identity = (ctx) => crewIdentity(ctx.cwd, configDir);
+  const actorKey = (actor) => `${actor.runId}:${actor.actorId}`;
+  const callKey = (actor, callId) => `${actorKey(actor)}:${callId}`;
   const write = (ctx, event) => {
     const actor = identity(ctx);
     if (!actor) return;
@@ -74,32 +92,63 @@ export function registerCrewObservability(pi, configDir) {
       `${JSON.stringify({ at: new Date().toISOString(), ...actor, ...event })}\n`,
     );
   };
+  const staticContext = (ctx) => {
+    const active = new Set(pi.getActiveTools());
+    const tools = pi
+      .getAllTools()
+      .filter((tool) => active.has(tool.name))
+      .map(({ name, parameters }) => ({ name, parameters }));
+    return staticContextTokens(ctx.getSystemPrompt(), tools);
+  };
 
-  pi.on("agent_start", (_event, ctx) => write(ctx, { type: "activation_start" }));
+  pi.on("agent_start", (_event, ctx) => write(ctx, { type: "activation_start", staticContext: staticContext(ctx) }));
   pi.on("agent_end", (_event, ctx) => write(ctx, { type: "activation_end" }));
   pi.on("tool_result", (event, ctx) => {
     const limit = crewResultSummaryLimit(ctx.cwd, configDir);
     return limit && summarizeCrewToolResult(event, limit);
   });
-  pi.on("tool_execution_end", (event, ctx) =>
+  pi.on("tool_call", (event, ctx) => {
+    const actor = identity(ctx);
+    if (!actor) return;
+    pendingToolCalls.set(callKey(actor, event.toolCallId), {
+      kind: toolKind(event.toolName),
+      callTokens: toolCallTokens(event.toolName, event.input),
+    });
+  });
+  pi.on("tool_execution_end", (event, ctx) => {
+    const actor = identity(ctx);
+    if (!actor) return;
+    const key = actorKey(actor);
+    const pendingKey = callKey(actor, event.toolCallId);
+    const call = pendingToolCalls.get(pendingKey) || { kind: toolKind(event.toolName), callTokens: 0 };
+    pendingToolCalls.delete(pendingKey);
+    const entry = { tool: event.toolName, ...call, resultTokens: toolResultTokens(event.result) };
+    const toolWindow = toolWindowByActor.get(key) || [];
+    toolWindow.push(entry);
+    toolWindowByActor.set(key, toolWindow);
     write(ctx, {
       type: "tool",
-      tool: event.toolName,
+      ...entry,
       resultBytes: resultBytes(event.result),
       error: Boolean(event.isError),
-    }),
-  );
+    });
+  });
   pi.on("turn_end", (event, ctx) => {
     const actor = identity(ctx);
     if (!actor) return;
+    const key = actorKey(actor);
     const current = ctx.getContextUsage()?.tokens;
-    const key = `${actor.runId}:${actor.actorId}`;
     const previous = contextByActor.get(key);
+    const toolWindow = toolWindowByActor.get(key) || [];
     if (Number.isFinite(current)) contextByActor.set(key, current);
+    toolWindowByActor.set(key, []);
     write(ctx, {
       type: "response",
       contextTokens: current,
       contextDelta: contextDelta(previous, current),
+      contextSource: contextSource(toolWindow.map((entry) => entry.tool)),
+      toolWindow: toolWindowTotals(toolWindow),
+      assistantTextTokens: assistantTextTokens(event.message),
       usage: usageSummary(event.message?.usage),
     });
   });

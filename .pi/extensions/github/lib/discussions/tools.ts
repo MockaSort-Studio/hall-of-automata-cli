@@ -31,6 +31,13 @@ export function registerDiscussionTools(pi) {
   );
 
   tool(
+    "github_discussion_comment",
+    "Post a comment to a Discussion thread.",
+    obj({ owner: S(), repo: S(), discussionNumber: I(), body: S() }),
+    (x) => discussions.commentOnDiscussion(x.owner, x.repo, x.discussionNumber, x.body),
+  );
+
+  tool(
     "github_discussion_view",
     "Read canonical Discussion title, body, and closure state.",
     obj({ owner: S(), repo: S(), discussionNumber: I() }),

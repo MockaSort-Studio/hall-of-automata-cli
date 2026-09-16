@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import {
   contextDelta,
+  contextSource,
   crewIdentity,
   crewResultSummaryLimit,
   resultBytes,
@@ -34,9 +35,13 @@ test("Crew artifact identity comes from the durable roster, not prompt content",
   assert.equal(crewResultSummaryLimit(cwd, ".pi", "member"), 20480);
 });
 
-test("artifact metrics retain sizes and deltas, never tool content", () => {
+test("artifact metrics retain sizes and classify tool windows without tool content", () => {
   assert.equal(contextDelta(100, 130), 30);
   assert.equal(contextDelta(undefined, 130), null);
+  assert.equal(contextSource([]), "none");
+  assert.equal(contextSource(["fabric_exec"]), "fabric_exec");
+  assert.equal(contextSource(["read", "crew_post"]), "native");
+  assert.equal(contextSource(["read", "fabric_exec"]), "mixed");
   assert.equal(
     resultBytes({ content: [{ type: "text", text: "abc" }] }),
     Buffer.byteLength(JSON.stringify({ content: [{ type: "text", text: "abc" }], details: undefined })),

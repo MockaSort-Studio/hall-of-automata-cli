@@ -21,6 +21,7 @@ export default function (pi) {
     "crew_begin_close", "crew_finish_close", "crew_close",
     "github_issue_view", "github_issue_remove_label", "github_discussions_list",
     "web_fetch",
+    "runtime_spawn_agent", "runtime_list_agents", "runtime_inspect_agent", "runtime_delete_agent",
   ];
   const missing = required.filter(name => !available.has(name));
   if (missing.length) throw new Error(`Missing registered tools: ${missing.join(", ")}`);
@@ -37,6 +38,7 @@ PI_OFFLINE=1 pi \
   -e .pi/extensions/crew/index.ts \
   -e .pi/extensions/github/index.ts \
   -e .pi/extensions/web/index.ts \
+  -e .pi/extensions/runtime/index.ts \
   -e ./assert-tools.ts \
   --list-models \
   --offline >/dev/null
