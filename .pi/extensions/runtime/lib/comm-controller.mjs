@@ -95,6 +95,7 @@ export class CommController {
           );
         else if (request.method === "comm.claim") result = this.claim(request.params.actorId);
         else if (request.method === "comm.ack") result = this.acknowledge(actorId, request.params.messageId);
+        else if (request.method === "comm.inspect") result = this.events();
         this.#reply(socket, request.id, result);
       } catch (error) {
         socket.send(JSON.stringify({ jsonrpc: "2.0", id: request.id, error: { message: String(error) } }));

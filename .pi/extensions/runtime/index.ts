@@ -66,6 +66,16 @@ export default function runtimeExtension(pi: any): void {
     },
   });
   pi.registerTool({
+    name: "runtime_inspect_comm",
+    label: "Runtime: inspect communication",
+    description: "Return payload-free communication controller events.",
+    parameters: Type.Object({}),
+    async execute() {
+      const result = await runtime.inspectComm();
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
     name: "runtime_inspect_agent",
     label: "Runtime: inspect agent",
     description: "Return compact lifecycle and telemetry state for one SDK agent.",

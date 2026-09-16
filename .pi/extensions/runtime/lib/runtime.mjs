@@ -58,6 +58,11 @@ export class Runtime {
     return (await this.#comm.claim(actorId)) ?? null;
   }
 
+  async inspectComm() {
+    if (!this.#comm) throw new Error("Communication controller is not running");
+    return this.#comm.inspect();
+  }
+
   async spawn({
     name,
     task,

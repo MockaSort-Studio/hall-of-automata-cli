@@ -30,6 +30,7 @@ export async function connectComm({ url, actorId }) {
     registerActor: (id) => request("comm.register_actor", { actorId: id }),
     claim: (actor) => request("comm.claim", { actorId: actor }),
     acknowledge: (id) => request("comm.ack", { messageId: id }),
+    inspect: () => request("comm.inspect", {}),
     onDelivery: (listener) => listeners.add(listener),
     close: () => socket.close(),
   };
