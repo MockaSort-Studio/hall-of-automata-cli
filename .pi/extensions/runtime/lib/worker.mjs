@@ -117,7 +117,7 @@ session.subscribe((event) => {
 });
 try {
   const initialTask = config.delivery
-    ? `${config.task}\n\nCommunication delivery: ${JSON.stringify(config.delivery.payload)}`
+    ? `${config.task}\n\nCommunication delivery: ${JSON.stringify({ from: config.delivery.from, payload: config.delivery.payload, replyRequired: Boolean(config.delivery.replyRequired) })}`
     : config.task;
   await session.prompt(initialTask);
   if (config.delivery) await comm.acknowledge(config.delivery.id);
@@ -125,7 +125,9 @@ try {
     let deliveries = Promise.resolve();
     comm.onDelivery((message) => {
       deliveries = deliveries.then(async () => {
-        await session.prompt(`Communication delivery: ${JSON.stringify(message.payload)}`);
+        await session.prompt(
+          `Communication delivery: ${JSON.stringify({ from: message.from, payload: message.payload, replyRequired: Boolean(message.replyRequired) })}`,
+        );
         await comm.acknowledge(message.id);
       });
     });

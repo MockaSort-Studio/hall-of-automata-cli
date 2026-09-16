@@ -27,7 +27,19 @@ export class CommController {
   emit(from, to, payload, replyRequired = false, replyTo) {
     if (replyTo && !this.#pendingReplies.has(replyTo)) throw new Error("Unknown reply request");
     if (!this.#actors.has(to)) throw new Error(`Unknown recipient: ${to}`);
-    const message = { id: randomUUID(), from, to, payload, replyRequired, replyTo, queuedAt: Date.now() };
+    const queuedAt = Date.now();
+    const message = {
+      v: 1,
+      id: randomUUID(),
+      kind: replyTo ? "reply" : replyRequired ? "request" : "notify",
+      from,
+      to,
+      payload,
+      replyRequired,
+      replyTo,
+      createdAt: new Date(queuedAt).toISOString(),
+      queuedAt,
+    };
     this.#inbox(to).push(message);
     if (replyRequired) this.#pendingReplies.set(message.id, message);
     if (replyTo) {

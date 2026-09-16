@@ -83,3 +83,9 @@ No raw prompts or tool output by default.
 2. Build Lifecycle spawn/list/delete around that runner.
 3. Run two SDK agents in parallel; verify independent worktrees, logs, and deletion cleanup.
 4. Add future concerns separately: durability, communication, sandboxing.
+
+## Flat message envelope
+
+Comm owns a flat V1 envelope: `v`, `id`, `kind` (`notify`, `request`, or `reply`), `from`, `to`, `payload`, `createdAt`, and optional `replyTo`. `comm_request` creates a request; `comm_reply` creates a reply correlated by `replyTo`.
+
+The worker projection is deliberately smaller: `{ from, payload, replyRequired }`. IDs, destination, timestamps, kind, and correlation stay in the controller. Delivery acknowledgement is independent of a required application reply; disconnect before acknowledgement requeues the inflight message.

@@ -93,3 +93,17 @@ test("validates and correlates a required reply", () => {
   assert.ok(comm.events().some((event) => event.type === "message_replied" && event.replyTo === request.id));
   assert.throws(() => comm.emit("b", "a", {}, false, "unknown"), /Unknown reply request/);
 });
+
+test("creates a flat v1 request envelope", () => {
+  const comm = new CommController();
+  comm.registerActor("to");
+  const { id } = comm.emit("from", "to", { marker: "x" }, true);
+  const message = comm.claim("to");
+  assert.equal(message.v, 1);
+  assert.equal(message.id, id);
+  assert.equal(message.kind, "request");
+  assert.equal(message.from, "from");
+  assert.equal(message.to, "to");
+  assert.ok(message.createdAt);
+  assert.equal(message.replyRequired, true);
+});
