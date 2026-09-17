@@ -22,7 +22,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let reconciler: ReturnType<typeof setInterval> | undefined;
 
-  const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "fabric", "crew-launch") : undefined);
+  const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);
   const latestActive = () => {
     const dir = root();
     if (!dir || !existsSync(dir)) return undefined;

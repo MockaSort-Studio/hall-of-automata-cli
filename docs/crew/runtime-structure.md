@@ -1,64 +1,69 @@
 # Pi Crew Runtime Structure
 
-Status: canonical for the stabilized `dev` branch.
+Status: canonical for `dev`.
 
 ## Supported entrypoints
 
-Pi discovers three project-local extensions:
+Pi discovers project-local extensions:
 
-- `.pi/extensions/crew/index.ts` — durable Crew orchestration.
-- `.pi/extensions/github/index.ts` — bounded GitHub tools used by Crew.
-- `.pi/extensions/web/index.ts` — bounded web fetch for research.
+- `.pi/extensions/crew/index.ts` — Crew orchestration.
+- `.pi/extensions/runtime/index.ts` — SDK Lifecycle and Comm runtime.
+- `.pi/extensions/github/index.ts` — bounded GitHub tools.
+- `.pi/extensions/web/index.ts` — bounded web fetch.
 
-`tests/pi/test-extension-load.sh` is the relocation smoke test. Any new runtime path must keep that test passing.
+`tests/pi/test-extension-load.sh` is the relocation smoke test.
 
 ## Launch path
 
 1. Main calls `start_crew`.
-2. `start_crew` writes queued state under `.pi/fabric/crew-launch/`:
-   - `<runId>.json` — launch config and launch program.
-   - `<runId>-roster.json` — durable roster and lifecycle state.
-3. `start_crew` queues a Pi follow-up that executes the launch program in the normal `fabric_exec` path.
-4. The launch program creates one durable Lead actor with `agents.create`.
-5. The Lead creates the canonical GitHub Discussion, recruits specialists, and owns review and closure.
+2. Crew writes a queued config and roster under `.pi/runtime/crew-launch/`.
+3. `start_crew` calls the SDK Runtime directly.
+4. Runtime starts Comm, registers every actor, starts Lifecycle, then launches resident specialists and the one-shot Lead.
+5. Lead creates the canonical GitHub Discussion, wakes specialists through Comm, and owns review and closure.
 
-There is no extension-side supervisor, no `/crew-start` command, no generated user-facing launch code beyond the queued follow-up, and no direct `pi.agents` or `pi.tools.call` API.
+There is no generated `fabric_exec` launch code, Fabric actor creation, mesh startup signal, or extension-side supervisor.
 
-## Actor model
+## Worker model
 
-- Lead role: `lead-old-major`.
-- Supported specialist roles: `architect`, `advisor`.
-- Unsupported for this cycle: `developer` / Doing mode.
+- Lead: `lead-old-major`, initially one-shot.
+- Specialists: assembled Crew roles, resident SDK workers.
+- Lifecycle owns worker process handles, worktrees, inspection, and removal.
+- Comm owns per-actor mailbox state, delivery, acknowledgement, requeue, and request/reply correlation.
 
-Specialists are assembled by `build_crew_member`, which calls `assembly.mjs` and combines:
-
-- checked-in persona soul from `.pi/extensions/crew/roster/*.md`,
-- role discipline from `.pi/extensions/crew/lib/automaton-body/lib/roles/`,
-- shared safety and Crew communication discipline,
-- a bounded assignment.
-
-Roles are read/search/GitHub-comment oriented. Raw shell and repository writes are intentionally absent from Crew roles.
+Assembly combines the checked-in persona, role discipline, safety contract, bounded assignment, and allowed Crew/GitHub tools. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
 
 ## State and communication
 
-- Roster JSON is the lifecycle authority for Crew membership and closure.
-- GitHub Discussion is the durable, human-readable content record.
-- Fabric topics are lifecycle/control signals only; substantive findings are posted to GitHub first.
-- Sender names are roster handles and, when running inside a Fabric actor, are bound to `PI_FABRIC_ACTOR_ID`.
+- Roster JSON is the durable Crew identity and Discussion lifecycle record.
+- GitHub Discussion is the durable human-readable evidence record.
+- Comm carries lightweight coordination only.
+- Controller envelope is flat V1: `v`, `id`, `kind`, `from`, `to`, `payload`, `createdAt`, optional `replyTo`.
+- Workers see only `{ from, payload, replyRequired }`.
+- Sender identity is the roster handle. SDK workers have no Fabric actor identity dependency.
 
-## Closure path
+## Closure
 
-Unattended runs call `crew_close`, return `FINAL`, unregister specialists after verified removal, call `crew_finish_close`, then remove the Lead last.
-
-Human-gated runs poll human requests only while started. Once GitHub closure is observed, the Lead calls `crew_begin_close`, reconciles/removes specialists, calls `crew_finish_close`, then removes itself.
+Lead records acceptance and closes the Discussion through Crew tools. Runtime/Main owns SDK worker cleanup. Human-gated scheduling is not yet supported by the SDK Crew path.
 
 ## Removed paths
 
-The following are not supported runtime paths and should not reappear:
+Do not reintroduce:
 
-- resident lifecycle supervisor code in this repo,
-- host-specific Fabric fork paths,
-- raw `bash` as a normal specialist capability,
-- `developer` / code-writing Crew dispatch,
-- local mirrors of GitHub content,
-- mesh events carrying substantive content.
+- Fabric actor creation/removal for Crew execution;
+- mesh topics for Crew launch or substantive communication;
+- generated launch code or user follow-up injection;
+- raw shell as ordinary specialist capability;
+- unsupported role capabilities outside their bounded tool grants.
+
+## SDK stabilization status — 2026-09-17
+
+The base Crew runtime is now SDK + Comm only; GitHub Discussion behavior is deferred to a future adapter.
+
+- Actor IDs are run-scoped (`crew-<runId>-...`), preventing concurrent Crew mailbox/worktree collisions.
+- Lead startup and specialist first-delivery behavior use explicit `initialTurn` configuration rather than prompt-text detection.
+- Lifecycle creates/removes worktrees asynchronously with bounded Git commands and compensating cleanup on failed spawn.
+- Lifecycle RPC dispatch awaits controller operations; client pending requests reject on close/error/timeout.
+- `Runtime.launchCrew` rolls back already-created workers on a later spawn failure.
+- `runtime_cleanup`/`Runtime.stop` remove tracked workers before controller shutdown.
+
+Focused validation: Crew startup, Comm controller/runtime tests, extension-load test, and live Comm request/reply all passed. Remaining hardening is dedicated lifecycle failure-injection/RPC protocol test coverage and a concurrent two-Crew cleanup probe.

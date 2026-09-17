@@ -89,3 +89,7 @@ No raw prompts or tool output by default.
 Comm owns a flat V1 envelope: `v`, `id`, `kind` (`notify`, `request`, or `reply`), `from`, `to`, `payload`, `createdAt`, and optional `replyTo`. `comm_request` creates a request; `comm_reply` creates a reply correlated by `replyTo`.
 
 The worker projection is deliberately smaller: `{ from, payload, replyRequired }`. IDs, destination, timestamps, kind, and correlation stay in the controller. Delivery acknowledgement is independent of a required application reply; disconnect before acknowledgement requeues the inflight message.
+
+## Lifecycle process
+
+Lifecycle ownership now runs outside the Main extension process. Main keeps the same native API (`spawn`, `list`, `inspect`, `delete`) but delegates over RPC to a Lifecycle process that owns worker process handles, Git worktree creation/removal, and worker telemetry inspection. Comm remains a separate process; Runtime registers/claims any pending actor delivery with Comm, then passes only the worker config and claimed delivery to Lifecycle.

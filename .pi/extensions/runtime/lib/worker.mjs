@@ -11,6 +11,8 @@ const log = (event) =>
   appendFileSync(config.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
 const comm = config.comm ? await connectComm(config.comm) : undefined;
 let replyContext = config.delivery;
+const qualify = (id) =>
+  config.comm?.namespace && !id.startsWith(`${config.comm.namespace}-`) ? `${config.comm.namespace}-${id}` : id;
 const notifyTool =
   comm &&
   sdk.defineTool({
@@ -20,10 +22,84 @@ const notifyTool =
     parameters: Type.Object({
       to: Type.String(),
       payload: Type.Unknown(),
-      replyRequired: Type.Optional(Type.Boolean()),
     }),
     async execute(_id, input) {
-      return { content: [{ type: "text", text: JSON.stringify(await comm.emit(input)) }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(await comm.emit({ ...input, to: qualify(input.to), replyRequired: false })),
+          },
+        ],
+      };
+    },
+  });
+const kickoffTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_kickoff",
+    label: "Communication: Crew kickoff",
+    description: "Broadcast one structured bounded assignment for every listed Crew member.",
+    parameters: Type.Object({
+      assignments: Type.Array(Type.Object({ to: Type.String(), task: Type.String(), done: Type.String() }), {
+        minItems: 1,
+      }),
+    }),
+    async execute(_id, input) {
+      const names = new Set(config.crewMembers ?? []);
+      if (
+        input.assignments.length !== names.size ||
+        new Set(input.assignments.map((item) => item.to)).size !== names.size ||
+        input.assignments.some((item) => !names.has(item.to))
+      )
+        throw new Error("Kickoff requires exactly one assignment for every Crew member.");
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              await comm.broadcast({
+                namespace: config.comm.namespace,
+                payload: { kind: "kickoff", goal: input.goal, context: input.context, assignments: input.assignments },
+              }),
+            ),
+          },
+        ],
+      };
+    },
+  });
+const notifyManyTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_notify_many",
+    label: "Communication: notify selected",
+    description: "Notify the Lead and only named dependent Crew members.",
+    parameters: Type.Object({ to: Type.Array(Type.String(), { minItems: 1 }), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      const results = await Promise.all(
+        input.to.map((to) => comm.emit({ to: qualify(to), payload: input.payload, replyRequired: false })),
+      );
+      return { content: [{ type: "text", text: JSON.stringify(results) }] };
+    },
+  });
+const notifyAllTool =
+  comm &&
+  sdk.defineTool({
+    name: "comm_notify_all",
+    label: "Communication: notify all",
+    description: "Notify Main and every other member of this Crew without requiring replies.",
+    parameters: Type.Object({ payload: Type.Unknown() }),
+    async execute(_id, input) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              await comm.broadcast({ namespace: config.comm.namespace, payload: input.payload, includeMain: true }),
+            ),
+          },
+        ],
+      };
     },
   });
 const requestTool =
@@ -34,7 +110,14 @@ const requestTool =
     description: "Send a Crew recipient a message that requires a reply.",
     parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
     async execute(_id, input) {
-      return { content: [{ type: "text", text: JSON.stringify(await comm.emit({ ...input, replyRequired: true })) }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(await comm.emit({ ...input, to: qualify(input.to), replyRequired: true })),
+          },
+        ],
+      };
     },
   });
 const replyTool =
@@ -71,8 +154,18 @@ const { session } = await sdk.createAgentSession({
   modelRuntime: runtime,
   model,
   thinkingLevel: config.thinking,
-  tools: notifyTool ? [...config.tools, "comm_notify", "comm_request", "comm_reply"] : config.tools,
-  customTools: notifyTool ? [notifyTool, requestTool, replyTool] : [],
+  tools: notifyTool
+    ? [
+        ...config.tools,
+        "comm_kickoff",
+        "comm_notify",
+        "comm_notify_many",
+        "comm_notify_all",
+        "comm_request",
+        "comm_reply",
+      ]
+    : config.tools,
+  customTools: notifyTool ? [kickoffTool, notifyTool, notifyManyTool, notifyAllTool, requestTool, replyTool] : [],
   resourceLoader: loader,
   sessionManager: sdk.SessionManager.inMemory(config.cwd),
 });
@@ -109,28 +202,49 @@ session.subscribe((event) => {
       resultTokens: estimate(event.result),
       elapsedMs: Date.now() - (toolStarts.get(event.toolCallId) ?? Date.now()),
       error: event.isError,
+      errorMessage: event.isError
+        ? String(event.result?.content?.[0]?.text ?? event.result?.message ?? "tool failed").slice(0, 500)
+        : undefined,
     });
   }
   if (event.type === "turn_end") {
-    log({ type: "turn", usage: event.message.usage, context: session.getContextUsage() });
+    const output = event.message.content
+      ?.filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+      .slice(0, 12000);
+    log({ type: "turn", usage: event.message.usage, context: session.getContextUsage(), output });
   }
 });
 try {
   const initialTask = config.delivery
     ? `${config.task}\n\nCommunication delivery: ${JSON.stringify({ from: config.delivery.from, payload: config.delivery.payload, replyRequired: Boolean(config.delivery.replyRequired) })}`
     : config.task;
-  await session.prompt(initialTask);
-  if (config.delivery) await comm.acknowledge(config.delivery.id);
+  let initialTurn = Promise.resolve();
+  let deliveries = Promise.resolve();
+  let initialized = false;
+  const deliveryPrompt = (message, includeTask) => {
+    const delivery = `Communication delivery: ${JSON.stringify({ from: message.from, payload: message.payload, replyRequired: Boolean(message.replyRequired) })}`;
+    return includeTask ? `${config.task}\n\n${delivery}` : delivery;
+  };
   if (config.resident) {
-    let deliveries = Promise.resolve();
     comm.onDelivery((message) => {
       deliveries = deliveries.then(async () => {
-        await session.prompt(
-          `Communication delivery: ${JSON.stringify({ from: message.from, payload: message.payload, replyRequired: Boolean(message.replyRequired) })}`,
-        );
+        await initialTurn;
+        replyContext = message;
+        await session.prompt(deliveryPrompt(message, !initialized && config.initialTurn === "first-delivery"));
+        initialized = true;
         await comm.acknowledge(message.id);
       });
     });
+  }
+  if (!config.resident || config.delivery || config.initialTurn === "startup") {
+    initialTurn = session.prompt(initialTask);
+    await initialTurn;
+    initialized = true;
+    if (config.delivery) await comm.acknowledge(config.delivery.id);
+  }
+  if (config.resident) {
     await new Promise((resolve) => process.once("SIGTERM", resolve));
     await deliveries;
   }

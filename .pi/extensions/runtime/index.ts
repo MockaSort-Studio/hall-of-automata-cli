@@ -1,8 +1,44 @@
 import { Type } from "typebox";
-import { Runtime } from "./lib/runtime.mjs";
+import { runtimeFor } from "./lib/shared-runtime.mjs";
 
 export default function runtimeExtension(pi: any): void {
-  const runtime = new Runtime(process.cwd());
+  const runtime = runtimeFor(process.cwd());
+  pi.registerTool({
+    name: "runtime_launch_crew",
+    label: "Runtime: launch crew",
+    description: "Start Comm and Lifecycle, register actors, and launch a Crew in one operation.",
+    parameters: Type.Object({
+      agents: Type.Array(
+        Type.Object({
+          name: Type.String(),
+          task: Type.String(),
+          actorId: Type.Optional(Type.String()),
+          model: Type.Optional(Type.String()),
+          thinking: Type.Optional(
+            Type.Union([Type.Literal("off"), Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")]),
+          ),
+          tools: Type.Optional(Type.Array(Type.String())),
+          extensionPaths: Type.Optional(Type.Array(Type.String())),
+          bundles: Type.Optional(Type.Array(Type.String())),
+          resident: Type.Optional(Type.Boolean()),
+        }),
+      ),
+    }),
+    async execute(_id, input) {
+      const result = await runtime.launchCrew(input.agents);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_cleanup",
+    label: "Runtime: cleanup",
+    description: "Remove every SDK worker and worktree owned by this Runtime session.",
+    parameters: Type.Object({}),
+    async execute() {
+      const result = await runtime.stop();
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
   pi.registerTool({
     name: "runtime_spawn_agent",
     label: "Runtime: spawn agent",
@@ -31,7 +67,7 @@ export default function runtimeExtension(pi: any): void {
     description: "List SDK agents started in this Main session.",
     parameters: Type.Object({}),
     async execute() {
-      const agents = runtime.list();
+      const agents = await runtime.list();
       return { content: [{ type: "text", text: JSON.stringify(agents) }], details: agents };
     },
   });
@@ -81,17 +117,17 @@ export default function runtimeExtension(pi: any): void {
     description: "Return compact lifecycle and telemetry state for one SDK agent.",
     parameters: Type.Object({ id: Type.String() }),
     async execute(_id, input) {
-      const result = runtime.inspect(input.id);
+      const result = await runtime.inspect(input.id);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });
   pi.registerTool({
     name: "runtime_delete_agent",
     label: "Runtime: delete agent",
-    description: "Stop one SDK agent and remove its worktree.",
+    description: "Stop an SDK agent and remove its worktree.",
     parameters: Type.Object({ id: Type.String() }),
     async execute(_id, input) {
-      const result = runtime.remove(input.id);
+      const result = await runtime.remove(input.id);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });

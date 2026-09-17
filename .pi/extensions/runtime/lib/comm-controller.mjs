@@ -55,6 +55,12 @@ export class CommController {
     this.#flush(to);
     return { accepted: true, id: message.id };
   }
+  broadcast(from, namespace, payload, includeMain = false) {
+    const recipients = [...this.#actors].filter(
+      (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
+    );
+    return { accepted: true, recipients: recipients.map((to) => this.emit(from, to, payload).id) };
+  }
   claim(actorId) {
     if (this.#inflight.has(actorId)) return undefined;
     const message = this.#inbox(actorId).shift();
@@ -97,7 +103,14 @@ export class CommController {
         } else if (request.method === "comm.register_actor") {
           this.registerActor(request.params.actorId);
           result = { registered: request.params.actorId };
-        } else if (request.method === "comm.emit")
+        } else if (request.method === "comm.broadcast")
+          result = this.broadcast(
+            actorId,
+            request.params.namespace,
+            request.params.payload,
+            request.params.includeMain,
+          );
+        else if (request.method === "comm.emit")
           result = this.emit(
             actorId,
             request.params.to,

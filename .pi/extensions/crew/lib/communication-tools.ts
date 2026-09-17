@@ -14,6 +14,7 @@ import {
   signedBody,
   writeRoster,
 } from "./comm.mjs";
+import { crewRoot } from "./runtime-root.mjs";
 import {
   renderBroadcast,
   renderDirected,
@@ -25,7 +26,7 @@ import {
 } from "./discussion-templates.mjs";
 
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
-const rosterPath = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "fabric", "crew-launch", `${runId}-roster.json`);
+const rosterPath = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${runId}-roster.json`);
 const sender = {
   from: Type.String({ description: "Canonical role-persona sender handle, without @" }),
   signature: Type.String({ description: "Completed persona signature" }),
@@ -38,7 +39,7 @@ const kickoffMember = Type.Object({
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
 const commentResult = (comment, extra = {}) => result({ commentId: comment.id, commentUrl: comment.url, ...extra });
-const load = (ctx, runId) => readRoster(rosterPath(ctx.cwd, runId));
+const load = (ctx, runId) => readRoster(rosterPath(crewRoot(ctx.cwd), runId));
 const signed = (roster, input, body) => signedBody(roster, input.from, body, input.signature);
 export function kickoffPlan(roster, crew) {
   const members = new Set((roster.members || []).map((member) => member.name));
@@ -75,7 +76,7 @@ export function registerCommunicationTools(pi) {
       ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
-      const path = rosterPath(ctx.cwd, input.runId);
+      const path = rosterPath(crewRoot(ctx.cwd), input.runId);
       return withFileMutationQueue(path, async () => {
         let roster = readRoster(path);
         if (roster.status !== "started") throw new Error(`Crew ${input.runId} is not active`);
@@ -88,7 +89,7 @@ export function registerCommunicationTools(pi) {
         roster = { ...roster, kickoffIntent: intent };
         writeRoster(path, roster);
         const body = signed(roster, input, renderKickoff(roster, input));
-        const discussion = createKickoff(roster, input.title, body, input.category);
+        const discussion = createKickoff(roster, input.title, body, "General");
         roster = {
           ...readRoster(path),
           discussionNumber: discussion.number,
@@ -219,7 +220,7 @@ export function registerCommunicationTools(pi) {
       ...sender,
     }),
     async execute(_id, input, _signal, _update, ctx) {
-      const path = rosterPath(ctx.cwd, input.runId);
+      const path = rosterPath(crewRoot(ctx.cwd), input.runId);
       return withFileMutationQueue(path, async () => {
         let roster = readRoster(path);
         if (roster.lead?.name !== input.from) throw new Error("Only the Crew Lead may close the Discussion.");

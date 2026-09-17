@@ -8,8 +8,9 @@ import {
   toolResultTokens,
   toolWindowTotals,
 } from "./observability-ledger.mjs";
+import { crewRoot } from "./runtime-root.mjs";
 
-const SUMMARY_TOOLS = new Set(["read", "bash", "fabric_exec"]);
+const SUMMARY_TOOLS = new Set(["read", "bash"]);
 const bytes = (value) => Buffer.byteLength(typeof value === "string" ? value : JSON.stringify(value ?? null));
 const readJson = (path) => {
   try {
@@ -21,7 +22,7 @@ const readJson = (path) => {
 
 function crewActor(cwd, configDir, actorId) {
   if (!actorId) return null;
-  const root = join(cwd, configDir, "fabric", "crew-launch");
+  const root = join(cwd, configDir, "runtime", "crew-launch");
   if (!existsSync(root)) return null;
   for (const file of readdirSync(root).filter((name) => name.endsWith("-roster.json"))) {
     const roster = readJson(join(root, file));
@@ -32,12 +33,12 @@ function crewActor(cwd, configDir, actorId) {
   return null;
 }
 
-export function crewIdentity(cwd, configDir, actorId = process.env.PI_FABRIC_ACTOR_ID) {
+export function crewIdentity(cwd, configDir, actorId = process.env.PI_SDK_ACTOR_ID) {
   const found = crewActor(cwd, configDir, actorId);
   return found && { runId: found.roster.runId, actorId, rolePersona: found.actor.name, rosterFile: found.file };
 }
 
-export function crewResultSummaryLimit(cwd, configDir, actorId = process.env.PI_FABRIC_ACTOR_ID) {
+export function crewResultSummaryLimit(cwd, configDir, actorId = process.env.PI_SDK_ACTOR_ID) {
   const limit = crewActor(cwd, configDir, actorId)?.roster?.resultSummaryMaxBytes;
   return Number.isInteger(limit) && limit > 0 ? limit : null;
 }
@@ -79,13 +80,13 @@ export function registerCrewObservability(pi, configDir) {
   const contextByActor = new Map();
   const toolWindowByActor = new Map();
   const pendingToolCalls = new Map();
-  const identity = (ctx) => crewIdentity(ctx.cwd, configDir);
+  const identity = (ctx) => crewIdentity(crewRoot(ctx.cwd), configDir);
   const actorKey = (actor) => `${actor.runId}:${actor.actorId}`;
   const callKey = (actor, callId) => `${actorKey(actor)}:${callId}`;
   const write = (ctx, event) => {
     const actor = identity(ctx);
     if (!actor) return;
-    const dir = join(ctx.cwd, configDir, "fabric", "crew-observability");
+    const dir = join(crewRoot(ctx.cwd), configDir, "runtime", "crew-observability");
     mkdirSync(dir, { recursive: true });
     appendFileSync(
       join(dir, `${actor.runId}.jsonl`),
@@ -104,7 +105,7 @@ export function registerCrewObservability(pi, configDir) {
   pi.on("agent_start", (_event, ctx) => write(ctx, { type: "activation_start", staticContext: staticContext(ctx) }));
   pi.on("agent_end", (_event, ctx) => write(ctx, { type: "activation_end" }));
   pi.on("tool_result", (event, ctx) => {
-    const limit = crewResultSummaryLimit(ctx.cwd, configDir);
+    const limit = crewResultSummaryLimit(crewRoot(ctx.cwd), configDir);
     return limit && summarizeCrewToolResult(event, limit);
   });
   pi.on("tool_call", (event, ctx) => {

@@ -14,7 +14,7 @@ import {
 
 test("Crew artifact identity comes from the durable roster, not prompt content", () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-observability-"));
-  const root = join(cwd, ".pi", "fabric", "crew-launch");
+  const root = join(cwd, ".pi", "runtime", "crew-launch");
   mkdirSync(root, { recursive: true });
   writeFileSync(
     join(root, "run-roster.json"),

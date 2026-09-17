@@ -32,7 +32,7 @@ for (const [name, automaton] of Object.entries(catalog.automata)) {
 }
 export const AUTOMATA = Object.freeze(catalog.automata);
 export const NAMES = Object.freeze(Object.keys(AUTOMATA));
-export const BASE_GITHUB_TOOLS = Object.freeze(["github_discussion_view"]);
+export const BASE_GITHUB_TOOLS = Object.freeze([]);
 export function getAutomaton(name) {
   const value = AUTOMATA[name];
   if (!value) throw new Error(`Unknown automaton "${name}". Available: ${NAMES.join(", ")}`);

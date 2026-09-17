@@ -11,12 +11,13 @@ import {
   unregisterMembers,
   writeRoster,
 } from "./comm.mjs";
-const pathFor = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "fabric", "crew-launch", `${runId}-roster.json`);
+import { crewRoot } from "./runtime-root.mjs";
+const pathFor = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${runId}-roster.json`);
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
 const member = Type.Object({ name: Type.String(), actorId: Type.String(), role: Type.String() });
 const removal = Type.Object({ actorId: Type.String(), removed: Type.Literal(true) });
 function mutate(input, ctx, change) {
-  const path = pathFor(ctx.cwd, input.runId);
+  const path = pathFor(crewRoot(ctx.cwd), input.runId);
   return withFileMutationQueue(path, async () => {
     const roster = change(readRoster(path));
     writeRoster(path, roster);

@@ -27,6 +27,7 @@ export async function connectComm({ url, actorId }) {
   });
   return {
     emit: (params) => request("comm.emit", params),
+    broadcast: (params) => request("comm.broadcast", params),
     registerActor: (id) => request("comm.register_actor", { actorId: id }),
     claim: (actor) => request("comm.claim", { actorId: actor }),
     acknowledge: (id) => request("comm.ack", { messageId: id }),

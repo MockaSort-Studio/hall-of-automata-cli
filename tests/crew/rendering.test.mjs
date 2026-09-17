@@ -18,11 +18,11 @@ test("Crew terminal result uses Pi TUI utilities and structured Fabric data", ()
 test("start_crew provides custom call and result renderers", () => {
   assert.match(extension, /renderCall\(args, theme\)/);
   assert.match(extension, /renderResult\(result, \{ isPartial \}, theme\)/);
-  assert.match(extension, /✓ Crew launching/);
+  assert.match(extension, /✓ SDK Crew started/);
   assert.match(extension, /monitor\.activate\(ctx, prepared\.rosterFile\)/);
   assert.match(extension, /launchRequired: false/);
-  assert.match(extension, /sendUserMessage/);
-  assert.match(extension, /deliverAs.*followUp/);
+  assert.match(extension, /launchPreparedCrew/);
+  assert.doesNotMatch(extension, /sendUserMessage/);
   assert.ok(!extension.includes("Run this using fabric_exec"));
   assert.ok(!extension.includes("registerCommand"));
 });
