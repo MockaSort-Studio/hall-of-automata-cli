@@ -1,0 +1,10 @@
+{
+  "lead": { "prompt": "lead.md", "tools": [], "thinking": "medium" },
+  "architect": { "prompt": "architect.md", "tools": ["read", "grep", "find", "ls"], "thinking": "high" },
+  "advisor": { "prompt": "advisor.md", "tools": ["read", "grep", "find", "ls"], "thinking": "low" },
+  "developer": {
+    "prompt": "developer.md",
+    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
+    "thinking": "medium"
+  }
+}

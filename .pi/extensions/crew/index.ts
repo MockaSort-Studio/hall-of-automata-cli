@@ -1,0 +1,85 @@
+import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+import { Type } from "typebox";
+import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
+import { registerCrewMonitor } from "./lib/monitor.ts";
+import { registerCrewMessageRenderer } from "./lib/rendering.ts";
+import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { registerCrewObservability } from "./lib/observability.mjs";
+
+const output = (value, text = JSON.stringify(value)) => ({
+  content: [{ type: "text", text }],
+  details: value,
+});
+
+const initialMember = Type.Object({ name: Type.String(), role: Type.String() });
+const parameters = Type.Object({
+  task: Type.String(),
+  members: Type.Array(initialMember, { minItems: 1 }),
+  outputPath: Type.Optional(Type.String()),
+  model: Type.Optional(Type.String()),
+  thinking: Type.Optional(Type.String()),
+  completionMode: Type.Optional(Type.Union([Type.Literal("unattended"), Type.Literal("human-gated")])),
+  monitorIntervalMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 604800000 })),
+  resultSummaryMaxBytes: Type.Optional(Type.Integer({ minimum: 512, maximum: 50000 })),
+});
+
+export default function crewExtension(pi: ExtensionAPI) {
+  registerCrewObservability(pi, CONFIG_DIR_NAME);
+  registerCrewMessageRenderer(pi);
+  const monitor = registerCrewMonitor(pi);
+
+  pi.registerTool({
+    name: "build_crew_member",
+    label: "Crew: build member",
+    description: "Assemble a Hall soul and role with a bounded assignment.",
+    parameters: Type.Object({
+      name: Type.String(),
+      role: Type.String(),
+      task: Type.String(),
+      model: Type.Optional(Type.String()),
+      thinking: Type.Optional(Type.String()),
+    }),
+    async execute(_id, input) {
+      const actor = assemble(input.name, input.role, input.task, { ...input, runtimeTools: pi.getAllTools() });
+      validateAvailableRoleTools(actor.tools, input.role);
+      return output(actor);
+    },
+  });
+
+  pi.registerTool({
+    name: "start_crew",
+    label: "Crew: start",
+    description: "Launch a Crew on the SDK runtime with Comm and Lifecycle processes.",
+    parameters,
+    renderCall(args, theme) {
+      const task = args.task.length > 72 ? `${args.task.slice(0, 69)}...` : args.task;
+      return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", task), 0, 0);
+    },
+    renderResult(result, { isPartial }, theme) {
+      if (isPartial) return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
+      const details = result.details as { runId?: string; status?: string } | undefined;
+      if (!details?.runId) return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
+      return new Text(
+        theme.fg("success", theme.bold("✓ SDK Crew started")) + theme.fg("muted", `  ${details.runId.slice(0, 8)}`),
+        0,
+        0,
+      );
+    },
+    async execute(_id, input, signal, _update, ctx) {
+      const THINKING_UNSUPPORTED = ["mistral-small", "mistral-medium", "mistral-tiny"];
+      if (input.model) {
+        const m = input.model.toLowerCase();
+        if (THINKING_UNSUPPORTED.some((blocked) => m.includes(blocked))) {
+          throw new Error(
+            `Model "${input.model}" does not support thinking mode, which is required for the Crew Lead role.`,
+          );
+        }
+      }
+      const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
+      monitor.activate(ctx, prepared.rosterFile);
+      const launched = await launchPreparedCrew(ctx.cwd, prepared);
+      return output({ ...prepared, ...launched, launchRequired: false }, queuedMessage(prepared));
+    },
+  });
+}

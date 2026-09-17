@@ -82,7 +82,8 @@ def _seed_hall_state(home):
 
     slug_path = os.path.join(hall, ".repo-slug")
     if not os.path.exists(slug_path):
-        open(slug_path, "w").write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
+        with open(slug_path, "w") as f:
+            f.write(f"{ARENA_OWNER}/{ARENA_REPO}\n")
 
     invoker_dir = os.path.join(hall, ARENA_OWNER)
     os.makedirs(invoker_dir, exist_ok=True)
