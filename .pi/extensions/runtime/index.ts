@@ -1,10 +1,19 @@
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { Type } from "typebox";
+import { applyWorkerStatusToRosterFiles } from "../crew/lib/roster-lifecycle.mjs";
 import { terminalizeRostersForRemovedActors } from "../crew/lib/roster-terminal.mjs";
 import { runtimeFor } from "./lib/shared-runtime.mjs";
 
 const crewLaunchDir = (cwd: string) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch");
+
+// A worker already reached a natural terminal status (completed/failed)
+// before removal reaches it; LifecycleController.remove() always finalizes
+// to "removed" regardless, so the pre-removal snapshot is the only place
+// that natural outcome is still observable. Only "removed" reflects a
+// genuinely intentional stop.
+const workerStatusForRoster = (before: any, removalStatus: string) =>
+  before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus;
 
 export default function runtimeExtension(pi: any): void {
   const runtime = runtimeFor(process.cwd());
@@ -40,10 +49,20 @@ export default function runtimeExtension(pi: any): void {
     description: "Remove every SDK worker and worktree owned by this Runtime session.",
     parameters: Type.Object({}),
     async execute() {
+      const beforeList = await runtime.list();
       const result = await runtime.stop();
       const removedIds = result.removals.filter((item: any) => item.removed && item.id).map((item: any) => item.id);
+      const rosterLifecycleUpdates = removedIds.flatMap((id: string) => {
+        const before = beforeList.find((agent: any) => agent.id === id);
+        const removal = result.removals.find((item: any) => item.id === id);
+        return applyWorkerStatusToRosterFiles(
+          crewLaunchDir(process.cwd()),
+          id,
+          workerStatusForRoster(before, removal?.status ?? "removed"),
+        );
+      });
       const terminalizedRosters = terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), removedIds);
-      const details = { ...result, terminalizedRosters };
+      const details = { ...result, terminalizedRosters, rosterLifecycleUpdates };
       return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
@@ -135,11 +154,19 @@ export default function runtimeExtension(pi: any): void {
     description: "Stop an SDK agent and remove its worktree.",
     parameters: Type.Object({ id: Type.String() }),
     async execute(_id, input) {
+      const before = await runtime.inspect(input.id);
       const result = await runtime.remove(input.id);
+      const rosterLifecycleUpdates = result.removed
+        ? applyWorkerStatusToRosterFiles(
+            crewLaunchDir(process.cwd()),
+            input.id,
+            workerStatusForRoster(before, result.status ?? "removed"),
+          )
+        : [];
       const terminalizedRosters = result.removed
         ? terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), [input.id])
         : [];
-      const details = { ...result, terminalizedRosters };
+      const details = { ...result, terminalizedRosters, rosterLifecycleUpdates };
       return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
