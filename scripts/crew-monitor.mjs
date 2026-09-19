@@ -30,8 +30,9 @@ if (!file) {
   console.log(`Crew ${roster.runId} · ${roster.status}`);
   console.log("automaton                         turns  tools  errors  output   cache read  max cache");
   for (const member of roster.members ?? []) {
-    const path = join(root, ".pi", "runtime", "runs", member.actorId, "events.jsonl");
-    const metric = summarizeWorkerEvents(events(path));
+    const live = join(root, ".pi", "runtime", "runs", member.actorId, "events.jsonl");
+    const preserved = join(root, ".pi", "runtime", "recovered", member.actorId, "events.jsonl");
+    const metric = summarizeWorkerEvents(events(existsSync(live) ? live : preserved));
     console.log(
       `${member.name.padEnd(33)} ${String(metric.turns).padStart(5)} ${String(metric.toolCalls).padStart(6)} ${String(metric.toolErrors).padStart(7)} ${String(metric.providerTraffic.generatedOutput).padStart(7)} ${String(metric.providerTraffic.cacheRead).padStart(12)} ${String(metric.providerTraffic.maxCacheReadPerTurn).padStart(8)}`,
     );
