@@ -35,7 +35,7 @@ const makeFakePi = () => {
     sendUserMessage: async (message) => deliveries.push(message),
   };
 };
-async function setup(t) {
+async function setup(t, commTools) {
   const comm = new CommController();
   comm.registerActor("lead");
   comm.registerActor("ns-worker");
@@ -44,6 +44,7 @@ async function setup(t) {
     comm: { url: `ws://127.0.0.1:${port}`, actorId: "ns-worker", namespace: "ns" },
     initialTurn: "resident",
     task: "",
+    commTools,
   });
   const pi = makeFakePi();
   extension(pi);
@@ -54,6 +55,14 @@ async function setup(t) {
   });
   return { comm, pi };
 }
+test("comm_notify to main reaches main directly, unprefixed", async (t) => {
+  const { comm, pi } = await setup(t, ["comm_notify", "comm_request", "comm_reply"]);
+  const notify = await pi.tools.get("comm_notify").execute("call", { to: "main", payload: { ok: true } });
+  assert.doesNotMatch(JSON.stringify(notify), /Unknown recipient/);
+  const delivered = comm.claim("main");
+  assert.equal(delivered?.to, "main");
+  assert.equal(delivered?.from, "ns-worker");
+});
 test("acknowledges only after the Pi turn settles", async (t) => {
   const { comm, pi } = await setup(t);
   comm.emit("lead", "ns-worker", { ask: "respond" }, true);
@@ -79,4 +88,15 @@ test("keeps reply context for the current delivery", async (t) => {
   const reply = await pi.tools.get("comm_reply").execute("call", { payload: { marker: "second" } });
   assert.doesNotMatch(JSON.stringify(reply), /does not require a reply/);
   await pi.handlers.get("agent_settled")();
+});
+test("specialists never receive comm_notify_all or comm_notify_many", async (t) => {
+  const { pi } = await setup(t, ["comm_notify", "comm_request", "comm_reply"]);
+  assert.ok(pi.tools.has("comm_notify"));
+  assert.ok(!pi.tools.has("comm_notify_all"));
+  assert.ok(!pi.tools.has("comm_notify_many"));
+});
+test("only a lead-granted worker receives comm_notify_all", async (t) => {
+  const { pi } = await setup(t, ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"]);
+  assert.ok(pi.tools.has("comm_notify_all"));
+  assert.ok(!pi.tools.has("comm_notify_many"));
 });

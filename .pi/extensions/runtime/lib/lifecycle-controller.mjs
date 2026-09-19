@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
 
 const exec = promisify(execFile);
@@ -27,6 +28,10 @@ const waitForExit = (child, ms) =>
 
 export class LifecycleController {
   #agents = new Map();
+  // Metrics survive remove(): once a worker's events.jsonl and worktree are
+  // deleted, this is the only place its final telemetry, including session
+  // context percent, is still readable from.
+  #retainedMetrics = new Map();
   constructor({ cwd, workerModule }) {
     this.cwd = cwd;
     this.workerModule = workerModule;
@@ -67,6 +72,7 @@ export class LifecycleController {
           model: config.model,
           thinking: config.thinking,
           tools: config.tools,
+          commTools: config.commTools,
           extensionPaths: config.extensionPaths,
           comm: config.comm,
           delivery: config.delivery,
@@ -77,18 +83,24 @@ export class LifecycleController {
           logFile,
         }),
       );
+      // Never grant a worker host-root discovery: it owns only its worktree
+      // under .pi/runtime/runs/<id>/worktree and must not be able to resolve
+      // or mutate the host repo's .pi/runtime state. Strip any ambient
+      // PI_CREW_ROOT explicitly, in case this process itself is a worker
+      // that inherited one, instead of trusting it to be absent.
+      const { PI_CREW_ROOT: _hostCrewRoot, ...hostEnv } = process.env;
       child = (await import("node:child_process")).spawn(process.execPath, [this.workerModule, configFile], {
         cwd: worktree,
         detached: true,
         stdio: "ignore",
-        env: { ...process.env, PI_SDK_ACTOR_ID: id, PI_CREW_ROOT: this.cwd },
+        env: { ...hostEnv, PI_SDK_ACTOR_ID: id },
       });
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);
         child.once("error", reject);
       });
       child.unref();
-      const agent = { id, name: config.name, pid: child.pid, worktree, status: "running" };
+      const agent = { id, name: config.name, pid: child.pid, worktree, status: "running", model: config.model };
       Object.defineProperty(agent, "child", { value: child });
       this.#agents.set(id, agent);
       child.once("exit", (code, signal) => {
@@ -110,11 +122,9 @@ export class LifecycleController {
   async list() {
     return [...this.#agents.values()];
   }
-  async inspect(id) {
-    const agent = this.#agents.get(id);
-    if (!agent) return { id, found: false };
+  async #readEvents(id) {
     const path = join(this.cwd, ".pi", "runtime", "runs", id, "events.jsonl");
-    const events = await readFile(path, "utf8")
+    return readFile(path, "utf8")
       .then((text) =>
         text
           .trim()
@@ -130,7 +140,23 @@ export class LifecycleController {
           .filter(Boolean),
       )
       .catch(() => []);
-    return { ...agent, found: true, events: events.length, metrics: summarizeWorkerEvents(events) };
+  }
+  async #captureMetrics(agent) {
+    const events = await this.#readEvents(agent.id);
+    const metrics = summarizeWorkerEvents(events, { modelWindow: resolveModelWindow(agent.model) });
+    const snapshot = { name: agent.name, model: agent.model, events: events.length, metrics };
+    this.#retainedMetrics.set(agent.id, snapshot);
+    return snapshot;
+  }
+  async inspect(id) {
+    const agent = this.#agents.get(id);
+    if (!agent) {
+      const retained = this.#retainedMetrics.get(id);
+      if (!retained) return { id, found: false };
+      return { id, found: true, retained: true, status: "removed", ...retained };
+    }
+    const snapshot = await this.#captureMetrics(agent);
+    return { ...agent, found: true, ...snapshot };
   }
   async remove(id) {
     const agent = this.#agents.get(id);
@@ -143,6 +169,9 @@ export class LifecycleController {
       try {
         process.kill(-agent.pid, "SIGKILL");
       } catch {}
+    // Snapshot telemetry before the run directory is wiped: this is the last
+    // moment events.jsonl exists to summarize.
+    await this.#captureMetrics(agent);
     await runGit(this.cwd, ["worktree", "remove", "--force", agent.worktree]);
     await rm(join(this.cwd, ".pi", "runtime", "runs", id), { recursive: true, force: true });
     // Terminalize before the record disappears so any observer racing this

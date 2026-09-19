@@ -10,14 +10,7 @@ const boundedError = (value) => boundedText(value, 4000);
 const log = (event) =>
   appendFileSync(config.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
 const tools = [
-  ...new Set([
-    ...(config.tools ?? []),
-    "comm_notify",
-    "comm_notify_many",
-    "comm_notify_all",
-    "comm_request",
-    "comm_reply",
-  ]),
+  ...new Set([...(config.tools ?? []), ...(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"])]),
 ];
 const args = [
   "--mode",

@@ -3,30 +3,35 @@
     "prompt": "lead.md",
     "tools": [],
     "thinking": "medium",
+    "commTools": ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"],
     "discipline": "Integrate work, delegate through ordinary Crew Comm, and report acceptance."
   },
   "architect": {
     "prompt": "architect.md",
     "tools": ["read", "grep", "find", "ls"],
     "thinking": "high",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Define bounded interfaces, constraints, and consequential tradeoffs."
   },
   "advisor": {
     "prompt": "advisor.md",
     "tools": ["read", "grep", "find", "ls"],
     "thinking": "low",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Verify assumptions and report evidence, uncertainty, and risks."
   },
   "developer": {
     "prompt": "developer.md",
     "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
     "thinking": "medium",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Implement bounded changes with focused tests and evidence."
   },
   "integrator": {
     "prompt": "integrator.md",
     "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
     "thinking": "low",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Mechanically reconcile completed bounded changes, run the acceptance suite, and report a candidate integration."
   }
 }

@@ -40,6 +40,8 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     assert.equal(selected.members[0].handle, "lead-old-major-00");
     assert.match(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
+    assert.ok(config.agents[0].commTools.includes("comm_notify_all"));
+    assert.ok(!config.agents[1].commTools.includes("comm_notify_all"));
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

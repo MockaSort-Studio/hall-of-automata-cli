@@ -11,8 +11,9 @@ import {
   unregisterMembers,
   writeRoster,
 } from "./comm.mjs";
-import { crewRoot } from "./runtime-root.mjs";
-const pathFor = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${runId}-roster.json`);
+import { assertOwnedRunId, crewRoot } from "./runtime-root.mjs";
+const pathFor = (cwd, runId) =>
+  join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${assertOwnedRunId(runId)}-roster.json`);
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
 const member = Type.Object({ name: Type.String(), actorId: Type.String(), role: Type.String() });
 const removal = Type.Object({ actorId: Type.String(), removed: Type.Literal(true) });

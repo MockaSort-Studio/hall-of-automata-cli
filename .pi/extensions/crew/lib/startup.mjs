@@ -56,6 +56,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     crewLead: leads[0]?.handle,
     task: workerTask(actor, runId, topic, input),
     tools: actor.tools,
+    commTools: actor.commTools,
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
     resident: true,

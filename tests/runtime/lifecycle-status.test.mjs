@@ -56,3 +56,28 @@ test("removing an already-completed worker still terminalizes cleanly", async ()
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("inspecting a removed worker still returns its session context metrics", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  try {
+    const agent = await controller.spawn({
+      actorId: "turned",
+      name: "turned",
+      task: "TURN",
+      model: "claude-sonnet-4-6",
+    });
+    await once(agent.child, "exit");
+    const before = await controller.inspect(agent.id);
+    assert.equal(before.metrics.turns, 1);
+    assert.equal(before.metrics.sessionContext.modelWindow, 200_000);
+    assert.equal(before.metrics.sessionContext.lastPercent, 0.1);
+    await controller.remove(agent.id);
+    const after = await controller.inspect(agent.id);
+    assert.equal(after.found, true);
+    assert.equal(after.retained, true);
+    assert.deepEqual(after.metrics, before.metrics);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

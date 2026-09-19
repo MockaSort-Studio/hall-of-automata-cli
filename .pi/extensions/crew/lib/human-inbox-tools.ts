@@ -3,10 +3,11 @@ import { join } from "node:path";
 import { Type } from "typebox";
 import { listComments } from "../../github/lib/discussions/index.ts";
 import { assertLead, readRoster, writeRoster } from "./comm.mjs";
-import { crewRoot } from "./runtime-root.mjs";
+import { assertOwnedRunId, crewRoot } from "./runtime-root.mjs";
 import { acknowledgeHumanRequests, queueHumanRequests } from "./human-inbox-state.mjs";
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
-const rosterPath = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${runId}-roster.json`);
+const rosterPath = (cwd, runId) =>
+  join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${assertOwnedRunId(runId)}-roster.json`);
 export function registerHumanInboxTools(pi) {
   pi.registerTool({
     name: "crew_poll_human_requests",
@@ -36,7 +37,7 @@ export function registerHumanInboxTools(pi) {
       commentIds: Type.Array(Type.String(), { minItems: 1 }),
     }),
     async execute(_id, input, _signal, _update, ctx) {
-      const path = rosterPath(ctx.cwd, input.runId);
+      const path = rosterPath(crewRoot(ctx.cwd), input.runId);
       return withFileMutationQueue(path, async () => {
         const roster = readRoster(path);
         assertLead(roster, input.from);

@@ -38,6 +38,7 @@ export function assemble(name, role, task, override = {}) {
     name: `${role}-${name}`,
     instructions: `${body.instructions}\n\n## ARMORY\n${extensions.length ? `Resolved extension tools: ${extensions.map((extension) => `${extension.name} (${extension.tools.join(", ")})`).join("; ")}.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}`,
     tools,
+    commTools: body.commTools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),
   };

@@ -12,6 +12,12 @@ for (const [name, role] of Object.entries(catalog)) {
   )
     throw new Error(`Invalid role tools: ${name}`);
   if (!THINKING.has(role.thinking)) throw new Error(`Invalid role thinking: ${name}`);
+  if (
+    !Array.isArray(role.commTools) ||
+    new Set(role.commTools).size !== role.commTools.length ||
+    !role.commTools.every((tool) => ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"].includes(tool))
+  )
+    throw new Error(`Invalid role Comm tools: ${name}`);
 }
 export const ROLE_NAMES = Object.freeze(Object.keys(catalog));
 export function validateRoleTools(availableTools, roleName) {
@@ -29,6 +35,7 @@ export function roleModule(ctx) {
   return {
     instructions: readFileSync(new URL(`prompts/roles/${role.prompt}`, ROOT), "utf8").trim(),
     tools: role.tools,
+    commTools: role.commTools,
     thinking: ctx.override?.thinking ?? role.thinking,
     ...(ctx.override?.model ? { model: ctx.override.model } : {}),
   };

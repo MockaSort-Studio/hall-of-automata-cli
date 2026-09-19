@@ -42,3 +42,14 @@ test("developer has bounded implementation authority", () => {
   assert.match(result.instructions, /Plan before editing/);
 });
 test("unknown roles fail", () => assert.throws(() => roleModule({ role: "wizard", override: {} }), /not defined/));
+
+test("only the lead role is granted the party-wide broadcast tool", () => {
+  for (const role of ["architect", "advisor", "developer", "integrator"]) {
+    const result = roleModule({ role, override: {} });
+    assert.ok(!result.commTools.includes("comm_notify_all"), `${role} must not have comm_notify_all`);
+    assert.ok(!result.commTools.includes("comm_notify_many"), `${role} must not have comm_notify_many`);
+    assert.deepEqual(result.commTools, ["comm_notify", "comm_request", "comm_reply"]);
+  }
+  const lead = roleModule({ role: "lead", override: {} });
+  assert.ok(lead.commTools.includes("comm_notify_all"));
+});

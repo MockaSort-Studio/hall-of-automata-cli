@@ -14,7 +14,7 @@ import {
   signedBody,
   writeRoster,
 } from "./comm.mjs";
-import { crewRoot } from "./runtime-root.mjs";
+import { assertOwnedRunId, crewRoot } from "./runtime-root.mjs";
 import {
   renderBroadcast,
   renderDirected,
@@ -26,7 +26,8 @@ import {
 } from "./discussion-templates.mjs";
 
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], details: value });
-const rosterPath = (cwd, runId) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${runId}-roster.json`);
+const rosterPath = (cwd, runId) =>
+  join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch", `${assertOwnedRunId(runId)}-roster.json`);
 const sender = {
   from: Type.String({ description: "Canonical role-persona sender handle, without @" }),
   signature: Type.String({ description: "Completed persona signature" }),
