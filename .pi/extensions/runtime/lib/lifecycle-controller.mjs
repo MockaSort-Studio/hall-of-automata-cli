@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { summarizeWorkerEvents } from "./worker-metrics.mjs";
 
 const exec = promisify(execFile);
 const GIT_TIMEOUT = 30_000;
@@ -129,7 +130,7 @@ export class LifecycleController {
           .filter(Boolean),
       )
       .catch(() => []);
-    return { ...agent, found: true, events: events.length };
+    return { ...agent, found: true, events: events.length, metrics: summarizeWorkerEvents(events) };
   }
   async remove(id) {
     const agent = this.#agents.get(id);
