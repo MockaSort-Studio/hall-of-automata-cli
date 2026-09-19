@@ -9,6 +9,7 @@ test("roles provide bounded native capabilities", () => {
     ["architect", "read", "high"],
     ["advisor", "read", "low"],
     ["developer", "edit", "medium"],
+    ["integrator", "edit", "low"],
   ]) {
     const result = roleModule({ role, override: {} });
     assert.match(result.instructions, /RESPONSIBILITIES/);
@@ -27,6 +28,12 @@ test("base Crew policy is Comm-only", () => {
   assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
   assert.deepEqual(lead.tools, []);
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_") || tool.startsWith("crew_")));
+});
+
+test("integrator has bounded reconciliation authority", () => {
+  const result = roleModule({ role: "integrator", override: {} });
+  for (const tool of ["read", "edit", "write", "bash"]) assert.ok(result.tools.includes(tool));
+  assert.match(result.instructions, /not a Lead/);
 });
 
 test("developer has bounded implementation authority", () => {

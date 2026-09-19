@@ -22,5 +22,11 @@
     "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
     "thinking": "medium",
     "discipline": "Implement bounded changes with focused tests and evidence."
+  },
+  "integrator": {
+    "prompt": "integrator.md",
+    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
+    "thinking": "low",
+    "discipline": "Mechanically reconcile completed bounded changes, run the acceptance suite, and report a candidate integration."
   }
 }
