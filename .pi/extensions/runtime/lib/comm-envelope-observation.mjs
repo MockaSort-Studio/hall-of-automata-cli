@@ -1,5 +1,16 @@
 const humanMessage = (payload) => {
-  if (typeof payload === "string") return payload.trim();
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        const decoded = JSON.parse(trimmed);
+        if (decoded && typeof decoded === "object") return humanMessage(decoded);
+      } catch {
+        // not JSON; fall through to the raw string
+      }
+    }
+    return trimmed;
+  }
   if (!payload || typeof payload !== "object") return "";
   for (const field of ["message", "summary", "report", "content", "finding", "findings", "evidence"]) {
     const value = payload[field];

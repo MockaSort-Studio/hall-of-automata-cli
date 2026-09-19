@@ -1,5 +1,10 @@
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
 import { Type } from "typebox";
+import { terminalizeRostersForRemovedActors } from "../crew/lib/roster-terminal.mjs";
 import { runtimeFor } from "./lib/shared-runtime.mjs";
+
+const crewLaunchDir = (cwd: string) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch");
 
 export default function runtimeExtension(pi: any): void {
   const runtime = runtimeFor(process.cwd());
@@ -36,7 +41,10 @@ export default function runtimeExtension(pi: any): void {
     parameters: Type.Object({}),
     async execute() {
       const result = await runtime.stop();
-      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+      const removedIds = result.removals.filter((item: any) => item.removed && item.id).map((item: any) => item.id);
+      const terminalizedRosters = terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), removedIds);
+      const details = { ...result, terminalizedRosters };
+      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
   pi.registerTool({
@@ -128,7 +136,11 @@ export default function runtimeExtension(pi: any): void {
     parameters: Type.Object({ id: Type.String() }),
     async execute(_id, input) {
       const result = await runtime.remove(input.id);
-      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+      const terminalizedRosters = result.removed
+        ? terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), [input.id])
+        : [];
+      const details = { ...result, terminalizedRosters };
+      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
 }

@@ -11,7 +11,12 @@ const output = (value, text = JSON.stringify(value)) => ({
   details: value,
 });
 
-const initialMember = Type.Object({ name: Type.String(), role: Type.String() });
+const initialMember = Type.Object({
+  name: Type.String(),
+  role: Type.String(),
+  task: Type.Optional(Type.String()),
+  dependsOn: Type.Optional(Type.Array(Type.String())),
+});
 const parameters = Type.Object({
   task: Type.String(),
   members: Type.Array(initialMember, { minItems: 1 }),

@@ -41,6 +41,13 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   });
   const leads = actors.filter((actor) => actor.role === "lead");
   if (leads.length > 1) throw new Error("A selected Crew may contain at most one lead.");
+  const handles = new Set(actors.map((actor) => actor.handle));
+  input.members.forEach((member, index) => {
+    const dependsOn = member.dependsOn || [];
+    const own = actors[index].handle;
+    if (dependsOn.some((name) => !handles.has(name) || name === own))
+      throw new Error(`Crew member ${own} has an invalid dependsOn reference.`);
+  });
   const agents = actors.map((actor) => ({
     name: actor.handle,
     actorId: `${namespace}-${actor.handle}`,
@@ -60,13 +67,15 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const selected = {
     runId,
     topic,
-    members: actors.map(({ name, role, handle, tools, model, thinking }) => ({
-      name,
-      role,
-      handle,
-      tools,
-      model,
-      thinking,
+    members: actors.map((actor, index) => ({
+      name: actor.name,
+      role: actor.role,
+      handle: actor.handle,
+      tools: actor.tools,
+      model: actor.model,
+      thinking: actor.thinking,
+      task: String(input.members[index].task || "").trim(),
+      dependsOn: input.members[index].dependsOn || [],
     })),
   };
   const kickoff = leads.length ? undefined : { kind: "kickoff", task: input.task, coordinator: "main" };

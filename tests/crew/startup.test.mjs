@@ -44,6 +44,49 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+test("prepareCrew preserves validated per-member task and dependsOn in the selected-crew manifest", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      {
+        task: "Measure safely",
+        members: [
+          { name: "old-major", role: "lead", task: "Coordinate the run" },
+          { name: "snowball", role: "developer", task: "Build the windmill", dependsOn: ["lead-old-major-00"] },
+        ],
+      },
+      { cwd },
+      ".pi",
+    );
+    const selected = JSON.parse(readFileSync(join(cwd, prepared.selectedCrewFile), "utf8"));
+    assert.equal(selected.members[0].task, "Coordinate the run");
+    assert.deepEqual(selected.members[0].dependsOn, []);
+    assert.equal(selected.members[1].task, "Build the windmill");
+    assert.deepEqual(selected.members[1].dependsOn, ["lead-old-major-00"]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+test("prepareCrew rejects a dependsOn reference to an unknown handle", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        {
+          task: "Measure safely",
+          members: [{ name: "snowball", role: "developer", dependsOn: ["developer-nowhere-00"] }],
+        },
+        { cwd },
+        ".pi",
+      ),
+      /dependsOn/,
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
 test("prepareCrew injects Main kickoff when no lead is selected", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
