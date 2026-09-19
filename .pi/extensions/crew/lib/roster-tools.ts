@@ -54,7 +54,7 @@ export function registerRosterTools(pi) {
   pi.registerTool({
     name: "crew_reconcile_absent",
     label: "Crew: reconcile absent actors",
-    description: "Lead-only audited removal for rostered actors confirmed absent from Fabric.",
+    description: "Lead-only audited removal for rostered actors confirmed absent from Runtime.",
     parameters: Type.Object({
       runId: Type.String(),
       from: Type.String(),

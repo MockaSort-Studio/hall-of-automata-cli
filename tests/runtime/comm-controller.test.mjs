@@ -63,6 +63,58 @@ test("creates a flat v1 request envelope", () => {
   const { id } = comm.emit("from", "to", { marker: "x" }, true);
   assert.equal(comm.claim("to").id, id);
 });
+test("publishes envelopes and injects human requests to the selected actor", async () => {
+  const comm = new CommController();
+  comm.registerActor("lead");
+  const observed = [];
+  const unsubscribe = comm.subscribe((message) => observed.push(message));
+  const accepted = comm.injectHuman({ to: "lead", body: "Please verify this.", author: "human", externalId: "c1" });
+  await new Promise((resolve) => setImmediate(resolve));
+  const message = comm.claim("lead");
+  assert.equal(observed[0].id, accepted.id);
+  assert.equal(message.kind, "request");
+  assert.equal(message.from, "human:github-discussion");
+  assert.deepEqual(message.payload, {
+    message: "Please verify this.",
+    author: "human",
+    externalId: "c1",
+  });
+  assert.deepEqual(observed[0], {
+    id: accepted.id,
+    kind: "request",
+    from: "human:github-discussion",
+    to: "lead",
+    message: "Please verify this.",
+    replyTo: undefined,
+  });
+  unsubscribe();
+});
+test("projects a human-readable structured payload for adapters", () => {
+  const comm = new CommController();
+  comm.registerActor("to");
+  const observed = [];
+  const unsubscribe = comm.subscribe((message) => observed.push(message));
+  comm.emit("from", "to", { kind: "complete", summary: "Validated the dependency ledger." });
+  assert.equal(observed[0].message, "Validated the dependency ledger.");
+  unsubscribe();
+});
+
+test("gives internal observers the raw envelope, not the adapter projection", () => {
+  const comm = new CommController();
+  comm.registerActor("to");
+  const observed = [];
+  const unsubscribe = comm.observeRaw((envelope) => observed.push(envelope));
+  const { id } = comm.emit("lead", "to", { kind: "kickoff", assignments: [{ to: "to", task: "x", dependsOn: [] }] });
+  assert.equal(observed.length, 1);
+  assert.equal(observed[0].id, id);
+  assert.equal(observed[0].kind, "notify");
+  assert.deepEqual(observed[0].payload, {
+    kind: "kickoff",
+    assignments: [{ to: "to", task: "x", dependsOn: [] }],
+  });
+  unsubscribe();
+});
+
 test("rejects duplicate Crew actor IDs before spawning", async () => {
   const runtime = new Runtime(process.cwd());
   await assert.rejects(

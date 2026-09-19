@@ -28,15 +28,15 @@ export function assemble(name, role, task, override = {}) {
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
-  const extensions = automaton.extensions.length
-    ? resolveArmoryExtensions(automaton.extensions, override.runtimeTools || [])
+  const extensions = automaton.tools.length
+    ? resolveArmoryExtensions(automaton.tools, override.runtimeTools || [])
     : [];
   const tools = [
     ...new Set([...BASE_GITHUB_TOOLS, ...body.tools, ...extensions.flatMap((extension) => extension.tools)]),
   ];
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}\n\n## ARMORY\n${extensions.length ? `Resolved extension tools: ${extensions.map((extension) => `${extension.name} (${extension.tools.join(", ")})`).join("; ")}.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}\n\n## CREW IDENTITY\nYour signed sender name is ${role}-${name}. Use this identity in every Crew communication.`,
+    instructions: `${body.instructions}\n\n## ARMORY\n${extensions.length ? `Resolved extension tools: ${extensions.map((extension) => `${extension.name} (${extension.tools.join(", ")})`).join("; ")}.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}`,
     tools,
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),

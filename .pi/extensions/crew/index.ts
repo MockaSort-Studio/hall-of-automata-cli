@@ -3,7 +3,6 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
 import { registerCrewMonitor } from "./lib/monitor.ts";
-import { registerCrewMessageRenderer } from "./lib/rendering.ts";
 import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { registerCrewObservability } from "./lib/observability.mjs";
 
@@ -22,11 +21,12 @@ const parameters = Type.Object({
   completionMode: Type.Optional(Type.Union([Type.Literal("unattended"), Type.Literal("human-gated")])),
   monitorIntervalMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 604800000 })),
   resultSummaryMaxBytes: Type.Optional(Type.Integer({ minimum: 512, maximum: 50000 })),
+  githubDiscussion: Type.Optional(Type.Boolean()),
+  discussionCategory: Type.Optional(Type.String()),
 });
 
 export default function crewExtension(pi: ExtensionAPI) {
   registerCrewObservability(pi, CONFIG_DIR_NAME);
-  registerCrewMessageRenderer(pi);
   const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({

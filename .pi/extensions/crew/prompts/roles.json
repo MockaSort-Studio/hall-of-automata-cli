@@ -1,10 +1,26 @@
 {
-  "lead": { "prompt": "lead.md", "tools": [], "thinking": "medium" },
-  "architect": { "prompt": "architect.md", "tools": ["read", "grep", "find", "ls"], "thinking": "high" },
-  "advisor": { "prompt": "advisor.md", "tools": ["read", "grep", "find", "ls"], "thinking": "low" },
+  "lead": {
+    "prompt": "lead.md",
+    "tools": [],
+    "thinking": "medium",
+    "discipline": "Integrate work, delegate through ordinary Crew Comm, and report acceptance."
+  },
+  "architect": {
+    "prompt": "architect.md",
+    "tools": ["read", "grep", "find", "ls"],
+    "thinking": "high",
+    "discipline": "Define bounded interfaces, constraints, and consequential tradeoffs."
+  },
+  "advisor": {
+    "prompt": "advisor.md",
+    "tools": ["read", "grep", "find", "ls"],
+    "thinking": "low",
+    "discipline": "Verify assumptions and report evidence, uncertainty, and risks."
+  },
   "developer": {
     "prompt": "developer.md",
     "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
-    "thinking": "medium"
+    "thinking": "medium",
+    "discipline": "Implement bounded changes with focused tests and evidence."
   }
 }

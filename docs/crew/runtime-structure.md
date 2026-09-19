@@ -18,8 +18,8 @@ Pi discovers project-local extensions:
 1. Main calls `start_crew`.
 2. Crew writes a queued config and roster under `.pi/runtime/crew-launch/`.
 3. `start_crew` calls the SDK Runtime directly.
-4. Runtime starts Comm, registers every actor, starts Lifecycle, then launches resident specialists and the one-shot Lead.
-5. Lead creates the canonical GitHub Discussion, wakes specialists through Comm, and owns review and closure.
+4. Runtime starts Comm and its configured adapters, registers every actor, starts Lifecycle, then launches resident specialists and the one-shot Lead.
+5. The GitHub Discussion adapter creates the canonical Discussion and mirrors Comm exchanges; the Lead wakes specialists through Comm and owns review and closure.
 
 There is no generated `fabric_exec` launch code, Fabric actor creation, mesh startup signal, or extension-side supervisor.
 
@@ -30,7 +30,7 @@ There is no generated `fabric_exec` launch code, Fabric actor creation, mesh sta
 - Lifecycle owns worker process handles, worktrees, inspection, and removal.
 - Comm owns per-actor mailbox state, delivery, acknowledgement, requeue, and request/reply correlation.
 
-Assembly combines the checked-in persona, role discipline, safety contract, bounded assignment, and allowed Crew/GitHub tools. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
+Assembly combines only reusable checked-in persona, role discipline, safety contract, and allowed Crew/GitHub tools. Crew startup adds the run-specific assignment, run/topic metadata, and exact ordinal-suffixed Comm sender handle; the reusable persona never claims a runtime identity. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
 
 ## State and communication
 
@@ -57,7 +57,7 @@ Do not reintroduce:
 
 ## SDK stabilization status — 2026-09-17
 
-The base Crew runtime is now SDK + Comm only; GitHub Discussion behavior is deferred to a future adapter.
+The base Crew runtime is SDK + Comm. New Crew runs configure the GitHub Discussion adapter by default; set `githubDiscussion: false` to run without it.
 
 - Actor IDs are run-scoped (`crew-<runId>-...`), preventing concurrent Crew mailbox/worktree collisions.
 - Lead startup and specialist first-delivery behavior use explicit `initialTurn` configuration rather than prompt-text detection.

@@ -12,8 +12,8 @@ function estimateTokens(message) {
   return Math.ceil(chars / 4);
 }
 
-export function toolKind(name) {
-  return name === "fabric_exec" ? "fabric_exec" : "native";
+export function toolKind() {
+  return "native";
 }
 
 export function toolCallTokens(name, input) {
@@ -37,16 +37,12 @@ export function assistantTextTokens(message) {
 export function toolWindowTotals(window) {
   return window.reduce(
     (totals, entry) => {
-      const bucket = totals[entry.kind];
-      bucket.calls += entry.callTokens;
-      bucket.results += entry.resultTokens;
-      bucket.count += 1;
+      totals.calls += entry.callTokens;
+      totals.results += entry.resultTokens;
+      totals.count += 1;
       return totals;
     },
-    {
-      fabric_exec: { calls: 0, results: 0, count: 0 },
-      native: { calls: 0, results: 0, count: 0 },
-    },
+    { calls: 0, results: 0, count: 0 },
   );
 }
 

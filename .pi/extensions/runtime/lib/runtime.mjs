@@ -1,12 +1,24 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join } from "node:path";
 import { resolveBundles } from "./tool-bundles.mjs";
 import { connectComm } from "./comm-client.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
+const stopProcess = async (child) => {
+  if (!child?.pid || child.exitCode !== null) return;
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  try {
+    process.kill(child.pid, "SIGTERM");
+  } catch {}
+  if (await Promise.race([exited.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 5_000))]))
+    return;
+  try {
+    process.kill(child.pid, "SIGKILL");
+  } catch {}
+  await exited;
+};
 
 export class Runtime {
   #comm;
@@ -16,30 +28,13 @@ export class Runtime {
   #lifecycle;
   #lifecycleProcess;
 
-  constructor(cwd, sdkModule = process.env.PI_SDK_MODULE) {
+  constructor(cwd) {
     this.cwd = cwd;
-    this.sdkModule =
-      sdkModule ??
-      pathToFileURL(
-        join(
-          dirname(dirname(process.execPath)),
-          "lib",
-          "node_modules",
-          "@earendil-works",
-          "pi-coding-agent",
-          "dist",
-          "index.js",
-        ),
-      ).href;
   }
 
   async #ensureLifecycle() {
     if (this.#lifecycle) return;
-    const config = JSON.stringify({
-      cwd: this.cwd,
-      sdkModule: this.sdkModule,
-      workerModule: join(import.meta.dirname, "worker.mjs"),
-    });
+    const config = JSON.stringify({ cwd: this.cwd, workerModule: join(import.meta.dirname, "worker.mjs") });
     this.#lifecycleProcess = spawn(process.execPath, [join(import.meta.dirname, "lifecycle-server.mjs"), config], {
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -51,11 +46,15 @@ export class Runtime {
     this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`);
   }
 
-  async startComm(actorIds = []) {
+  async startComm(actorIds = [], adapters = []) {
     if (!this.#comm) {
-      this.#commProcess = spawn(process.execPath, [join(import.meta.dirname, "comm-server.mjs")], {
-        stdio: ["ignore", "pipe", "ignore"],
-      });
+      this.#commProcess = spawn(
+        process.execPath,
+        [join(import.meta.dirname, "comm-server.mjs"), JSON.stringify({ adapters })],
+        {
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      );
       const line = await new Promise((resolve, reject) => {
         this.#commProcess.stdout.once("data", (data) => resolve(String(data)));
         this.#commProcess.once("error", reject);
@@ -74,6 +73,11 @@ export class Runtime {
     return this.#comm.emit({ to, payload });
   }
 
+  async broadcast(namespace, payload) {
+    if (!this.#comm) throw new Error("Communication controller is not running");
+    return this.#comm.broadcast({ namespace, payload });
+  }
+
   async receive(actorId = "main") {
     if (!this.#comm) throw new Error("Communication controller is not running");
     if (actorId === "main" && this.#mainDeliveries.length) {
@@ -89,10 +93,18 @@ export class Runtime {
     return this.#comm.inspect();
   }
 
-  async launchCrew(agents) {
+  async launchCrew(agents, adapters = []) {
     const actorIds = agents.map((agent) => agent.actorId).filter(Boolean);
     if (new Set(actorIds).size !== actorIds.length) throw new Error("Crew agent actor IDs must be unique.");
-    const comm = await this.startComm(actorIds);
+    const members = Object.fromEntries(agents.map((agent) => [agent.name, agent.actorId]));
+    const comm = await this.startComm(
+      actorIds,
+      adapters.map((adapter) => ({
+        ...adapter,
+        recipients: members,
+        lead: agents.find((agent) => agent.role === "lead")?.actorId,
+      })),
+    );
     const launched = [];
     try {
       for (const agent of agents) launched.push(await this.spawn(agent));
@@ -163,16 +175,7 @@ export class Runtime {
     const removals = await Promise.allSettled(agents.map((agent) => this.remove(agent.id)));
     this.#lifecycle?.close();
     this.#comm?.close();
-    if (this.#lifecycleProcess?.pid) {
-      try {
-        process.kill(this.#lifecycleProcess.pid, "SIGTERM");
-      } catch {}
-    }
-    if (this.#commProcess?.pid) {
-      try {
-        process.kill(this.#commProcess.pid, "SIGTERM");
-      } catch {}
-    }
+    await Promise.all([stopProcess(this.#lifecycleProcess), stopProcess(this.#commProcess)]);
     this.#lifecycle = undefined;
     this.#comm = undefined;
     this.#lifecycleProcess = undefined;

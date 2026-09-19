@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
-import { ARMORY } from "./armory.mjs";
 const ROOT = new URL("../", import.meta.url);
-const catalog = JSON.parse(readFileSync(new URL("agents/agents.json", ROOT), "utf8"));
+const catalog = JSON.parse(readFileSync(new URL("agents/roster.json", ROOT), "utf8"));
 if (!catalog.automata || typeof catalog.automata !== "object")
   throw new Error("Roster must contain an automata object");
 const NAME = /^[a-z][a-z0-9-]*$/;
@@ -21,14 +20,11 @@ for (const [name, automaton] of Object.entries(catalog.automata)) {
   )
     throw new Error(`Invalid routing for automaton: ${name}`);
   if (
-    !Array.isArray(automaton.extensions) ||
-    !automaton.extensions.every((value) => typeof value === "string") ||
-    new Set(automaton.extensions).size !== automaton.extensions.length
+    !Array.isArray(automaton.tools) ||
+    !automaton.tools.every((value) => typeof value === "string") ||
+    new Set(automaton.tools).size !== automaton.tools.length
   )
-    throw new Error(`Invalid extensions for automaton: ${name}`);
-  for (const extension of automaton.extensions)
-    if (!Object.hasOwn(ARMORY, extension))
-      throw new Error(`Unknown Armory extension for automaton: ${name}: ${extension}`);
+    throw new Error(`Invalid persona tools for automaton: ${name}`);
 }
 export const AUTOMATA = Object.freeze(catalog.automata);
 export const NAMES = Object.freeze(Object.keys(AUTOMATA));

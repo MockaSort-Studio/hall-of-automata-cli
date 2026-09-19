@@ -19,12 +19,12 @@ export async function connectComm({ url, actorId }) {
       socket.on("message", onMessage);
       socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
     });
-  await request("comm.register", { actorId });
   const listeners = new Set();
   socket.on("message", (raw) => {
     const message = JSON.parse(String(raw));
     if (message.method === "comm.deliver") listeners.forEach((listener) => listener(message.params));
   });
+  await request("comm.register", { actorId });
   return {
     emit: (params) => request("comm.emit", params),
     broadcast: (params) => request("comm.broadcast", params),

@@ -1,6 +1,6 @@
 // Minimal, dependency-free web fetch — Node 24+ native fetch, no MCP server.
 // Part of our own tool taxonomy (web.fetch), not a literal port of Hall's
-// existing mcp__fetch__fetch — same purpose, purpose-built for Fabric actors.
+// existing mcp__fetch__fetch — same purpose, purpose-built for SDK workers.
 
 const MAX_CHARS = 20000;
 

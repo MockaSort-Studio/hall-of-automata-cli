@@ -35,20 +35,19 @@ test("Crew artifact identity comes from the durable roster, not prompt content",
   assert.equal(crewResultSummaryLimit(cwd, ".pi", "member"), 20480);
 });
 
-test("artifact metrics retain sizes and classify tool windows without tool content", () => {
+test("artifact metrics retain sizes without tool content", () => {
   assert.equal(contextDelta(100, 130), 30);
   assert.equal(contextDelta(undefined, 130), null);
   assert.equal(contextSource([]), "none");
-  assert.equal(contextSource(["fabric_exec"]), "fabric_exec");
-  assert.equal(contextSource(["read", "crew_post"]), "native");
-  assert.equal(contextSource(["read", "fabric_exec"]), "mixed");
+  assert.equal(contextSource(["read"]), "native");
+  assert.equal(contextSource(["read", "comm_notify"]), "native");
   assert.equal(
     resultBytes({ content: [{ type: "text", text: "abc" }] }),
     Buffer.byteLength(JSON.stringify({ content: [{ type: "text", text: "abc" }], details: undefined })),
   );
 });
 
-test("oversized Crew read, shell, and fabric results become fixed-size metadata", () => {
+test("oversized Crew read and shell results become fixed-size metadata", () => {
   const large = {
     toolName: "read",
     content: [{ type: "text", text: "x".repeat(3000) }],

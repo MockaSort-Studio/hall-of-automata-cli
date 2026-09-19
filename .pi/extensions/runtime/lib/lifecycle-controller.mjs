@@ -6,6 +6,12 @@ import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 const GIT_TIMEOUT = 30_000;
+
+// A worker that exits while its record is "stopping" was terminated by an
+// intentional remove(), not a natural completion: its terminal state is
+// "removed", regardless of the exit code or signal that ended the process.
+export const terminalStatus = (previousStatus, code) =>
+  previousStatus === "stopping" ? "removed" : code === 0 ? "completed" : "failed";
 const runGit = (cwd, args) =>
   exec("git", args, { cwd, timeout: GIT_TIMEOUT, killSignal: "SIGKILL", maxBuffer: 64 * 1024 });
 const waitForExit = (child, ms) =>
@@ -20,9 +26,8 @@ const waitForExit = (child, ms) =>
 
 export class LifecycleController {
   #agents = new Map();
-  constructor({ cwd, sdkModule, workerModule }) {
+  constructor({ cwd, workerModule }) {
     this.cwd = cwd;
-    this.sdkModule = sdkModule;
     this.workerModule = workerModule;
   }
   async spawn(config) {
@@ -69,14 +74,13 @@ export class LifecycleController {
           crewMembers: config.crewMembers,
           crewLead: config.crewLead,
           logFile,
-          sdkModule: this.sdkModule,
         }),
       );
       child = (await import("node:child_process")).spawn(process.execPath, [this.workerModule, configFile], {
         cwd: worktree,
         detached: true,
         stdio: "ignore",
-        env: { ...process.env, PI_FABRIC_ACTOR_ID: "", PI_SDK_ACTOR_ID: id, PI_CREW_ROOT: this.cwd },
+        env: { ...process.env, PI_SDK_ACTOR_ID: id, PI_CREW_ROOT: this.cwd },
       });
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);
@@ -87,7 +91,7 @@ export class LifecycleController {
       Object.defineProperty(agent, "child", { value: child });
       this.#agents.set(id, agent);
       child.once("exit", (code, signal) => {
-        agent.status = code === 0 ? "completed" : "failed";
+        agent.status = terminalStatus(agent.status, code);
         agent.exitCode = code;
         agent.signal = signal;
       });
@@ -140,8 +144,12 @@ export class LifecycleController {
       } catch {}
     await runGit(this.cwd, ["worktree", "remove", "--force", agent.worktree]);
     await rm(join(this.cwd, ".pi", "runtime", "runs", id), { recursive: true, force: true });
+    // Terminalize before the record disappears so any observer racing this
+    // cleanup (list/inspect) never sees a stale "stopping" or misdiagnosed
+    // "failed" state for a worker that was removed on purpose.
+    agent.status = "removed";
     this.#agents.delete(id);
-    return { id, removed: true };
+    return { id, removed: true, status: agent.status };
   }
   async shutdown() {
     const agents = await this.list();

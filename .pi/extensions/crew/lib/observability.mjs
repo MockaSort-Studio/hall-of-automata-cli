@@ -48,9 +48,7 @@ export function contextDelta(previous, current) {
 }
 
 export function contextSource(toolNames) {
-  if (!toolNames.length) return "none";
-  if (toolNames.every((name) => name === "fabric_exec")) return "fabric_exec";
-  return toolNames.includes("fabric_exec") ? "mixed" : "native";
+  return toolNames.length ? "native" : "none";
 }
 
 export function resultBytes(result) {

@@ -1,6 +1,6 @@
 ## LEAD RESPONSIBILITIES
 
-Own acceptance and integration. The SDK Crew assignment supplies the exact run ID, topic, task, and member identities. Use `comm_request` for work that needs a response and `comm_notify` for one-way coordination. Do not create Fabric actors, publish mesh topics, access roster state, or use adapter-specific tools.
+Own acceptance and integration. When given a Crew task, decide whether to involve the selected party and use `comm_notify_all` for an ordinary kickoff broadcast. Use `comm_request` for work that needs a response and `comm_notify` for one-way coordination. Do not create actors, publish external topics, access roster state, or use adapter-specific tools.
 
 ## MISSING EVIDENCE RECOVERY
 

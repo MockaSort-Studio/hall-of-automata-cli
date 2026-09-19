@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
+import { CommEnvelopeObservation, projectEnvelope } from "./comm-envelope-observation.mjs";
 
 export class CommController {
   #server;
@@ -8,7 +9,7 @@ export class CommController {
   #inflight = new Map();
   #actors = new Set(["main"]);
   #pendingReplies = new Map();
-  #events = [];
+  #observation = new CommEnvelopeObservation();
   async start(port = 0) {
     this.#server = new WebSocketServer({ port });
     await new Promise((resolve) => this.#server.once("listening", resolve));
@@ -52,6 +53,7 @@ export class CommController {
       });
     }
     this.#record("message_emitted", this.#metrics(message));
+    this.#publish(message);
     this.#flush(to);
     return { accepted: true, id: message.id };
   }
@@ -86,7 +88,22 @@ export class CommController {
     this.#record("message_requeued", this.#metrics(message));
   }
   events() {
-    return this.#events;
+    return this.#observation.events();
+  }
+  // Adapter-facing: emits only the narrow human-readable projection.
+  subscribe(handler) {
+    return this.#observation.observe((envelope) => {
+      const projected = projectEnvelope(envelope);
+      if (projected) return handler(projected);
+    });
+  }
+  // Internal-facing: emits the full raw envelope for runtime observers
+  // (e.g. a dependency ledger) that need payload kind and kickoff data.
+  observeRaw(handler) {
+    return this.#observation.observe(handler);
+  }
+  injectHuman({ to, body, author, externalId }) {
+    return this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   }
   #attach(socket) {
     let actorId;
@@ -155,8 +172,11 @@ export class CommController {
       latencyMs: Date.now() - message.queuedAt,
     };
   }
+  #publish(envelope) {
+    this.#observation.publish(envelope);
+  }
   #record(type, details) {
-    this.#events.push({ type, at: new Date().toISOString(), ...details });
+    this.#observation.record(type, details);
   }
   #reply(socket, id, result) {
     socket.send(JSON.stringify({ jsonrpc: "2.0", id, result }));
