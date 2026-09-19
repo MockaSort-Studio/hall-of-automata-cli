@@ -44,6 +44,9 @@ canonical in [runtime-structure.md](runtime-structure.md).
       reports and multi-kilobyte payloads that are unsuitable as Discussion comments.
 - [ ] Mark roster/Discussion lifecycle terminal when a run completes or is cleaned up; the
       current durable record can remain `started` after Runtime cleanup.
+- [ ] Enforce worker runtime-path isolation. A validation worker resolved `PI_CREW_ROOT` and
+      mutated host `.pi/runtime` roster records; workers must receive explicit owned paths and
+      reject host/cross-run state writes.
 
 - [ ] Make dependency waiting/release a deterministic worker state machine; validate
       handles, reject cycles, and define failed-dependency timeout/retry/blocked behavior.
