@@ -88,6 +88,13 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
+- [ ] Fix the monitor footer/dashboard showing every active automaton as `queued` for its
+      entire run. `lifecycleByActor()` defaults any member without a _terminal_ status to
+      `"queued"`; nothing ever writes `"running"` (`roster-lifecycle.mjs` only records
+      `PASS/FAIL/BLOCKED`, only at removal). Fix belongs in the snapshot layer, not the
+      write path: derive `running` from live worker-metrics evidence (turns/events > 0) when
+      no terminal status is recorded yet, instead of defaulting to `queued`. Keep it pure and
+      testable in `monitor-snapshot.mjs`; do not add a new roster-write path for this.
 - [ ] Add a bounded, non-looping safety net for a degenerate zero-usage/empty-content
       completed turn that still slips through the staggered broadcast (e.g. a genuine
       transient provider error, not a startup collision): report BLOCKED to Main with
