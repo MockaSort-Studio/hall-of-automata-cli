@@ -72,6 +72,19 @@ canonical in [runtime-structure.md](runtime-structure.md).
       Fixed by scheduling, not retrying: `broadcast()` now spaces recipient delivery out by
       a configurable interval (default 250ms, deterministic registration order), so
       concurrent first-activation can no longer be manufactured by our own fan-out.
+- [x] Wire `dependency-ledger.mjs` to raw Comm envelopes (`comm.observeRaw()`) and to each
+      member's `task`/`dependsOn` in `selected_crew_<uuid>.json`
+      (`dependency-ledger-wiring.mjs`). `complete`/`fail`/`blocked` transitions from live
+      envelopes are still not wired (no Comm protocol field marks task completion yet).
+- [x] Validate the worst-outcome-wins roster rollup against a Lead-present Crew. Confirmed
+      by regression test, not a source fix: `applyWorkerStatusToRoster` looks members up by
+      `actorId` with no role filtering, so the Lead's terminal outcome already folds into
+      the same worst-outcome-wins scan as any specialist.
+- [x] Add system-prompt and tool-schema token accounting to worker telemetry. Recorded once
+      per worker at `agent_start` inside `worker-comm-extension.mjs` (reuses
+      `staticContextTokens`), relayed content-free across the RPC boundary via a marker-
+      prefixed `ctx.ui.notify`, decoded by `worker-events.mjs` into a `static_context`
+      log record.
 
 ## Open
 
@@ -92,17 +105,10 @@ canonical in [runtime-structure.md](runtime-structure.md).
       captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
 - [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
       `monitor-snapshot.mjs`; the footer alone is wired, the dashboard view is not.
-- [ ] Wire `dependency-ledger.mjs` to raw Comm envelopes and to each member's
-      `dependsOn`/`task` fields already recorded in `selected_crew_<uuid>.json`. The ledger
-      module itself (validated handles, cycle rejection, waiting/ready/running/complete/
-      blocked/failed transitions) is implemented and unit-tested, but nothing publishes to it
-      yet, so the Plan tab has no real task-state source.
 - [ ] Add an end-to-end dependency test covering parallel roots, chained release, directed
-      completion recipients, blocked status, and the Lead final report. Blocked on the ledger
-      wiring above.
-- [ ] Complete RPC-worker observability: system-prompt and tool-schema token accounting are
-      still absent from worker telemetry (tool-result sizes, tool errors, compaction events,
-      and bounded turn-output metrics are now recorded).
+      completion recipients, blocked status, and the Lead final report. Blocked on wiring
+      `complete`/`fail`/`blocked` transitions from live envelopes (no Comm protocol field
+      marks task completion yet).
 - [ ] Bound and deduplicate external transcript posts. A validated run produced repeated
       reports and multi-kilobyte payloads unsuitable as Discussion comments.
 - [ ] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
@@ -113,8 +119,8 @@ canonical in [runtime-structure.md](runtime-structure.md).
       definition ("stalled unattended"); revisit whether a fourth outcome is needed once the
       dependency ledger exists to distinguish "done, then cleaned up" from "actually stuck."
 - [ ] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
-      cancels it, else PASS closes it). Not yet validated against a Lead-present Crew or a
-      Crew with a required-vs-optional member distinction.
+      cancels it, else PASS closes it). Validated with a Lead present; still not validated
+      against a Crew with a required-vs-optional member distinction.
 
 ## Evidence and performance work
 
