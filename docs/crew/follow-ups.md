@@ -1,6 +1,6 @@
 # Crew Operational Follow-ups
 
-Updated: 2026-09-17. This is the current backlog; the SDK runtime structure is
+Updated: 2026-09-19. This is the current backlog; the SDK runtime structure is
 canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Completed — SDK runtime migration
@@ -25,33 +25,75 @@ canonical in [runtime-structure.md](runtime-structure.md).
 - [x] Run a concurrent two-Crew cleanup probe; verify no worker, worktree, owner record,
       launcher, or RPC process remains after the idle window.
 
-## Issues found in the RPC Crew validation
+## Issues found in the RPC Crew validation — resolved
 
-- [ ] Parse JSON-encoded Comm payload strings before Discussion rendering, then extract a
-      human-readable summary/report; never publish raw JSON.
 - [x] Acknowledge RPC-worker deliveries after the associated Pi turn settles; reply context
       remains valid for that delivery until acknowledgement.
 - [x] Give internal runtime observers raw envelopes. `CommController.observeRaw()` delivers
       the full envelope; adapter `subscribe()` keeps the narrow human-readable projection.
 - [x] Split the controller before adding the ledger seam. Event recording and subscriber
       fan-out live in `comm-envelope-observation.mjs`.
-- [ ] Complete RPC-worker observability: system/tool tokens and a bounded content-free
-      timeline remain absent. Tool-result sizes, tool errors, compaction events, and bounded
-      output metrics are now recorded.
-- [ ] Make the Crew TUI monitor operationally useful: show live phase, per-agent state,
-      latest Comm delivery/error, queued/inflight counts, Discussion link, and terminal result.
-- [ ] Bound and deduplicate external transcript posts. The validated run produced repeated
-      reports and multi-kilobyte payloads that are unsuitable as Discussion comments.
-- [ ] Mark roster/Discussion lifecycle terminal when a run completes or is cleaned up; the
-      current durable record can remain `started` after Runtime cleanup.
-- [ ] Enforce worker runtime-path isolation. A validation worker resolved `PI_CREW_ROOT` and
-      mutated host `.pi/runtime` roster records; workers must receive explicit owned paths and
-      reject host/cross-run state writes.
+- [x] Enforce worker runtime-path isolation. `runtime-root.mjs` requires an explicit owned
+      cwd (no env-based host discovery); `assertOwnedRunId` fails closed on path
+      traversal/cross-run runIds; spawned workers no longer receive `PI_CREW_ROOT`.
+- [x] Make Main a canonical Comm recipient. `qualify()` never namespace-prefixes `"main"`;
+      direct `comm_notify`/`comm_request` to Main works without broadcast duplication.
+- [x] Restrict `comm_notify_all`/`comm_notify_many` to the Lead role. Specialists only get
+      directed Comm tools (`comm_notify`, `comm_request`, `comm_reply`), gated per role via
+      `roles.json`'s `commTools`. This was also the primary cause of the turn-inflation seen
+      in early Crew runs (every specialist report fanned out to every peer, each triggering a
+      follow-up turn).
+- [x] Define one durable Crew lifecycle contract (`lifecycle-state.mjs`): explicit
+      `queued/running/attention` states, `PASS|BLOCKED|FAIL` terminal outcomes, validated
+      transitions.
+- [x] Wire worker completion/failure/removal into that contract (`roster-lifecycle.mjs`) and
+      roll the per-member outcomes up into a terminal roster-level status
+      (`closed`/`failed`/`cancelled`) once every member is terminal — including when workers
+      are stopped one at a time across separate calls, not only in a single batch.
+- [x] Wire the live footer into the Crew TUI monitor (`monitor.ts` + `monitor-snapshot.mjs` +
+      `monitor-footer.mjs`): automaton counts by lifecycle bucket and total generated-output
+      tokens, sourced only from the durable roster/lifecycle/worker-metrics files.
+- [x] Fix the monitor widget never disappearing/updating for a disbanded Crew — root cause
+      was the roster rollup gap above; the widget already retires correctly once the roster
+      reaches a terminal status.
+- [x] Report provider token traffic (input/output/cache read/write) as separate labelled
+      fields — never summed into one "tokens consumed" figure, which double-counts repeated
+      cache-read traffic across turns.
+- [x] Record per-turn session-context percent and model-context-window in worker telemetry
+      (`worker-metrics.mjs` + `model-window.mjs`), retained after cleanup via
+      `LifecycleController`'s pre-removal snapshot.
+- [x] Parse JSON-encoded Comm payload strings before projecting a human-readable
+      message/summary/report for adapters, instead of publishing raw JSON.
 
-- [ ] Make dependency waiting/release a deterministic worker state machine; validate
-      handles, reject cycles, and define failed-dependency timeout/retry/blocked behavior.
+## Open
+
+- [ ] Surface session-context percent/window in the monitor snapshot and dashboard. It is
+      captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
+- [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
+      `monitor-snapshot.mjs`; the footer alone is wired, the dashboard view is not.
+- [ ] Wire `dependency-ledger.mjs` to raw Comm envelopes and to each member's
+      `dependsOn`/`task` fields already recorded in `selected_crew_<uuid>.json`. The ledger
+      module itself (validated handles, cycle rejection, waiting/ready/running/complete/
+      blocked/failed transitions) is implemented and unit-tested, but nothing publishes to it
+      yet, so the Plan tab has no real task-state source.
 - [ ] Add an end-to-end dependency test covering parallel roots, chained release, directed
-      completion recipients, blocked status, and the Lead final report.
+      completion recipients, blocked status, and the Lead final report. Blocked on the ledger
+      wiring above.
+- [ ] Complete RPC-worker observability: system-prompt and tool-schema token accounting are
+      still absent from worker telemetry (tool-result sizes, tool errors, compaction events,
+      and bounded turn-output metrics are now recorded).
+- [ ] Bound and deduplicate external transcript posts. A validated run produced repeated
+      reports and multi-kilobyte payloads unsuitable as Discussion comments.
+- [ ] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
+      The roster-level terminal rollup is done; the Discussion-adapter side is untouched.
+- [ ] `BLOCKED` is currently the only terminal outcome available for an intentionally
+      _successful_ stop (e.g. Main removing a worker after it already reported done). It is
+      being used as a stand-in and is a semantic mismatch with lifecycle-state.mjs's own
+      definition ("stalled unattended"); revisit whether a fourth outcome is needed once the
+      dependency ledger exists to distinguish "done, then cleaned up" from "actually stuck."
+- [ ] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
+      cancels it, else PASS closes it). Not yet validated against a Lead-present Crew or a
+      Crew with a required-vs-optional member distinction.
 
 ## Evidence and performance work
 
@@ -66,7 +108,7 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 - [ ] Define the Hall CLI state-model port: Project progression, Issue closure, dependency
       management, and associated GitHub adapter contracts.
-- [ ] Add explicit `PASS | BLOCKED | FAIL` outcomes and terminalize unattended blocked runs
+- [x] Add explicit `PASS | BLOCKED | FAIL` outcomes and terminalize unattended blocked runs
       without falsely accepting work.
 - [x] Implement the optional GitHub Discussion CommAdapter; base worker capabilities
       remain Comm-only.
