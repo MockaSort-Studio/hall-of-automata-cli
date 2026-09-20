@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { Type } from "typebox";
 import { connectComm } from "./comm-client.mjs";
+import { staticContextTokens } from "../../crew/lib/observability-ledger.mjs";
+import { STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
 
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
 let comm;
@@ -31,6 +33,18 @@ const requireComm = () => {
 const granted = new Set(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"]);
 
 export default function workerCommExtension(pi) {
+  let staticContextReported = false;
+  pi.on("agent_start", (_event, ctx) => {
+    if (staticContextReported) return;
+    staticContextReported = true;
+    const active = new Set(pi.getActiveTools());
+    const tools = pi
+      .getAllTools()
+      .filter((tool) => active.has(tool.name))
+      .map(({ name, parameters }) => ({ name, parameters }));
+    const tokens = staticContextTokens(ctx.getSystemPrompt(), tools);
+    ctx.ui.notify(`${STATIC_CONTEXT_MARKER}${JSON.stringify(tokens)}`, "info");
+  });
   if (!config.comm) return;
   if (granted.has("comm_notify"))
     pi.registerTool({

@@ -120,6 +120,50 @@ test("applyWorkerStatusToRoster rolls the roster up to a terminal status once th
   roster = applyWorkerStatusToRoster(roster, "actor-b", "completed");
   assert.equal(roster.status, "closed");
 });
+test("rosterStatusForTerminalMembers treats a lead member the same as a specialist for worst-outcome-wins", () => {
+  // The Lead is carried inside roster.members (with role: "lead") in
+  // addition to the summary roster.lead pointer other tools use for
+  // addressing -- the rollup must not special-case or skip it.
+  assert.equal(
+    rosterStatusForTerminalMembers([
+      { role: "lead", status: "FAIL" },
+      { role: "specialist", status: "PASS" },
+    ]),
+    "failed",
+  );
+  assert.equal(
+    rosterStatusForTerminalMembers([
+      { role: "lead", status: "PASS" },
+      { role: "specialist", status: "BLOCKED" },
+    ]),
+    "cancelled",
+  );
+  assert.equal(
+    rosterStatusForTerminalMembers([
+      { role: "lead", status: "PASS" },
+      { role: "specialist", status: "PASS" },
+    ]),
+    "closed",
+  );
+});
+
+test("applyWorkerStatusToRoster withholds rollup until the lead's own member entry is also terminal", () => {
+  let roster = {
+    runId: "run-lead",
+    status: "started",
+    lead: { name: "lead-alpha-00", actorId: "actor-lead" },
+    members: [
+      { name: "lead-alpha-00", actorId: "actor-lead", role: "lead" },
+      { name: "dev-beta-00", actorId: "actor-dev", role: "specialist" },
+    ],
+  };
+  roster = applyWorkerStatusToRoster(roster, "actor-dev", "completed");
+  assert.equal(roster.status, "started");
+  roster = applyWorkerStatusToRoster(roster, "actor-lead", "failed");
+  assert.equal(roster.status, "failed");
+  assert.equal(roster.members.find((m) => m.actorId === "actor-lead").status, "FAIL");
+});
+
 test("applyWorkerStatusToRoster never overwrites an already-terminal roster status", () => {
   const roster = {
     runId: "run-1",

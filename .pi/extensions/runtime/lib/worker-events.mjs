@@ -4,6 +4,12 @@
 
 const MAX_ERROR_CHARS = 4000;
 
+// Fire-and-forget extension_ui_request "notify" carrying this prefix is how
+// the in-process worker extension smuggles content-free static-context token
+// counts (system-prompt + tool-schema sizes) across the RPC boundary: RPC
+// events carry no system-prompt or tool-schema data of their own.
+export const STATIC_CONTEXT_MARKER = "__crew_static_context__:";
+
 export const boundedText = (value, max) => {
   const text = String(value);
   return text.length <= max
@@ -53,6 +59,16 @@ export function mapWorkerEvent(event) {
       return { type: "compaction_end", reason: event.reason };
     case "extension_error":
       return { type: "agent_error", message: boundedText(event.error, MAX_ERROR_CHARS) };
+    case "extension_ui_request": {
+      if (event.method !== "notify" || typeof event.message !== "string") return null;
+      if (!event.message.startsWith(STATIC_CONTEXT_MARKER)) return null;
+      try {
+        const tokens = JSON.parse(event.message.slice(STATIC_CONTEXT_MARKER.length));
+        return { type: "static_context", tokens };
+      } catch {
+        return null;
+      }
+    }
     default:
       return null;
   }

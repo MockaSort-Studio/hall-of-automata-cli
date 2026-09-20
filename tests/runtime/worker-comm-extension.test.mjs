@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
+import { STATIC_CONTEXT_MARKER } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
 
 const loadExtension = async (config) => {
   const dir = mkdtempSync(join(tmpdir(), "worker-comm-config-"));
@@ -99,4 +100,35 @@ test("only a lead-granted worker receives comm_notify_all", async (t) => {
   const { pi } = await setup(t, ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"]);
   assert.ok(pi.tools.has("comm_notify_all"));
   assert.ok(!pi.tools.has("comm_notify_many"));
+});
+test("agent_start records content-free static-context token counts exactly once", async () => {
+  const extension = await loadExtension({ initialTurn: "resident", task: "" });
+  const notified = [];
+  const pi = {
+    on: (event, handler) => (pi.handlers ??= new Map()).set(event, handler),
+    handlers: new Map(),
+    registerTool: () => {},
+    getActiveTools: () => ["bash"],
+    getAllTools: () => [
+      { name: "bash", parameters: { type: "object" } },
+      { name: "read", parameters: { type: "object" } },
+    ],
+  };
+  extension(pi);
+  const ctx = {
+    getSystemPrompt: () => "You are a careful agent.",
+    ui: { notify: (message) => notified.push(message) },
+  };
+  pi.handlers.get("agent_start")({}, ctx);
+  pi.handlers.get("agent_start")({}, ctx);
+  assert.equal(notified.length, 1, "static context is reported once per worker, not once per turn");
+  assert.ok(notified[0].startsWith(STATIC_CONTEXT_MARKER));
+  const tokens = JSON.parse(notified[0].slice(STATIC_CONTEXT_MARKER.length));
+  assert.ok(tokens.systemPrompt > 0);
+  assert.ok(tokens.toolSchemas > 0);
+  assert.equal(
+    JSON.stringify(tokens).includes("careful agent"),
+    false,
+    "only token counts are recorded, never prompt text",
+  );
 });

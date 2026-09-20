@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { boundedText, mapWorkerEvent } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
+import { STATIC_CONTEXT_MARKER, boundedText, mapWorkerEvent } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
 
 test("mapWorkerEvent produces a content-free tool_end record with a size, not the payload", () => {
   const entry = mapWorkerEvent({
@@ -51,6 +51,25 @@ test("mapWorkerEvent bounds extension errors and skips unrelated event types", (
   assert.equal(entry.type, "agent_error");
   assert.ok(entry.message.length < 10_000);
   assert.equal(mapWorkerEvent({ type: "queue_update" }), null);
+});
+
+test("mapWorkerEvent decodes the static-context marker into content-free token counts", () => {
+  const tokens = { systemPrompt: 123, toolSchemas: 456 };
+  const entry = mapWorkerEvent({
+    type: "extension_ui_request",
+    method: "notify",
+    message: `${STATIC_CONTEXT_MARKER}${JSON.stringify(tokens)}`,
+    notifyType: "info",
+  });
+  assert.deepEqual(entry, { type: "static_context", tokens });
+});
+
+test("mapWorkerEvent ignores notify calls and other extension UI requests without the marker", () => {
+  assert.equal(
+    mapWorkerEvent({ type: "extension_ui_request", method: "notify", message: "Command blocked by user" }),
+    null,
+  );
+  assert.equal(mapWorkerEvent({ type: "extension_ui_request", method: "select", title: "Pick one" }), null);
 });
 
 test("boundedText passes short text through unchanged and truncates long text", () => {
