@@ -72,6 +72,21 @@ canonical in [runtime-structure.md](runtime-structure.md).
       Fixed by scheduling, not retrying: `broadcast()` now spaces recipient delivery out by
       a configurable interval (default 250ms, deterministic registration order), so
       concurrent first-activation can no longer be manufactured by our own fan-out.
+- [x] Fix the monitor footer/dashboard showing every active automaton as `queued` for its
+      entire run. `monitor-snapshot.mjs`'s `bucketFor()` now derives a `running` bucket from
+      live worker-metrics evidence (turns/tool calls > 0) when no explicit lifecycle entry
+      is recorded; an explicit terminal/other status still takes precedence, and a zero-
+      activity actor correctly remains `queued`. No new roster-write path added.
+- [x] Add a bounded, non-looping safety net for a degenerate zero-usage/empty-content
+      completed turn. Live evidence showed the collision could recur even after the
+      broadcast-stagger fix (0/2, 0/2 across two dispatches with only two staggered
+      recipients) -- scheduling alone was insufficient. `worker-comm-extension.mjs` now
+      retries the exact same delivery prompt exactly once when a `turn_end` fires with zero
+      tokens and zero tool calls (never when no `turn_end` fires at all, e.g. a reply-driven
+      completion -- an earlier version of this fix falsely flagged that as degenerate and
+      hung waiting for a second `agent_settled` that never came); if the retry is also
+      degenerate, reports BLOCKED to Main with evidence and still acknowledges the delivery.
+      Bounded: exactly one retry, never a loop.
 - [x] Wire `dependency-ledger.mjs` to raw Comm envelopes (`comm.observeRaw()`) and to each
       member's `task`/`dependsOn` in `selected_crew_<uuid>.json`
       (`dependency-ledger-wiring.mjs`). `complete`/`fail`/`blocked` transitions from live
@@ -88,19 +103,6 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
-- [ ] Fix the monitor footer/dashboard showing every active automaton as `queued` for its
-      entire run. `lifecycleByActor()` defaults any member without a _terminal_ status to
-      `"queued"`; nothing ever writes `"running"` (`roster-lifecycle.mjs` only records
-      `PASS/FAIL/BLOCKED`, only at removal). Fix belongs in the snapshot layer, not the
-      write path: derive `running` from live worker-metrics evidence (turns/events > 0) when
-      no terminal status is recorded yet, instead of defaulting to `queued`. Keep it pure and
-      testable in `monitor-snapshot.mjs`; do not add a new roster-write path for this.
-- [ ] Add a bounded, non-looping safety net for a degenerate zero-usage/empty-content
-      completed turn that still slips through the staggered broadcast (e.g. a genuine
-      transient provider error, not a startup collision): report BLOCKED to Main with
-      evidence instead of silently going idle forever. Explicitly capped, no retry loop.
-      Deprioritized now that the collision itself is fixed at the scheduling layer (see
-      resolved list); revisit only if an empty turn is observed again after that fix.
 - [ ] Investigate and clean up orphaned `lifecycle-server.mjs` processes from past Main
       sessions. Observed live via `ps`: multiple `lifecycle-server.mjs` processes from prior
       days (e.g. Saturday) still running, unowned by the current Runtime session's `#agents`
