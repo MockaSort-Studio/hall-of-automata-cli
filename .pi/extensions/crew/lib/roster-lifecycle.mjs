@@ -6,6 +6,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isTerminal, transition } from "./lifecycle-state.mjs";
+import { isTerminalCrew } from "./monitor-state.mjs";
 
 // LifecycleController.terminalStatus (runtime/lib/lifecycle-controller.mjs)
 // only ever reports one of these three worker outcomes. "removed" covers an
@@ -32,11 +33,31 @@ export function advanceMemberLifecycle(state, workerStatus) {
   return transition(next, outcome);
 }
 
+const ROSTER_STATUS_FOR_OUTCOME = Object.freeze({ FAIL: "failed", BLOCKED: "cancelled", PASS: "closed" });
+// Worst-outcome-wins: one failed member fails the Crew even if others
+// passed; one blocked member cancels it if nothing failed; only a Crew
+// where every member reached PASS closes clean.
+const OUTCOME_PRIORITY = Object.freeze(["FAIL", "BLOCKED", "PASS"]);
+
+// Once every roster member has reached a terminal per-member outcome, the
+// Crew itself is durably done. Returns null while any member is still
+// queued/running/attention, so a roster is never rolled up prematurely --
+// this is what lets a multi-member Crew reach a terminal roster status even
+// when its workers are stopped one at a time across separate calls, instead
+// of only when every member is removed in a single runtime_cleanup batch.
+export function rosterStatusForTerminalMembers(members) {
+  if (!members.length || !members.every((member) => isTerminal(member.status))) return null;
+  const outcome = OUTCOME_PRIORITY.find((candidate) => members.some((member) => member.status === candidate));
+  return ROSTER_STATUS_FOR_OUTCOME[outcome];
+}
+
 // Pure: returns a new roster object with one member's status advanced, or
 // the same roster reference if the actor isn't a member or is already
 // terminal. Members default to "running" the first time they receive a
 // worker status: prepareCrew/launchPreparedCrew record only "queued"
-// launch-time roster status, not a per-member lifecycle state.
+// launch-time roster status, not a per-member lifecycle state. Also rolls
+// the roster-level status up to a terminal Crew status once this update
+// makes every member terminal, so the Crew monitor can retire it.
 export function applyWorkerStatusToRoster(roster, actorId, workerStatus) {
   const members = roster?.members || [];
   const index = members.findIndex((member) => member.actorId === actorId);
@@ -46,7 +67,8 @@ export function applyWorkerStatusToRoster(roster, actorId, workerStatus) {
   if (next === current) return roster;
   const updated = [...members];
   updated[index] = { ...updated[index], status: next };
-  return { ...roster, members: updated };
+  const rollup = isTerminalCrew(roster) ? null : rosterStatusForTerminalMembers(updated);
+  return { ...roster, members: updated, ...(rollup ? { status: rollup } : {}) };
 }
 
 // I/O: applies one worker's terminal status to every roster file in

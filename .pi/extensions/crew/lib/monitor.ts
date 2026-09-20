@@ -2,7 +2,10 @@ import { CONFIG_DIR_NAME, type ExtensionAPI, type ExtensionContext } from "@eare
 import { Box, getCapabilities, hyperlink, Text } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher } from "node:fs";
 import { join, resolve } from "node:path";
+import { summarizeWorkerEvents } from "../../runtime/lib/worker-metrics.mjs";
 import { crewMonitorView } from "./monitor-state.mjs";
+import { renderCrewStatusFooter } from "./monitor-footer.mjs";
+import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
 
 const WIDGET = "crew-monitor";
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
@@ -13,6 +16,38 @@ const readJson = (path) => {
   } catch {
     return null;
   }
+};
+const readEvents = (path) => {
+  try {
+    return readFileSync(path, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  } catch {
+    return [];
+  }
+};
+// Per-member roster status already speaks the lifecycle-state.mjs
+// vocabulary (queued/running/attention/PASS/BLOCKED/FAIL) once
+// roster-lifecycle.mjs has advanced it; default to "queued" until it has.
+const lifecycleByActor = (roster) =>
+  Object.fromEntries(
+    (roster.members ?? [])
+      .filter((member) => member.actorId)
+      .map((member) => [member.actorId, member.status ?? "queued"]),
+  );
+// Worker metrics live under each actor's own run directory for as long as
+// it exists. A terminal member's directory may already be gone by the time
+// this renders; summarizeWorkerEvents([]) degrades to all-zero counts.
+const workerMetricsByActor = (cwd, roster) => {
+  const metrics = {};
+  for (const member of roster.members ?? []) {
+    if (!member.actorId) continue;
+    const path = join(cwd, CONFIG_DIR_NAME, "runtime", "runs", member.actorId, "events.jsonl");
+    metrics[member.actorId] = summarizeWorkerEvents(readEvents(path));
+  }
+  return metrics;
 };
 
 export function registerCrewMonitor(pi: ExtensionAPI) {
@@ -40,14 +75,17 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       clear();
       return;
     }
+    const snapshot = crewMonitorSnapshot(roster, {
+      lifecycleByActor: lifecycleByActor(roster),
+      workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
+    });
+    const footer = renderCrewStatusFooter(snapshot);
     ctx.ui.setWidget(
       WIDGET,
       (_tui, theme) => {
         const box = new Box(1, 0, (text) => theme.bg("customMessageBg", text));
         const icon = view.phase === "Queued" ? "◌" : "◉";
-        let text = theme.fg("accent", theme.bold(`${icon} Crew ${view.runId.slice(0, 8)}`));
-        text += theme.fg("muted", `  ${view.phase}`);
-        if (view.memberCount > 0) text += theme.fg("dim", ` · ${view.memberCount} specialist`);
+        let text = theme.fg("accent", theme.bold(`${icon} ${footer || `Crew ${view.runId.slice(0, 8)}`}`));
         if (view.discussionNumber && view.discussionUrl) {
           const label = `#${view.discussionNumber} ↗`;
           const link = getCapabilities().hyperlinks

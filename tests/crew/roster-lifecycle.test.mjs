@@ -8,6 +8,7 @@ import {
   applyWorkerStatusToRoster,
   applyWorkerStatusToRosterFiles,
   outcomeForWorkerStatus,
+  rosterStatusForTerminalMembers,
 } from "../../.pi/extensions/crew/lib/roster-lifecycle.mjs";
 
 test("outcomeForWorkerStatus maps completed/failed/removed to the durable contract's outcomes", () => {
@@ -85,4 +86,47 @@ test("applyWorkerStatusToRosterFiles updates only the roster listing the actor a
 test("applyWorkerStatusToRosterFiles is a no-op when no Crews were ever launched", () => {
   const dir = join(tmpdir(), `crew-lifecycle-missing-${process.pid}-${Date.now()}`);
   assert.deepEqual(applyWorkerStatusToRosterFiles(dir, "actor-a", "completed"), []);
+});
+
+test("rosterStatusForTerminalMembers returns null until every member is terminal", () => {
+  assert.equal(rosterStatusForTerminalMembers([]), null);
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "running" }]), null);
+});
+test("rosterStatusForTerminalMembers closes clean only when every member passed", () => {
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "PASS" }]), "closed");
+});
+test("rosterStatusForTerminalMembers prefers failed over blocked over passed", () => {
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "BLOCKED" }]), "cancelled");
+  assert.equal(
+    rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "FAIL" }, { status: "BLOCKED" }]),
+    "failed",
+  );
+});
+
+test("applyWorkerStatusToRoster rolls the roster up to a terminal status once the last member lands, across separate calls", () => {
+  let roster = {
+    runId: "run-multi",
+    status: "started",
+    members: [
+      { name: "a", actorId: "actor-a" },
+      { name: "b", actorId: "actor-b" },
+    ],
+  };
+  // Stopping one worker at a time, as separate runtime_delete_agent calls
+  // do, must still roll the roster up once the last member lands -- not
+  // only when every member is removed in a single batch.
+  roster = applyWorkerStatusToRoster(roster, "actor-a", "completed");
+  assert.equal(roster.status, "started");
+  roster = applyWorkerStatusToRoster(roster, "actor-b", "completed");
+  assert.equal(roster.status, "closed");
+});
+test("applyWorkerStatusToRoster never overwrites an already-terminal roster status", () => {
+  const roster = {
+    runId: "run-1",
+    status: "failed",
+    members: [{ name: "a", actorId: "actor-a" }],
+  };
+  const next = applyWorkerStatusToRoster(roster, "actor-a", "completed");
+  assert.equal(next.status, "failed");
+  assert.equal(next.members[0].status, "PASS");
 });

@@ -47,3 +47,11 @@ test("widget is fixed above editor, clickable when supported, and cleaned up", (
   assert.match(source, /setInterval\(refresh, 500\)/);
   assert.match(source, /clearInterval\(reconciler\)/);
 });
+
+test("widget renders the live CrewMonitorSnapshot footer, not a static phase line", () => {
+  assert.match(source, /import \{ crewMonitorSnapshot \} from "\.\/monitor-snapshot\.mjs"/);
+  assert.match(source, /import \{ renderCrewStatusFooter \} from "\.\/monitor-footer\.mjs"/);
+  assert.match(source, /import \{ summarizeWorkerEvents \} from "\.\.\/\.\.\/runtime\/lib\/worker-metrics\.mjs"/);
+  assert.match(source, /crewMonitorSnapshot\(roster, \{/);
+  assert.match(source, /renderCrewStatusFooter\(snapshot\)/);
+});
