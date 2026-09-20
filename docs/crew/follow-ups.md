@@ -109,7 +109,8 @@ canonical in [runtime-structure.md](runtime-structure.md).
       map, so `runtime_cleanup`/`runtime_delete_agent` cannot reach them (those tools only
       iterate agents this session itself spawned). Need either a durable owner/PID record
       per launched Lifecycle server so a later session can find and reap orphans, or a
-      liveness/heartbeat convention that lets a stale server self-terminate.
+      liveness/heartbeat convention that lets a stale server self-terminate. Tracked:
+      [#465](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/465).
 - [x] Surface session-context percent/window in the monitor snapshot and dashboard.
       `formatSessionContext()` renders "percent / model window" per automaton, sourced from
       `worker-metrics.mjs`'s existing `sessionContext` field.
@@ -123,19 +124,23 @@ canonical in [runtime-structure.md](runtime-structure.md).
       the same way its existing wiring already is (source-pattern assertions) plus full unit
       coverage of every pure function underneath. Recommend a manual
       `cc --plugin-dir . --debug` smoke test of `/crew-dashboard` before relying on it.
+- [ ] Wire a Comm completion signal so the dependency ledger can transition
+      `complete`/`fail`/`blocked` from live envelopes (no such protocol field exists yet).
+      Tracked: [#462](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/462).
 - [ ] Wire a live `CommController`/dependency-ledger observer into the dashboard's render
       path. The Plan tab currently reseeds a fresh ledger from `selected_crew_<uuid>.json`
       on every open, so it only ever shows structural `waiting`/`ready` state, never a live
-      `running`/terminal transition. Depends on the same Comm-completion-field gap as the
-      end-to-end dependency test below.
+      `running`/terminal transition. Blocked by #462. Tracked:
+      [#463](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/463).
 - [ ] Add an end-to-end dependency test covering parallel roots, chained release, directed
-      completion recipients, blocked status, and the Lead final report. Blocked on wiring
-      `complete`/`fail`/`blocked` transitions from live envelopes (no Comm protocol field
-      marks task completion yet).
+      completion recipients, blocked status, and the Lead final report. Blocked by #462.
+      Tracked: [#464](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/464).
 - [ ] Bound and deduplicate external transcript posts. A validated run produced repeated
-      reports and multi-kilobyte payloads unsuitable as Discussion comments.
+      reports and multi-kilobyte payloads unsuitable as Discussion comments. Tracked:
+      [#466](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/466).
 - [ ] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
       The roster-level terminal rollup is done; the Discussion-adapter side is untouched.
+      Tracked: [#467](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/467).
 - [x] Fixed the `BLOCKED`-for-a-successful-stop mismatch without adding a fourth outcome.
       `runtime_delete_agent` now accepts an optional `outcome` (`PASS|FAIL|BLOCKED`); when
       Main has already received and accepted a member's report before removing it, it
