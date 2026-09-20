@@ -110,10 +110,24 @@ canonical in [runtime-structure.md](runtime-structure.md).
       iterate agents this session itself spawned). Need either a durable owner/PID record
       per launched Lifecycle server so a later session can find and reap orphans, or a
       liveness/heartbeat convention that lets a stale server self-terminate.
-- [ ] Surface session-context percent/window in the monitor snapshot and dashboard. It is
-      captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
-- [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
-      `monitor-snapshot.mjs`; the footer alone is wired, the dashboard view is not.
+- [x] Surface session-context percent/window in the monitor snapshot and dashboard.
+      `formatSessionContext()` renders "percent / model window" per automaton, sourced from
+      `worker-metrics.mjs`'s existing `sessionContext` field.
+- [x] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
+      `monitor-snapshot.mjs`. `/crew-dashboard` command + `ctrl+shift+d` shortcut open an
+      overlay with both tabs; Automata rows are the snapshot's per-actor detail, Plan rows
+      come from `selected_crew_<uuid>.json` overlaid with a dependency-ledger snapshot
+      seeded fresh on open (no live Comm wiring into the render path yet -- see below).
+      Not yet verified in a real TUI: no TypeScript/pi-tui packages are resolvable from a
+      plain `node --test` process in this repo, so `monitor.ts`'s new wiring is validated
+      the same way its existing wiring already is (source-pattern assertions) plus full unit
+      coverage of every pure function underneath. Recommend a manual
+      `cc --plugin-dir . --debug` smoke test of `/crew-dashboard` before relying on it.
+- [ ] Wire a live `CommController`/dependency-ledger observer into the dashboard's render
+      path. The Plan tab currently reseeds a fresh ledger from `selected_crew_<uuid>.json`
+      on every open, so it only ever shows structural `waiting`/`ready` state, never a live
+      `running`/terminal transition. Depends on the same Comm-completion-field gap as the
+      end-to-end dependency test below.
 - [ ] Add an end-to-end dependency test covering parallel roots, chained release, directed
       completion recipients, blocked status, and the Lead final report. Blocked on wiring
       `complete`/`fail`/`blocked` transitions from live envelopes (no Comm protocol field
