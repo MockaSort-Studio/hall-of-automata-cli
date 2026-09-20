@@ -135,9 +135,21 @@ export function createDependencyLedger() {
     return to;
   }
 
+  // has answers existence without throwing, for wiring code that receives
+  // handles from untrusted sources (raw Comm envelopes) and must ignore
+  // anything that is not a node this ledger tracks.
+  function has(rawHandle) {
+    try {
+      return status.has(canonicalHandle(rawHandle));
+    } catch {
+      return false;
+    }
+  }
+
   return {
     addNode,
     addDependency,
+    has,
     start,
     complete,
     fail,
