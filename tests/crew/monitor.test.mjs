@@ -55,3 +55,14 @@ test("widget renders the live CrewMonitorSnapshot footer, not a static phase lin
   assert.match(source, /crewMonitorSnapshot\(roster, \{/);
   assert.match(source, /renderCrewStatusFooter\(snapshot\)/);
 });
+
+test("the Crew dashboard command/shortcut are wired from monitor-dashboard.mjs data, not prose", () => {
+  assert.match(source, /import \{ buildAutomataTab \} from "\.\/monitor-dashboard\.mjs"/);
+  assert.match(
+    source,
+    /import \{ planRowsFor, registerCrewDashboardCommand \} from "\.\/monitor-dashboard-command\.mjs"/,
+  );
+  assert.match(source, /registerCrewDashboardCommand\(pi, \(\) => \{/);
+  assert.match(source, /buildAutomataTab\(snapshot\)/);
+  assert.match(source, /planRowsFor\(readJson, ctx\.cwd, roster\)/);
+});

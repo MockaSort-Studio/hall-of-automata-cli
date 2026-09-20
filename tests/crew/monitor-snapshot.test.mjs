@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { crewMonitorSnapshot } from "../../.pi/extensions/crew/lib/monitor-snapshot.mjs";
+import { crewMonitorSnapshot, formatSessionContext } from "../../.pi/extensions/crew/lib/monitor-snapshot.mjs";
 
 const roster = (overrides) => ({
   runId: "run-123456",
@@ -113,4 +113,50 @@ test("crewMonitorSnapshot handles an empty or missing roster", () => {
   const empty = crewMonitorSnapshot(roster({ members: [] }));
   assert.equal(empty.counts.total, 0);
   assert.equal(empty.totalGeneratedOutputTokens, 0);
+  assert.deepEqual(empty.automata, []);
+});
+
+test("formatSessionContext renders 'percent / model window' from worker-metrics sessionContext", () => {
+  assert.equal(formatSessionContext({ lastPercent: 42.3, modelWindow: 200000 }), "42.3% / 200000");
+});
+
+test("formatSessionContext falls back to an em-dash for unknown percent or window", () => {
+  assert.equal(formatSessionContext({ lastPercent: null, modelWindow: 200000 }), "\u2014 / 200000");
+  assert.equal(formatSessionContext({ lastPercent: 10, modelWindow: null }), "10% / \u2014");
+  assert.equal(formatSessionContext(undefined), "\u2014 / \u2014");
+});
+
+test("crewMonitorSnapshot emits a per-automaton detail row with bucket, metrics, and session context", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: { "actor-1": "running" },
+    workerMetricsByActor: {
+      "actor-1": {
+        turns: 4,
+        toolCalls: 9,
+        toolErrors: 1,
+        compactions: 2,
+        providerTraffic: { uncachedInput: 10, generatedOutput: 20, cacheRead: 30, cacheWrite: 5 },
+        sessionContext: { lastPercent: 55, modelWindow: 128000 },
+      },
+    },
+  });
+  const row = snapshot.automata.find((entry) => entry.actorId === "actor-1");
+  assert.deepEqual(row, {
+    actorId: "actor-1",
+    name: "architect-a",
+    bucket: "running",
+    turns: 4,
+    toolCalls: 9,
+    toolErrors: 1,
+    compactions: 2,
+    providerTraffic: { uncachedInput: 10, generatedOutput: 20, cacheRead: 30, cacheWrite: 5 },
+    sessionContext: "55% / 128000",
+  });
+});
+
+test("crewMonitorSnapshot defaults a missing worker-metrics entry to zeroed detail", () => {
+  const snapshot = crewMonitorSnapshot(roster(), { lifecycleByActor: { "actor-3": "running" } });
+  const row = snapshot.automata.find((entry) => entry.actorId === "actor-3");
+  assert.equal(row.turns, 0);
+  assert.equal(row.sessionContext, "\u2014 / \u2014");
 });

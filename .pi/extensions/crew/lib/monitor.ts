@@ -6,6 +6,8 @@ import { summarizeWorkerEvents } from "../../runtime/lib/worker-metrics.mjs";
 import { crewMonitorView } from "./monitor-state.mjs";
 import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
+import { buildAutomataTab } from "./monitor-dashboard.mjs";
+import { planRowsFor, registerCrewDashboardCommand } from "./monitor-dashboard-command.mjs";
 
 const WIDGET = "crew-monitor";
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
@@ -151,6 +153,20 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     refresh();
   });
   pi.on("session_shutdown", stop);
+
+  // Command-activated dashboard: opens over the current active roster (the
+  // same one the footer already tracks) with two tabs, each pulling rows
+  // from crewMonitorSnapshot / monitor-dashboard.mjs, never from prose.
+  registerCrewDashboardCommand(pi, () => {
+    const path = activePath ?? latestActive();
+    const roster = path ? readJson(path) : null;
+    if (!ctx || !roster) return { automataRows: [], planRows: [] };
+    const snapshot = crewMonitorSnapshot(roster, {
+      lifecycleByActor: lifecycleByActor(roster),
+      workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
+    });
+    return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster) };
+  });
 
   return {
     activate(sessionCtx: ExtensionContext, rosterPath: string) {

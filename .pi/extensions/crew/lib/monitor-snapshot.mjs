@@ -40,24 +40,68 @@ function generatedOutputFor(actorId, workerMetricsByActor) {
   return Number.isFinite(value) ? value : 0;
 }
 
+const number = (value) => (Number.isFinite(value) ? value : 0);
+
+// "percent / model window" is the dashboard's compact session-context cell:
+// worker-metrics.mjs already computes both halves per actor (sessionContext
+// .lastPercent and .modelWindow); this just renders the pair, or an em-dash
+// placeholder when either half is not yet known (no turns, or no configured
+// window for that model).
+export function formatSessionContext(sessionContext) {
+  const percent = sessionContext?.lastPercent;
+  const window = sessionContext?.modelWindow;
+  const percentLabel = Number.isFinite(percent) ? `${percent}%` : "—";
+  const windowLabel = Number.isFinite(window) ? String(window) : "—";
+  return `${percentLabel} / ${windowLabel}`;
+}
+
+// One dashboard row's worth of per-automaton detail, folding a roster
+// member's identity + durable lifecycle bucket together with whatever
+// worker-metrics.mjs summary is on disk for it right now. Pure: no I/O,
+// no default-to-"queued" reinterpretation of bucketFor's own logic.
+function automatonDetail(member, actorId, bucket, workerMetricsByActor) {
+  const metric = workerMetricsByActor?.[actorId] ?? {};
+  const traffic = metric.providerTraffic ?? {};
+  return {
+    actorId,
+    name: member?.name ?? actorId,
+    bucket,
+    turns: number(metric.turns),
+    toolCalls: number(metric.toolCalls),
+    toolErrors: number(metric.toolErrors),
+    compactions: number(metric.compactions),
+    providerTraffic: {
+      uncachedInput: number(traffic.uncachedInput),
+      generatedOutput: number(traffic.generatedOutput),
+      cacheRead: number(traffic.cacheRead),
+      cacheWrite: number(traffic.cacheWrite),
+    },
+    sessionContext: formatSessionContext(metric.sessionContext),
+  };
+}
+
 export function crewMonitorSnapshot(roster, { lifecycleByActor = {}, workerMetricsByActor = {} } = {}) {
   if (!roster) return null;
   const members = Array.isArray(roster.members) ? roster.members : [];
 
   const counts = { queued: 0, running: 0, attention: 0, complete: 0, blocked: 0, failed: 0, total: 0 };
   let totalGeneratedOutputTokens = 0;
+  const automata = [];
 
   for (const member of members) {
     const actorId = member?.actorId;
-    counts[bucketFor(actorId, lifecycleByActor, workerMetricsByActor)] += 1;
+    const bucket = bucketFor(actorId, lifecycleByActor, workerMetricsByActor);
+    counts[bucket] += 1;
     counts.total += 1;
     totalGeneratedOutputTokens += generatedOutputFor(actorId, workerMetricsByActor);
+    automata.push(automatonDetail(member, actorId, bucket, workerMetricsByActor));
   }
 
   return {
     runId: String(roster.runId ?? "unknown"),
     counts,
     totalGeneratedOutputTokens,
+    automata,
   };
 }
 
