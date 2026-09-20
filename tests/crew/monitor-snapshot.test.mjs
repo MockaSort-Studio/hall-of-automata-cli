@@ -36,6 +36,48 @@ test("crewMonitorSnapshot defaults automata missing lifecycle entries to queued"
   assert.equal(snapshot.counts.total, 3);
 });
 
+test("crewMonitorSnapshot buckets an actor with live worker-metrics evidence as running even without a terminal or running lifecycle entry", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: {},
+    workerMetricsByActor: {
+      "actor-1": { turns: 2, toolCalls: 0 },
+      "actor-2": { turns: 0, toolCalls: 3 },
+      "actor-3": { turns: 0, toolCalls: 0 },
+    },
+  });
+  assert.deepEqual(snapshot.counts, {
+    queued: 1,
+    running: 2,
+    attention: 0,
+    complete: 0,
+    blocked: 0,
+    failed: 0,
+    total: 3,
+  });
+});
+
+test("crewMonitorSnapshot keeps an actor queued when it has zero turns/events and no terminal status, even if a metrics record exists", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: {},
+    workerMetricsByActor: {
+      "actor-1": { turns: 0, toolCalls: 0, toolErrors: 0, compactions: 0 },
+    },
+  });
+  assert.equal(snapshot.counts.queued, 3);
+  assert.equal(snapshot.counts.running, 0);
+});
+
+test("crewMonitorSnapshot lets an explicit terminal lifecycle status take precedence over worker-metrics evidence", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: { "actor-1": "PASS" },
+    workerMetricsByActor: {
+      "actor-1": { turns: 5, toolCalls: 5 },
+    },
+  });
+  assert.equal(snapshot.counts.complete, 1);
+  assert.equal(snapshot.counts.running, 0);
+});
+
 test("crewMonitorSnapshot sums generated output tokens across worker metrics", () => {
   const snapshot = crewMonitorSnapshot(roster(), {
     lifecycleByActor: { "actor-1": "running", "actor-2": "running", "actor-3": "running" },
