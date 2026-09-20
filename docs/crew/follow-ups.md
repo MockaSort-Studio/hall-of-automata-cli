@@ -64,25 +64,23 @@ canonical in [runtime-structure.md](runtime-structure.md).
       `LifecycleController`'s pre-removal snapshot.
 - [x] Parse JSON-encoded Comm payload strings before projecting a human-readable
       message/summary/report for adapters, instead of publishing raw JSON.
+- [x] Fix a live, reproducible Crew-startup collision: dispatching 4 workers, 3 got one
+      degenerate zero-usage/zero-tool-call turn and then hung silently forever (confirmed
+      via `lsof`: no outbound connection, no retry, no error) while 1 worked normally.
+      `CommController.broadcast()` delivered every resident worker's first prompt in the
+      same tick, so their first real provider requests raced each other within ~128ms.
+      Fixed by scheduling, not retrying: `broadcast()` now spaces recipient delivery out by
+      a configurable interval (default 250ms, deterministic registration order), so
+      concurrent first-activation can no longer be manufactured by our own fan-out.
 
 ## Open
 
-- [ ] Detect and recover from a degenerate zero-usage/empty-content completed turn instead
-      of hanging silently forever. Observed live: dispatching 4 workers simultaneously, 3
-      got one turn with zero input/output/cache tokens and zero tool calls (no error logged),
-      then went fully idle with no outbound network activity (confirmed via `lsof`) for
-      minutes, while 1 worked normally. Root cause looks like a concurrent-startup race at
-      the auth/session layer (all three failed within ~128ms of each other at kickoff,
-      immediately after Main's single broadcast delivered to all resident workers in the
-      same tick), not something in our Comm/lifecycle code -- but nothing on our side
-      notices or retries an empty turn, so a transient provider/auth hiccup silently strands
-      a worker forever with no report to Main. Fix belongs in `worker-comm-extension.mjs`
-      (the in-process Pi extension already owns delivery/prompt/ack flow and has
-      `turn_end`/`agent_settled` visibility): track the just-completed turn's usage/output/
-      tool-call counts, retry the same delivery prompt a bounded number of times on a fully
-      empty turn, and report BLOCKED to Main with evidence if retries are exhausted instead
-      of silently going idle. Consider also staggering kickoff delivery as a secondary,
-      probabilistic mitigation, not a substitute for the retry/report fix.
+- [ ] Add a bounded, non-looping safety net for a degenerate zero-usage/empty-content
+      completed turn that still slips through the staggered broadcast (e.g. a genuine
+      transient provider error, not a startup collision): report BLOCKED to Main with
+      evidence instead of silently going idle forever. Explicitly capped, no retry loop.
+      Deprioritized now that the collision itself is fixed at the scheduling layer (see
+      resolved list); revisit only if an empty turn is observed again after that fix.
 - [ ] Surface session-context percent/window in the monitor snapshot and dashboard. It is
       captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
 - [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
