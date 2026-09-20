@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
+import { isDegenerateTurn } from "../../.pi/extensions/runtime/lib/degenerate-turn.mjs";
 import { STATIC_CONTEXT_MARKER } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
 
 const loadExtension = async (config) => {
@@ -100,6 +101,65 @@ test("only a lead-granted worker receives comm_notify_all", async (t) => {
   const { pi } = await setup(t, ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"]);
   assert.ok(pi.tools.has("comm_notify_all"));
   assert.ok(!pi.tools.has("comm_notify_many"));
+});
+test("isDegenerateTurn flags zero tokens and zero tool calls, nothing else", () => {
+  assert.equal(isDegenerateTurn({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, 0), true);
+  assert.equal(isDegenerateTurn({ input: 0, output: 3, cacheRead: 0, cacheWrite: 0 }, 0), false);
+  assert.equal(isDegenerateTurn(undefined, 1), false);
+});
+const fireTurn = (pi, { usage, toolCalls = 0 } = {}) => {
+  pi.handlers.get("turn_end")({
+    message: { usage, content: Array.from({ length: toolCalls }, () => ({ type: "toolCall" })) },
+  });
+  pi.handlers.get("agent_settled")();
+};
+test("a delivery that settles without any turn_end (e.g. reply-driven) is never treated as degenerate", async (t) => {
+  const { comm, pi } = await setup(t);
+  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  await waitFor(() => pi.deliveries.length === 1);
+  await pi.tools.get("comm_reply").execute("call", { payload: { ok: true } });
+  pi.handlers.get("agent_settled")();
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(pi.deliveries.length, 1, "no retry when no turn_end fired at all");
+});
+test("acknowledges normally after one real turn, no retry", async (t) => {
+  const { comm, pi } = await setup(t);
+  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  await waitFor(() => pi.deliveries.length === 1);
+  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(pi.deliveries.length, 1, "no retry for a real turn");
+});
+test("retries exactly once on a degenerate turn, then acknowledges once real work follows", async (t) => {
+  const { comm, pi } = await setup(t);
+  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  await waitFor(() => pi.deliveries.length === 1);
+  fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
+  await waitFor(() => pi.deliveries.length === 2);
+  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(pi.deliveries.length, 2, "exactly one retry, not a loop");
+  assert.equal(
+    comm
+      .events()
+      .some((event) => event.to === "main" && event.type === "message_emitted" && event.from === "ns-worker"),
+    false,
+    "no BLOCKED report when the retry succeeds",
+  );
+});
+test("reports BLOCKED to main and still acknowledges after two consecutive degenerate turns", async (t) => {
+  const { comm, pi } = await setup(t);
+  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  await waitFor(() => pi.deliveries.length === 1);
+  fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
+  await waitFor(() => pi.deliveries.length === 2);
+  fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(pi.deliveries.length, 2, "never a third attempt: bounded, not a loop");
+  const report = comm.claim("main");
+  assert.equal(report?.from, "ns-worker");
+  assert.equal(report?.payload?.status, "BLOCKED");
+  assert.equal(report?.payload?.reason, "empty-turn");
 });
 test("agent_start records content-free static-context token counts exactly once", async () => {
   const extension = await loadExtension({ initialTurn: "resident", task: "" });

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Type } from "typebox";
 import { connectComm } from "./comm-client.mjs";
 import { staticContextTokens } from "../../crew/lib/observability-ledger.mjs";
+import { isDegenerateTurn } from "./degenerate-turn.mjs";
 import { STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
 
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
@@ -34,6 +35,17 @@ const granted = new Set(config.commTools ?? ["comm_notify", "comm_request", "com
 
 export default function workerCommExtension(pi) {
   let staticContextReported = false;
+  // sawTurnEnd distinguishes "a turn_end fired and it was empty" (degenerate,
+  // worth retrying) from "no turn_end fired at all before settling" (a
+  // legitimate completion path, e.g. reply-driven -- must NOT be treated as
+  // degenerate, or every such delivery would trigger a retry that awaits a
+  // settle event that may never come again).
+  let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
+  pi.on("turn_end", (event) => {
+    sawTurnEnd = true;
+    lastTurnUsage = event.message?.usage;
+    lastTurnToolCalls = (event.message?.content ?? []).filter((part) => part.type === "toolCall").length;
+  });
   pi.on("agent_start", (_event, ctx) => {
     if (staticContextReported) return;
     staticContextReported = true;
@@ -91,10 +103,31 @@ export default function workerCommExtension(pi) {
     comm = await connectComm(config.comm);
     comm.onDelivery((message) => {
       deliveries = deliveries.then(async () => {
-        const settled = nextSettled();
         replyContext = message;
-        await pi.sendUserMessage(deliveryPrompt(message), { deliverAs: "followUp" });
+        const prompt = deliveryPrompt(message);
+        let settled = nextSettled();
+        sawTurnEnd = false;
+        await pi.sendUserMessage(prompt, { deliverAs: "followUp" });
         await settled;
+        if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+          settled = nextSettled();
+          sawTurnEnd = false;
+          await pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+          await settled;
+          if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+            try {
+              await comm.emit({
+                to: "main",
+                payload: {
+                  kind: "report",
+                  status: "BLOCKED",
+                  reason: "empty-turn",
+                  detail: "Two consecutive empty provider turns (no tokens, no tool call) for this delivery.",
+                },
+              });
+            } catch {}
+          }
+        }
         await comm.acknowledge(message.id);
         replyContext = undefined;
         firstDelivery = false;
