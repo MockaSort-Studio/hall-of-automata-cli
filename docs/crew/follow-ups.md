@@ -67,6 +67,22 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
+- [ ] Detect and recover from a degenerate zero-usage/empty-content completed turn instead
+      of hanging silently forever. Observed live: dispatching 4 workers simultaneously, 3
+      got one turn with zero input/output/cache tokens and zero tool calls (no error logged),
+      then went fully idle with no outbound network activity (confirmed via `lsof`) for
+      minutes, while 1 worked normally. Root cause looks like a concurrent-startup race at
+      the auth/session layer (all three failed within ~128ms of each other at kickoff,
+      immediately after Main's single broadcast delivered to all resident workers in the
+      same tick), not something in our Comm/lifecycle code -- but nothing on our side
+      notices or retries an empty turn, so a transient provider/auth hiccup silently strands
+      a worker forever with no report to Main. Fix belongs in `worker-comm-extension.mjs`
+      (the in-process Pi extension already owns delivery/prompt/ack flow and has
+      `turn_end`/`agent_settled` visibility): track the just-completed turn's usage/output/
+      tool-call counts, retry the same delivery prompt a bounded number of times on a fully
+      empty turn, and report BLOCKED to Main with evidence if retries are exhausted instead
+      of silently going idle. Consider also staggering kickoff delivery as a secondary,
+      probabilistic mitigation, not a substitute for the retry/report fix.
 - [ ] Surface session-context percent/window in the monitor snapshot and dashboard. It is
       captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
 - [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
