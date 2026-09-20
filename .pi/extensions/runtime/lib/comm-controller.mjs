@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { CommEnvelopeObservation, projectEnvelope } from "./comm-envelope-observation.mjs";
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export class CommController {
   #server;
   #connections = new Map();
@@ -10,6 +12,18 @@ export class CommController {
   #actors = new Set(["main"]);
   #pendingReplies = new Map();
   #observation = new CommEnvelopeObservation();
+  // A synchronous broadcast delivers every resident worker's first prompt in
+  // the same tick, which has produced a real, reproducible collision: near-
+  // simultaneous fresh sessions racing the same provider/session-auth path,
+  // where most of them come back with a degenerate zero-usage turn. This is
+  // a scheduling fix (space activations out), not a retry: it never loops
+  // and never masks a genuine failure, it just avoids manufacturing the
+  // collision in the first place. 0 disables it (tests; also the existing,
+  // pre-fix behavior).
+  #broadcastStaggerMs;
+  constructor({ broadcastStaggerMs = 250 } = {}) {
+    this.#broadcastStaggerMs = broadcastStaggerMs;
+  }
   async start(port = 0) {
     this.#server = new WebSocketServer({ port });
     await new Promise((resolve) => this.#server.once("listening", resolve));
@@ -57,11 +71,20 @@ export class CommController {
     this.#flush(to);
     return { accepted: true, id: message.id };
   }
-  broadcast(from, namespace, payload, includeMain = false) {
+  // Delivers with a fixed gap between recipients instead of all at once, so
+  // resident workers' first real provider request never lands in the same
+  // instant. Order is insertion order of #actors (registration order), which
+  // is stable and deterministic, not randomized.
+  async broadcast(from, namespace, payload, includeMain = false) {
     const recipients = [...this.#actors].filter(
       (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
     );
-    return { accepted: true, recipients: recipients.map((to) => this.emit(from, to, payload).id) };
+    const ids = [];
+    for (const [index, to] of recipients.entries()) {
+      if (index > 0 && this.#broadcastStaggerMs > 0) await sleep(this.#broadcastStaggerMs);
+      ids.push(this.emit(from, to, payload).id);
+    }
+    return { accepted: true, recipients: ids };
   }
   claim(actorId) {
     if (this.#inflight.has(actorId)) return undefined;
@@ -107,7 +130,7 @@ export class CommController {
   }
   #attach(socket) {
     let actorId;
-    socket.on("message", (raw) => {
+    socket.on("message", async (raw) => {
       const request = JSON.parse(String(raw));
       try {
         let result;
@@ -121,7 +144,7 @@ export class CommController {
           this.registerActor(request.params.actorId);
           result = { registered: request.params.actorId };
         } else if (request.method === "comm.broadcast")
-          result = this.broadcast(
+          result = await this.broadcast(
             actorId,
             request.params.namespace,
             request.params.payload,
