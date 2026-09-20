@@ -50,6 +50,7 @@ test("widget is fixed above editor, clickable when supported, and cleaned up", (
 
 test("widget renders the live CrewMonitorSnapshot footer, not a static phase line", () => {
   assert.match(source, /import \{ crewMonitorSnapshot \} from "\.\/monitor-snapshot\.mjs"/);
+  assert.match(source, /import \{ lifecycleByActor \} from "\.\/monitor-actor-state\.mjs"/);
   assert.match(source, /import \{ renderCrewStatusFooter \} from "\.\/monitor-footer\.mjs"/);
   assert.match(source, /import \{ summarizeWorkerEvents \} from "\.\.\/\.\.\/runtime\/lib\/worker-metrics\.mjs"/);
   assert.match(source, /crewMonitorSnapshot\(roster, \{/);

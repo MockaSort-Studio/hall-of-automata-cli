@@ -6,6 +6,7 @@ import { summarizeWorkerEvents } from "../../runtime/lib/worker-metrics.mjs";
 import { crewMonitorView } from "./monitor-state.mjs";
 import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
+import { lifecycleByActor } from "./monitor-actor-state.mjs";
 import { buildAutomataTab } from "./monitor-dashboard.mjs";
 import { planRowsFor, registerCrewDashboardCommand } from "./monitor-dashboard-command.mjs";
 
@@ -30,15 +31,6 @@ const readEvents = (path) => {
     return [];
   }
 };
-// Per-member roster status already speaks the lifecycle-state.mjs
-// vocabulary (queued/running/attention/PASS/BLOCKED/FAIL) once
-// roster-lifecycle.mjs has advanced it; default to "queued" until it has.
-const lifecycleByActor = (roster) =>
-  Object.fromEntries(
-    (roster.members ?? [])
-      .filter((member) => member.actorId)
-      .map((member) => [member.actorId, member.status ?? "queued"]),
-  );
 // Worker metrics live under each actor's own run directory for as long as
 // it exists. A terminal member's directory may already be gone by the time
 // this renders; summarizeWorkerEvents([]) degrades to all-zero counts.
