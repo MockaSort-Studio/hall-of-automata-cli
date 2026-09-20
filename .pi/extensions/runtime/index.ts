@@ -1,7 +1,7 @@
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { Type } from "typebox";
-import { applyWorkerStatusToRosterFiles } from "../crew/lib/roster-lifecycle.mjs";
+import { applyMemberOutcomeToRosterFiles, applyWorkerStatusToRosterFiles } from "../crew/lib/roster-lifecycle.mjs";
 import { terminalizeRostersForRemovedActors } from "../crew/lib/roster-terminal.mjs";
 import { runtimeFor } from "./lib/shared-runtime.mjs";
 
@@ -152,16 +152,26 @@ export default function runtimeExtension(pi: any): void {
     name: "runtime_delete_agent",
     label: "Runtime: delete agent",
     description: "Stop an SDK agent and remove its worktree.",
-    parameters: Type.Object({ id: Type.String() }),
+    parameters: Type.Object({
+      id: Type.String(),
+      // Set this when Main has already received and accepted (or rejected)
+      // this member's report before removing it, so the roster records what
+      // actually happened instead of the removal-inferred BLOCKED ("stalled
+      // unattended") -- e.g. a resident worker that reported done and is now
+      // simply being cleaned up should land on PASS, not BLOCKED.
+      outcome: Type.Optional(Type.Union([Type.Literal("PASS"), Type.Literal("FAIL"), Type.Literal("BLOCKED")])),
+    }),
     async execute(_id, input) {
       const before = await runtime.inspect(input.id);
       const result = await runtime.remove(input.id);
       const rosterLifecycleUpdates = result.removed
-        ? applyWorkerStatusToRosterFiles(
-            crewLaunchDir(process.cwd()),
-            input.id,
-            workerStatusForRoster(before, result.status ?? "removed"),
-          )
+        ? input.outcome
+          ? applyMemberOutcomeToRosterFiles(crewLaunchDir(process.cwd()), input.id, input.outcome)
+          : applyWorkerStatusToRosterFiles(
+              crewLaunchDir(process.cwd()),
+              input.id,
+              workerStatusForRoster(before, result.status ?? "removed"),
+            )
         : [];
       const terminalizedRosters = result.removed
         ? terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), [input.id])

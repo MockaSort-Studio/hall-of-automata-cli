@@ -19,18 +19,25 @@ export function outcomeForWorkerStatus(workerStatus) {
   return WORKER_OUTCOMES[workerStatus] ?? null;
 }
 
-// Advances one member's durable lifecycle state to the terminal outcome
-// implied by a worker's terminal runtime status. Routes BLOCKED through
-// "attention" first: running -> BLOCKED is not itself a legal edge in the
-// contract, so an intentional stop must pass through the same "stalled,
-// unattended" waypoint any other blocked run would.
-export function advanceMemberLifecycle(state, workerStatus) {
-  const outcome = outcomeForWorkerStatus(workerStatus);
-  if (!outcome) return state;
-  if (isTerminal(state)) return state;
+// Advances a member's durable lifecycle state to an explicit terminal
+// outcome. Routes BLOCKED through "attention" first: running -> BLOCKED is
+// not itself a legal edge in the contract, so an intentional stop must pass
+// through the same "stalled, unattended" waypoint any other blocked run
+// would. A no-op once the member is already terminal.
+export function advanceMemberToOutcome(state, outcome) {
+  if (!outcome || isTerminal(state)) return state;
   let next = state;
   if (outcome === "BLOCKED" && next !== "attention") next = transition(next, "attention");
   return transition(next, outcome);
+}
+
+// Advances one member's durable lifecycle state to the terminal outcome
+// implied by a worker's terminal runtime status. This is the automatic,
+// infer-from-the-process path -- used when nobody has already recorded what
+// the member actually accomplished (see applyMemberOutcomeToRoster below for
+// the explicit, Main-declared path).
+export function advanceMemberLifecycle(state, workerStatus) {
+  return advanceMemberToOutcome(state, outcomeForWorkerStatus(workerStatus));
 }
 
 const ROSTER_STATUS_FOR_OUTCOME = Object.freeze({ FAIL: "failed", BLOCKED: "cancelled", PASS: "closed" });
@@ -51,19 +58,19 @@ export function rosterStatusForTerminalMembers(members) {
   return ROSTER_STATUS_FOR_OUTCOME[outcome];
 }
 
-// Pure: returns a new roster object with one member's status advanced, or
-// the same roster reference if the actor isn't a member or is already
-// terminal. Members default to "running" the first time they receive a
-// worker status: prepareCrew/launchPreparedCrew record only "queued"
-// launch-time roster status, not a per-member lifecycle state. Also rolls
-// the roster-level status up to a terminal Crew status once this update
-// makes every member terminal, so the Crew monitor can retire it.
-export function applyWorkerStatusToRoster(roster, actorId, workerStatus) {
+// Pure: returns a new roster object with one member's status advanced by
+// `advance(current)`, or the same roster reference if the actor isn't a
+// member or `advance` is a no-op. Members default to "running" the first
+// time they receive a status: prepareCrew/launchPreparedCrew record only
+// "queued" launch-time roster status, not a per-member lifecycle state.
+// Also rolls the roster-level status up to a terminal Crew status once this
+// update makes every member terminal, so the Crew monitor can retire it.
+function applyMemberAdvance(roster, actorId, advance) {
   const members = roster?.members || [];
   const index = members.findIndex((member) => member.actorId === actorId);
   if (index === -1) return roster;
   const current = members[index].status ?? "running";
-  const next = advanceMemberLifecycle(current, workerStatus);
+  const next = advance(current);
   if (next === current) return roster;
   const updated = [...members];
   updated[index] = { ...updated[index], status: next };
@@ -71,10 +78,10 @@ export function applyWorkerStatusToRoster(roster, actorId, workerStatus) {
   return { ...roster, members: updated, ...(rollup ? { status: rollup } : {}) };
 }
 
-// I/O: applies one worker's terminal status to every roster file in
+// I/O: applies `advance` to one actor's member entry in every roster file in
 // crewLaunchDir that lists it as a member, mirroring
 // terminalizeRostersForRemovedActors's scan pattern in roster-terminal.mjs.
-export function applyWorkerStatusToRosterFiles(crewLaunchDir, actorId, workerStatus) {
+function applyMemberAdvanceToFiles(crewLaunchDir, actorId, advance) {
   let names;
   try {
     names = readdirSync(crewLaunchDir).filter((name) => name.endsWith("-roster.json"));
@@ -85,10 +92,32 @@ export function applyWorkerStatusToRosterFiles(crewLaunchDir, actorId, workerSta
   for (const name of names) {
     const path = join(crewLaunchDir, name);
     const roster = JSON.parse(readFileSync(path, "utf8"));
-    const next = applyWorkerStatusToRoster(roster, actorId, workerStatus);
+    const next = applyMemberAdvance(roster, actorId, advance);
     if (next === roster) continue;
     writeFileSync(path, JSON.stringify(next, null, 2));
     updated.push({ runId: roster.runId, actorId, status: next.members.find((m) => m.actorId === actorId).status });
   }
   return updated;
+}
+
+// Automatic path: infers the outcome from a worker process's terminal
+// runtime status (completed/failed/removed). Use when nobody has already
+// recorded what the member accomplished.
+export function applyWorkerStatusToRoster(roster, actorId, workerStatus) {
+  return applyMemberAdvance(roster, actorId, (current) => advanceMemberLifecycle(current, workerStatus));
+}
+export function applyWorkerStatusToRosterFiles(crewLaunchDir, actorId, workerStatus) {
+  return applyMemberAdvanceToFiles(crewLaunchDir, actorId, (current) => advanceMemberLifecycle(current, workerStatus));
+}
+
+// Explicit path: Main has already received and accepted (or rejected) a
+// member's report and is declaring the outcome directly, instead of letting
+// it be inferred from the worker process's removal status. This is what
+// lets a member that reported done and was then intentionally removed land
+// on PASS instead of the removal-inferred BLOCKED.
+export function applyMemberOutcomeToRoster(roster, actorId, outcome) {
+  return applyMemberAdvance(roster, actorId, (current) => advanceMemberToOutcome(current, outcome));
+}
+export function applyMemberOutcomeToRosterFiles(crewLaunchDir, actorId, outcome) {
+  return applyMemberAdvanceToFiles(crewLaunchDir, actorId, (current) => advanceMemberToOutcome(current, outcome));
 }

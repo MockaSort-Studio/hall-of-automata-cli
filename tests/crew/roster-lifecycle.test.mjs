@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import {
   advanceMemberLifecycle,
+  advanceMemberToOutcome,
+  applyMemberOutcomeToRoster,
+  applyMemberOutcomeToRosterFiles,
   applyWorkerStatusToRoster,
   applyWorkerStatusToRosterFiles,
   outcomeForWorkerStatus,
@@ -173,4 +176,36 @@ test("applyWorkerStatusToRoster never overwrites an already-terminal roster stat
   const next = applyWorkerStatusToRoster(roster, "actor-a", "completed");
   assert.equal(next.status, "failed");
   assert.equal(next.members[0].status, "PASS");
+});
+
+test("advanceMemberToOutcome routes BLOCKED through attention like the worker-status path does", () => {
+  assert.equal(advanceMemberToOutcome("running", "PASS"), "PASS");
+  assert.equal(advanceMemberToOutcome("running", "BLOCKED"), "BLOCKED");
+  assert.equal(advanceMemberToOutcome("PASS", "FAIL"), "PASS", "no-op once terminal");
+});
+test("applyMemberOutcomeToRoster lets Main record PASS for a resident worker that reported done before removal", () => {
+  // A resident worker never exits on its own after finishing an assignment,
+  // so LifecycleController.remove() always finalizes it as "removed" --
+  // which the automatic path maps to BLOCKED. This is the fix: Main already
+  // received and accepted the report, so it declares the real outcome
+  // directly instead of letting removal imply "stalled unattended".
+  const roster = { runId: "run-1", status: "started", members: [{ name: "a", actorId: "actor-a" }] };
+  const next = applyMemberOutcomeToRoster(roster, "actor-a", "PASS");
+  assert.equal(next.members[0].status, "PASS");
+  assert.equal(next.status, "closed");
+});
+test("applyMemberOutcomeToRosterFiles updates only the roster listing the actor", () => {
+  const dir = tmpCrewLaunchDir("crew-lifecycle-outcome-");
+  try {
+    const path = join(dir, "run-active-roster.json");
+    writeFileSync(
+      path,
+      JSON.stringify({ runId: "run-active", status: "started", members: [{ name: "a", actorId: "actor-a" }] }),
+    );
+    const updated = applyMemberOutcomeToRosterFiles(dir, "actor-a", "PASS");
+    assert.deepEqual(updated, [{ runId: "run-active", actorId: "actor-a", status: "PASS" }]);
+    assert.equal(JSON.parse(readFileSync(path, "utf8")).status, "closed");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
