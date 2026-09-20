@@ -122,11 +122,12 @@ canonical in [runtime-structure.md](runtime-structure.md).
       reports and multi-kilobyte payloads unsuitable as Discussion comments.
 - [ ] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
       The roster-level terminal rollup is done; the Discussion-adapter side is untouched.
-- [ ] `BLOCKED` is currently the only terminal outcome available for an intentionally
-      _successful_ stop (e.g. Main removing a worker after it already reported done). It is
-      being used as a stand-in and is a semantic mismatch with lifecycle-state.mjs's own
-      definition ("stalled unattended"); revisit whether a fourth outcome is needed once the
-      dependency ledger exists to distinguish "done, then cleaned up" from "actually stuck."
+- [x] Fixed the `BLOCKED`-for-a-successful-stop mismatch without adding a fourth outcome.
+      `runtime_delete_agent` now accepts an optional `outcome` (`PASS|FAIL|BLOCKED`); when
+      Main has already received and accepted a member's report before removing it, it
+      declares the real outcome directly (`applyMemberOutcomeToRosterFiles`) instead of
+      letting removal be inferred as BLOCKED. The automatic inference path is unchanged and
+      still used whenever Main has no such prior knowledge (e.g. a crash).
 - [ ] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
       cancels it, else PASS closes it). Validated with a Lead present; still not validated
       against a Crew with a required-vs-optional member distinction.
