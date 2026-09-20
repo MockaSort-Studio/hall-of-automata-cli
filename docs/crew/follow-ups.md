@@ -81,6 +81,13 @@ canonical in [runtime-structure.md](runtime-structure.md).
       evidence instead of silently going idle forever. Explicitly capped, no retry loop.
       Deprioritized now that the collision itself is fixed at the scheduling layer (see
       resolved list); revisit only if an empty turn is observed again after that fix.
+- [ ] Investigate and clean up orphaned `lifecycle-server.mjs` processes from past Main
+      sessions. Observed live via `ps`: multiple `lifecycle-server.mjs` processes from prior
+      days (e.g. Saturday) still running, unowned by the current Runtime session's `#agents`
+      map, so `runtime_cleanup`/`runtime_delete_agent` cannot reach them (those tools only
+      iterate agents this session itself spawned). Need either a durable owner/PID record
+      per launched Lifecycle server so a later session can find and reap orphans, or a
+      liveness/heartbeat convention that lets a stale server self-terminate.
 - [ ] Surface session-context percent/window in the monitor snapshot and dashboard. It is
       captured in `worker-metrics.mjs` but `monitor-snapshot.mjs` does not read it yet.
 - [ ] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
