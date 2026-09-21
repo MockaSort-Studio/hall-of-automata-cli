@@ -233,6 +233,25 @@ canonical in [runtime-structure.md](runtime-structure.md).
       reconciling this: `lifecycle-owner-integration.test.mjs` imported but never used
       `mkdtempSync`/`rmSync`, so it ran against the literal repo `cwd` and could collide
       with any real Runtime's owner file already on disk -- isolated to a per-test temp cwd.
+      This fix had no real effect on its own -- see the next entry, which found the actual
+      root cause.
+- [x] Fixed the real root cause of the footer never transitioning: the live dependency
+      ledger never matched a real Comm envelope in the first place. A real worker's Comm
+      actorId is namespace-qualified (`crew-<runId>-<handle>`, e.g.
+      `crew-521574dc-...-developer-snowball-00`); `dependency-ledger-wiring.mjs` seeded the
+      ledger with the bare handle from `selected_crew_<uuid>.json`, and
+      `canonicalHandle()` never strips a namespace prefix. `ledger.has()`/`status()`
+      therefore never matched a real envelope's `to`/`from` field -- no ledger node had
+      ever actually left `waiting` in any live dispatch, only in unit tests that emitted
+      bare handles directly. This included the prior "end-to-end" test
+      (`tests/runtime/dependency-ledger-e2e.test.mjs`), which used the real WebSocket
+      transport but not the real actor-id shape -- exactly where the bug lived, and exactly
+      why that test didn't catch it. `attachRawEnvelopeObserver()` now takes an explicit
+      `namespace` argument and strips `<namespace>-` from `to`/`from` before matching;
+      `monitor-live-ledger.mjs` passes `crew-${selected.runId}`. Rewrote the e2e test to use
+      real namespace-qualified actor IDs end to end, and added explicit regression tests
+      for the namespaced-envelope shape in `dependency-ledger-wiring.test.mjs` and
+      `monitor-live-ledger.test.mjs`.
 
 ## Evidence and performance work
 
