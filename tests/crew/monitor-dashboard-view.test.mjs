@@ -25,26 +25,45 @@ const planRow = () => ({
   dependsOn: [],
 });
 
-test("formatAutomataLines emits a header plus one line per automaton with bucket, metrics, and context", () => {
+test("formatAutomataLines emits a header, a divider, and one line per automaton with bucket, metrics, and context", () => {
   const lines = formatAutomataLines([automataRow()]);
-  assert.equal(lines.length, 2);
+  assert.equal(lines.length, 3);
   assert.match(lines[0], /BUCKET/);
-  assert.match(lines[1], /architect-a/);
-  assert.match(lines[1], /running/);
-  assert.match(lines[1], /42% \/ 200000/);
+  assert.match(lines[1], /^[\u2500\u253c]+$/);
+  assert.match(lines[2], /architect-a/);
+  assert.match(lines[2], /running/);
+  assert.match(lines[2], /42% \/ 200000/);
+});
+
+test("formatAutomataLines aligns the header and data row into equal-width columns", () => {
+  const lines = formatAutomataLines([automataRow()]);
+  const [header, divider, row] = lines;
+  assert.equal(header.length, row.length);
+  assert.equal(divider.length, row.length);
+});
+
+test("formatAutomataLines shrinks the flexible NAME column, never the fixed metric columns, on a narrow width", () => {
+  const wide = formatAutomataLines([automataRow()], 120);
+  const narrow = formatAutomataLines([automataRow()], 60);
+  assert.ok(narrow[0].length < wide[0].length);
+  // The bucket/turns/tools/etc columns are unaffected -- their content is
+  // still present even once NAME has been squeezed down.
+  assert.match(narrow[2], /running/);
 });
 
 test("formatAutomataLines reports an explicit empty state instead of a blank table", () => {
   assert.deepEqual(formatAutomataLines([]), ["(no automata on the roster yet)"]);
 });
 
-test("formatPlanLines renders task, status, assigned automaton, and dependsOn per row", () => {
+test("formatPlanLines renders a header, a divider, and task, status, assigned automaton, and dependsOn per row", () => {
   const lines = formatPlanLines([{ ...planRow(), dependsOn: ["developer-bravo-00"] }]);
-  assert.equal(lines.length, 1);
-  assert.match(lines[0], /developer-alpha-00/);
-  assert.match(lines[0], /running/);
-  assert.match(lines[0], /developer-bravo-00/);
-  assert.match(lines[0], /Do the thing\./);
+  assert.equal(lines.length, 3);
+  assert.match(lines[0], /AUTOMATON/);
+  assert.match(lines[1], /^[\u2500\u253c]+$/);
+  assert.match(lines[2], /developer-alpha-00/);
+  assert.match(lines[2], /running/);
+  assert.match(lines[2], /developer-bravo-00/);
+  assert.match(lines[2], /Do the thing\./);
 });
 
 test("formatPlanLines reports an explicit empty state instead of a blank table", () => {
@@ -71,6 +90,15 @@ test("createCrewDashboardComponent renders the active tab's rows and respects wi
   component.handleInput("\t");
   const planLines = component.render(200);
   assert.ok(planLines.some((line) => line.includes("developer-alpha-00")));
+});
+
+test("createCrewDashboardComponent's table widens to fill a larger overlay render width", () => {
+  const component = createCrewDashboardComponent({
+    getData: () => ({ automataRows: [automataRow()], planRows: [planRow()] }),
+  });
+  const narrow = component.render(70)[1];
+  const wide = component.render(140)[1];
+  assert.ok(wide.length > narrow.length);
 });
 
 test("createCrewDashboardComponent calls onClose on escape or q", () => {

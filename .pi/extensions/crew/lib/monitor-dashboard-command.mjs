@@ -29,10 +29,21 @@ export function planRowsFor(readJson, cwd, roster, ledger) {
   return buildPlanTab({ selectedCrew: selected, ledgerSnapshot });
 }
 
+// Sized as a comfortable side panel -- roughly a third of the terminal
+// width, never so narrow the table columns collapse into ellipses, and
+// capped in height so a long roster doesn't push the tab bar off-screen.
+const DASHBOARD_OVERLAY_OPTIONS = Object.freeze({
+  width: "33%",
+  minWidth: 70,
+  maxHeight: "80%",
+  anchor: "center",
+  margin: 1,
+});
+
 const openDashboard = (sessionCtx, getData) =>
   sessionCtx.ui.custom(
     (_tui, _theme, _keybindings, done) => createCrewDashboardComponent({ getData, onClose: () => done(undefined) }),
-    { overlay: true },
+    { overlay: true, overlayOptions: DASHBOARD_OVERLAY_OPTIONS },
   );
 
 export function registerCrewDashboardCommand(pi, getData) {
