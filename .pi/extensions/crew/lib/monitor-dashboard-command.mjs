@@ -29,12 +29,28 @@ export function planRowsFor(readJson, cwd, roster, ledger) {
   return buildPlanTab({ selectedCrew: selected, ledgerSnapshot });
 }
 
-// Sized as a comfortable side panel -- roughly a third of the terminal
-// width, never so narrow the table columns collapse into ellipses, and
-// capped in height so a long roster doesn't push the tab bar off-screen.
+// GOTCHA: pi-tui's resolveOverlayLayout treats minWidth as a floor, not a
+// fallback -- it always does `width = Math.max(width, minWidth)`, so
+// minWidth wins over the `width` percentage on any terminal narrower than
+// minWidth / (percentage/100). Do not treat minWidth as "the width when
+// the percentage would be too small": on most real terminals it is simply
+// the width, full stop. Size it to the content's actual minimum, not a
+// guess, or the percentage becomes decorative.
+//
+// minWidth is set to the Automata tab's real minimum content width,
+// computed from AUTOMATA_COLUMNS in monitor-dashboard-view.mjs:
+//   BUCKET 9 ("attention" is the longest bucket value) + TURNS 5 + TOOLS 5
+//   + ERRS 4 + IN 7 + OUT 7 + CACHE R/W 15 ("1234567/1234567") + CTX 14
+//   ("100% / 1000000") + COMPACT 7 = 73 fixed-column chars, plus 9 SEP
+//   (" \u2502 ", 3 chars) between the 10 columns = 27, plus a NAME flex
+//   column wide enough to show a full Crew handle like
+//   "developer-frontenzo-00" (22 chars) without truncation = ~20.
+//   73 + 27 + 20 = 120.
+// width is set above that floor (50%) so wide terminals (>= ~240 cols)
+// get a panel that actually grows instead of pinning to the floor forever.
 const DASHBOARD_OVERLAY_OPTIONS = Object.freeze({
-  width: "33%",
-  minWidth: 70,
+  width: "50%",
+  minWidth: 120,
   maxHeight: "80%",
   anchor: "center",
   margin: 1,

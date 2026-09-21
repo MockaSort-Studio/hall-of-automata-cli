@@ -93,7 +93,17 @@ test("openDashboard wraps the content component with the injected chrome, passin
   assert.equal(wrapArgs.theme, theme);
   assert.equal(typeof wrapArgs.content.render, "function");
   assert.equal(result.options.overlay, true);
-  assert.equal(result.options.overlayOptions.width, "33%");
+  assert.equal(result.options.overlayOptions.width, "50%");
+});
+
+// Regression guard for the minWidth-is-a-floor gotcha (pi-tui's
+// resolveOverlayLayout does `width = Math.max(width, minWidth)`): minWidth
+// must cover the Automata table's real minimum content width so the panel
+// is never pinned to an illegibly narrow floor on typical terminals.
+test("openDashboard sets minWidth to the Automata table's computed minimum content width", () => {
+  const sessionCtx = fakeSessionCtx();
+  const result = openDashboard(sessionCtx, () => ({ automataRows: [], planRows: [] }));
+  assert.equal(result.options.overlayOptions.minWidth, 120);
 });
 
 test("openDashboard falls back to the unframed content component when no chrome is injected", () => {
