@@ -1,8 +1,6 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Box, getCapabilities, hyperlink, Text } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher } from "node:fs";
-import { join, resolve } from "node:path";
-import { summarizeWorkerEvents } from "../../runtime/lib/worker-metrics.mjs";
+import { join } from "node:path";
 import { crewMonitorView } from "./monitor-state.mjs";
 import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
@@ -13,6 +11,10 @@ import { planRowsFor, registerCrewDashboardCommand, selectedCrewFor } from "./mo
 import { wrapDashboardChrome } from "./monitor-dashboard-chrome.mjs";
 import { createLiveLedgerTracker } from "./monitor-live-ledger.mjs";
 import { ledgerStatusByActor } from "./dependency-ledger-wiring.mjs";
+import { activeRosterEntries } from "./monitor-active-rosters.mjs";
+import { pickActiveCrew } from "./monitor-dashboard-picker.mjs";
+import { buildFooterWidgetFactory } from "./monitor-footer-widget.mjs";
+import { workerMetricsByActor as workerMetricsByActorFor } from "./monitor-worker-metrics.mjs";
 
 const WIDGET = "crew-monitor";
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
@@ -24,29 +26,7 @@ const readJson = (path) => {
     return null;
   }
 };
-const readEvents = (path) => {
-  try {
-    return readFileSync(path, "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-  } catch {
-    return [];
-  }
-};
-// Worker metrics live under each actor's own run directory for as long as
-// it exists. A terminal member's directory may already be gone by the time
-// this renders; summarizeWorkerEvents([]) degrades to all-zero counts.
-const workerMetricsByActor = (cwd, roster) => {
-  const metrics = {};
-  for (const member of roster.members ?? []) {
-    if (!member.actorId) continue;
-    const path = join(cwd, CONFIG_DIR_NAME, "runtime", "runs", member.actorId, "events.jsonl");
-    metrics[member.actorId] = summarizeWorkerEvents(readEvents(path));
-  }
-  return metrics;
-};
+const workerMetricsByActor = (cwd, roster) => workerMetricsByActorFor(cwd, CONFIG_DIR_NAME, roster);
 
 export function registerCrewMonitor(pi: ExtensionAPI) {
   let ctx: ExtensionContext | undefined;
@@ -77,62 +57,64 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   };
 
   const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);
-  const latestActive = () => {
+  // Every currently-active roster, most-recently-touched first, bounded to
+  // MAX_ACTIVE_ROSTERS -- see monitor-active-rosters.mjs. The footer and the
+  // dashboard picker both read from this single scan so a second (or third)
+  // concurrent Crew is never silently dropped from either surface.
+  const scanActiveRosters = () => {
     const dir = root();
-    if (!dir || !existsSync(dir)) return undefined;
-    return readdirSync(dir)
+    if (!dir || !existsSync(dir)) return [];
+    const entries = readdirSync(dir)
       .filter((name) => name.endsWith("-roster.json"))
-      .map((name) => join(dir, name))
-      .filter((path) => ACTIVE.has(readJson(path)?.status))
-      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+      .map((name) => {
+        const path = join(dir, name);
+        return { path, roster: readJson(path), mtimeMs: statSync(path).mtimeMs };
+      });
+    return activeRosterEntries(entries, ACTIVE);
   };
+  const latestActive = () => scanActiveRosters()[0]?.path;
 
   const clear = () => ctx?.ui.setWidget(WIDGET, undefined);
-  const render = (roster) => {
-    const view = crewMonitorView(roster);
-    if (!ctx || !view) {
+  // One compact footer line per active roster, each built exactly the way
+  // the old single-Crew footer was: crewMonitorView for the phase/icon,
+  // crewMonitorSnapshot + renderCrewStatusFooter for the counts line. A
+  // second (or third) concurrent Crew now gets its own line instead of
+  // silently losing the widget to whichever roster was touched last.
+  const renderAll = (rosters) => {
+    if (!ctx) {
       clear();
       return;
     }
-    const snapshot = crewMonitorSnapshot(roster, {
-      lifecycleByActor: lifecycleByActor(roster),
-      workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
-      ledgerStatusByActor: ledgerStatusByActor(liveLedgerFor(roster), roster.members),
-    });
-    const footer = renderCrewStatusFooter(snapshot);
-    ctx.ui.setWidget(
-      WIDGET,
-      (_tui, theme) => {
-        const box = new Box(1, 0, (text) => theme.bg("customMessageBg", text));
-        const icon = view.phase === "Queued" ? "◌" : "◉";
-        let text = theme.fg("accent", theme.bold(`${icon} ${footer || `Crew ${view.runId.slice(0, 8)}`}`));
-        if (view.discussionNumber && view.discussionUrl) {
-          const label = `#${view.discussionNumber} ↗`;
-          const link = getCapabilities().hyperlinks
-            ? hyperlink(label, view.discussionUrl)
-            : `${label} ${view.discussionUrl}`;
-          text += ` · ${theme.fg("accent", link)}`;
-        }
-        box.addChild(new Text(text, 0, 0));
-        return box;
-      },
-      { placement: "aboveEditor" },
-    );
+    const lines = rosters
+      .map((roster) => {
+        const view = crewMonitorView(roster);
+        if (!view) return null;
+        const snapshot = crewMonitorSnapshot(roster, {
+          lifecycleByActor: lifecycleByActor(roster),
+          workerMetricsByActor: workerMetricsByActor(ctx!.cwd, roster),
+          ledgerStatusByActor: ledgerStatusByActor(liveLedgerFor(roster), roster.members),
+        });
+        return { view, footer: renderCrewStatusFooter(snapshot) };
+      })
+      .filter(
+        (line): line is { view: NonNullable<ReturnType<typeof crewMonitorView>>; footer: string } => line != null,
+      );
+    if (!lines.length) {
+      clear();
+      return;
+    }
+    ctx.ui.setWidget(WIDGET, buildFooterWidgetFactory(lines), { placement: "aboveEditor" });
   };
 
   const refresh = () => {
     if (!ctx || ctx.mode !== "tui") return;
-    let roster = activePath ? readJson(activePath) : null;
-    if (!roster || !ACTIVE.has(roster.status)) {
-      activePath = latestActive();
-      roster = activePath ? readJson(activePath) : null;
-    }
-    if (!roster || !ACTIVE.has(roster.status)) {
-      activePath = undefined;
+    const entries = scanActiveRosters();
+    activePath = entries[0]?.path;
+    if (!entries.length) {
       clear();
       return;
     }
-    render(roster);
+    renderAll(entries.map((entry) => entry.roster));
   };
 
   const schedule = () => {
@@ -174,13 +156,16 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   });
   pi.on("session_shutdown", stop);
 
-  // Command-activated dashboard: opens over the current active roster (the
-  // same one the footer already tracks) with two tabs, each pulling rows
-  // from crewMonitorSnapshot / monitor-dashboard.mjs, never from prose.
+  // Command-activated dashboard: when more than one roster is active, a
+  // picker (monitor-dashboard-picker.mjs) lets the user choose which
+  // Crew's dashboard to open; with zero or one active roster it opens
+  // directly, same as before this file gained multi-Crew awareness. Either
+  // way, rows come from crewMonitorSnapshot / monitor-dashboard.mjs, never
+  // from prose.
   registerCrewDashboardCommand(
     pi,
-    () => {
-      const path = activePath ?? latestActive();
+    (target) => {
+      const path = target ?? activePath ?? latestActive();
       const roster = path ? readJson(path) : null;
       if (!ctx || !roster) return { automataRows: [], planRows: [] };
       const ledger = liveLedgerFor(roster);
@@ -192,13 +177,18 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster, ledger) };
     },
     wrapDashboardChrome,
+    () => scanActiveRosters().map((entry) => ({ path: entry.path, roster: entry.roster })),
+    pickActiveCrew,
   );
 
   return {
-    activate(sessionCtx: ExtensionContext, rosterPath: string) {
+    // rosterPath is the file prepareCrew just wrote; refresh() rescans the
+    // whole crew-launch directory immediately below and picks it up on its
+    // own merit (freshest mtime), so there is nothing else to pin here --
+    // this just guarantees ctx/watcher/reconciler are ready before that scan.
+    activate(sessionCtx: ExtensionContext, _rosterPath: string) {
       ctx = sessionCtx;
       if (ctx.mode !== "tui") return;
-      activePath = resolve(ctx.cwd, rosterPath);
       ensureWatcher();
       reconcile();
       refresh();

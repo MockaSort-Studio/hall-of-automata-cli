@@ -4,6 +4,10 @@ import { test } from "node:test";
 import { crewMonitorView, isTerminalCrew } from "../../.pi/extensions/crew/lib/monitor-state.mjs";
 
 const source = readFileSync(new URL("../../.pi/extensions/crew/lib/monitor.ts", import.meta.url), "utf8");
+const footerWidgetSource = readFileSync(
+  new URL("../../.pi/extensions/crew/lib/monitor-footer-widget.mjs", import.meta.url),
+  "utf8",
+);
 
 const roster = (overrides) => ({
   runId: "run-123456",
@@ -37,8 +41,6 @@ test("terminal Crew removes the monitor", () => {
 
 test("widget is fixed above editor, clickable when supported, and cleaned up", () => {
   assert.match(source, /placement: "aboveEditor"/);
-  assert.match(source, /hyperlink\(label, view\.discussionUrl\)/);
-  assert.match(source, /getCapabilities\(\)\.hyperlinks/);
   assert.match(source, /watch\(dir/);
   assert.match(source, /session_shutdown/);
   assert.match(source, /watcher\?\.close\(\)/);
@@ -47,11 +49,19 @@ test("widget is fixed above editor, clickable when supported, and cleaned up", (
   assert.match(source, /clearInterval\(reconciler\)/);
 });
 
+test("the footer widget factory (isolated in its own pi-tui-bound file) is hyperlink-aware", () => {
+  assert.match(footerWidgetSource, /hyperlink\(label, view\.discussionUrl\)/);
+  assert.match(footerWidgetSource, /getCapabilities\(\)\.hyperlinks/);
+});
+
 test("widget renders the live CrewMonitorSnapshot footer, not a static phase line", () => {
   assert.match(source, /import \{ crewMonitorSnapshot \} from "\.\/monitor-snapshot\.mjs"/);
   assert.match(source, /import \{ lifecycleByActor \} from "\.\/monitor-actor-state\.mjs"/);
   assert.match(source, /import \{ renderCrewStatusFooter \} from "\.\/monitor-footer\.mjs"/);
-  assert.match(source, /import \{ summarizeWorkerEvents \} from "\.\.\/\.\.\/runtime\/lib\/worker-metrics\.mjs"/);
+  assert.match(
+    source,
+    /import \{ workerMetricsByActor as workerMetricsByActorFor \} from "\.\/monitor-worker-metrics\.mjs"/,
+  );
   assert.match(source, /crewMonitorSnapshot\(roster, \{/);
   assert.match(source, /renderCrewStatusFooter\(snapshot\)/);
 });
@@ -62,9 +72,33 @@ test("the Crew dashboard command/shortcut are wired from monitor-dashboard.mjs d
     source,
     /import \{ planRowsFor, registerCrewDashboardCommand, selectedCrewFor \} from "\.\/monitor-dashboard-command\.mjs"/,
   );
-  assert.match(source, /registerCrewDashboardCommand\(\s*pi,\s*\(\) => \{/);
+  assert.match(source, /registerCrewDashboardCommand\(\s*pi,\s*\(target\) => \{/);
   assert.match(source, /buildAutomataTab\(snapshot\)/);
   assert.match(source, /planRowsFor\(readJson, ctx\.cwd, roster, ledger\)/);
+});
+
+test("more than one active roster gets a Crew picker in front of the dashboard, not a silent single-roster pick", () => {
+  assert.match(source, /import \{ activeRosterEntries \} from "\.\/monitor-active-rosters\.mjs"/);
+  assert.match(source, /import \{ pickActiveCrew \} from "\.\/monitor-dashboard-picker\.mjs"/);
+  assert.match(source, /activeRosterEntries\(entries, ACTIVE\)/);
+  assert.match(
+    source,
+    /\(\) => scanActiveRosters\(\)\.map\(\(entry\) => \(\{ path: entry\.path, roster: entry\.roster \}\)\)/,
+  );
+  assert.match(source, /wrapDashboardChrome,\s*\(\) => scanActiveRosters\(\)\.map/);
+  assert.match(source, /pickActiveCrew,\s*\);/);
+});
+
+test("the footer shows one line per active roster, not just the latest, bounded and reused per-Crew", () => {
+  assert.match(source, /import \{ buildFooterWidgetFactory \} from "\.\/monitor-footer-widget\.mjs"/);
+  assert.match(source, /const scanActiveRosters = \(\) => \{/);
+  assert.match(source, /const renderAll = \(rosters\) => \{/);
+  assert.match(source, /const lines = rosters\s*\.map\(\(roster\) => \{/);
+  assert.match(source, /renderCrewStatusFooter\(snapshot\)/);
+  assert.match(
+    source,
+    /ctx\.ui\.setWidget\(WIDGET, buildFooterWidgetFactory\(lines\), \{ placement: "aboveEditor" \}\)/,
+  );
 });
 
 test("the Crew dashboard is given real border/background chrome, not unframed text", () => {
@@ -75,7 +109,7 @@ test("the Crew dashboard is given real border/background chrome, not unframed te
   // usage already is: source-pattern assertions, plus a manual TUI smoke
   // test (`cc --plugin-dir . --debug`, then `/crew-dashboard`).
   assert.match(source, /import \{ wrapDashboardChrome \} from "\.\/monitor-dashboard-chrome\.mjs"/);
-  assert.match(source, /\},\s*wrapDashboardChrome,?\s*\);/);
+  assert.match(source, /\},\s*wrapDashboardChrome,/);
 });
 
 test("the Plan tab reads a live ledger kept current by attachRawEnvelopeObserver, not a fresh reseed per open", () => {

@@ -96,9 +96,30 @@ test("createCrewDashboardComponent's table widens to fill a larger overlay rende
   const component = createCrewDashboardComponent({
     getData: () => ({ automataRows: [automataRow()], planRows: [planRow()] }),
   });
-  const narrow = component.render(70)[1];
-  const wide = component.render(140)[1];
+  const narrow = component.render(70)[2];
+  const wide = component.render(140)[2];
   assert.ok(wide.length > narrow.length);
+});
+
+test("createCrewDashboardComponent pads content with a blank line after the tab bar and one before the closing border", () => {
+  const component = createCrewDashboardComponent({
+    getData: () => ({ automataRows: [automataRow()], planRows: [planRow()] }),
+  });
+  const lines = component.render(120);
+  assert.equal(lines[1], "");
+  assert.equal(lines[lines.length - 1], "");
+  assert.match(lines[0], /Crew dashboard/);
+  assert.match(lines[2], /BUCKET/);
+});
+
+test("createCrewDashboardComponent's breathing-room blank lines survive an empty-rows state", () => {
+  const component = createCrewDashboardComponent({
+    getData: () => ({ automataRows: [], planRows: [] }),
+  });
+  const lines = component.render(80);
+  assert.equal(lines[1], "");
+  assert.equal(lines[lines.length - 1], "");
+  assert.match(lines[2], /no automata on the roster yet/);
 });
 
 test("createCrewDashboardComponent calls onClose on escape or q", () => {

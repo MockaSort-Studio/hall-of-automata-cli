@@ -106,9 +106,18 @@ export function createCrewDashboardComponent({ getData, onClose }) {
     render(width) {
       const data = getData();
       const tabBar = TABS.map((name) => (name === tab ? `[${name}]` : ` ${name} `)).join(" ");
+      // One blank line after the tab bar and one before the closing border
+      // give the panel breathing room instead of table rows butting
+      // directly against the border chrome (monitor-dashboard-chrome.mjs
+      // wraps this content with a top/bottom DynamicBorder rule and adds no
+      // vertical padding of its own). Content-driven height is intentional
+      // (pi-tui's overlay maxHeight is a ceiling, not a forced fill), so
+      // this only adds two lines rather than trying to fill remaining space.
       const lines = [
         `Crew dashboard \u2014 ${tabBar}  (tab: switch, esc: close)`,
+        "",
         ...linesForTab(tab, data, Math.max(0, width)),
+        "",
       ];
       return lines.map((line) => line.slice(0, Math.max(0, width)));
     },

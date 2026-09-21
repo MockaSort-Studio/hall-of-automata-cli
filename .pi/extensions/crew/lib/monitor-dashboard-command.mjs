@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createCrewDashboardComponent } from "./monitor-dashboard-view.mjs";
 import { buildPlanTab } from "./monitor-dashboard.mjs";
 import { readableDependencyLedgerSnapshot, seedDependencyLedgerFromSelectedCrew } from "./dependency-ledger-wiring.mjs";
+import { crewPickerItems } from "./monitor-active-rosters.mjs";
 
 // Reads the durable selected_crew_<uuid>.json plan document for a roster,
 // resolved from roster.selectedCrew (a path relative to cwd, written by
@@ -70,17 +71,33 @@ export const openDashboard = (sessionCtx, getData, wrapChrome) =>
     { overlay: true, overlayOptions: DASHBOARD_OVERLAY_OPTIONS },
   );
 
-export function registerCrewDashboardCommand(pi, getData, wrapChrome) {
+// `getData` now takes an optional target roster path (the one the picker
+// resolved, or the caller's single-Crew fallback when there's nothing to
+// pick between). `listActiveEntries`/`pickCrew` are both optional so
+// existing single-Crew callers (and tests) keep working unchanged: with no
+// `listActiveEntries`, or zero/one active entries, the picker step is
+// skipped entirely and behavior is identical to before this file gained
+// multi-Crew awareness.
+async function resolveTarget(sessionCtx, listActiveEntries, pickCrew) {
+  const entries = listActiveEntries ? listActiveEntries() : [];
+  if (entries.length <= 1 || !pickCrew) return { target: entries[0]?.path, cancelled: false };
+  const target = await pickCrew(sessionCtx, crewPickerItems(entries));
+  return { target, cancelled: target === undefined };
+}
+
+export function registerCrewDashboardCommand(pi, getData, wrapChrome, listActiveEntries, pickCrew) {
+  const openWithPicker = async (sessionCtx) => {
+    const { target, cancelled } = await resolveTarget(sessionCtx, listActiveEntries, pickCrew);
+    if (cancelled) return;
+    await openDashboard(sessionCtx, () => getData(target), wrapChrome);
+  };
+
   pi.registerCommand("crew-dashboard", {
     description: "Open the Crew dashboard (Automata / Plan tabs)",
-    handler: async (_args, sessionCtx) => {
-      await openDashboard(sessionCtx, getData, wrapChrome);
-    },
+    handler: async (_args, sessionCtx) => openWithPicker(sessionCtx),
   });
   pi.registerShortcut("ctrl+shift+d", {
     description: "Open the Crew dashboard",
-    handler: async (sessionCtx) => {
-      await openDashboard(sessionCtx, getData, wrapChrome);
-    },
+    handler: async (sessionCtx) => openWithPicker(sessionCtx),
   });
 }

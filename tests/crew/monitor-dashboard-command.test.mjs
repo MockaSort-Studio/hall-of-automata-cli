@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { openDashboard, planRowsFor } from "../../.pi/extensions/crew/lib/monitor-dashboard-command.mjs";
+import {
+  openDashboard,
+  planRowsFor,
+  registerCrewDashboardCommand,
+} from "../../.pi/extensions/crew/lib/monitor-dashboard-command.mjs";
 import { seedDependencyLedgerFromSelectedCrew } from "../../.pi/extensions/crew/lib/dependency-ledger-wiring.mjs";
 
 const selectedCrew = {
@@ -112,4 +116,103 @@ test("openDashboard falls back to the unframed content component when no chrome 
   const built = sessionCtx.getFactory()(undefined, { fg: (_n, s) => s, bg: (_n, s) => s }, undefined, () => {});
   assert.equal(built.wrapped, undefined);
   assert.equal(typeof built.render, "function");
+});
+
+// registerCrewDashboardCommand's picker orchestration: fakePi captures both
+// the /crew-dashboard command handler and the ctrl+shift+d shortcut handler
+// so both entry points are exercised without a real ExtensionAPI.
+function fakePi() {
+  const handlers = {};
+  return {
+    registerCommand: (name, def) => {
+      handlers[name] = def.handler;
+    },
+    registerShortcut: (_key, def) => {
+      handlers.shortcut = def.handler;
+    },
+    handlers,
+  };
+}
+
+test("registerCrewDashboardCommand skips the picker and opens directly when at most one roster is active", async () => {
+  const pi = fakePi();
+  const seen = [];
+  const getData = (target) => {
+    seen.push(target);
+    return { automataRows: [], planRows: [] };
+  };
+  let pickCalled = false;
+  registerCrewDashboardCommand(
+    pi,
+    getData,
+    undefined,
+    () => [{ path: "only-active-path", roster: { runId: "run-1", status: "started", members: [] } }],
+    async () => {
+      pickCalled = true;
+      return "never";
+    },
+  );
+
+  const sessionCtx = fakeSessionCtx();
+  await pi.handlers["crew-dashboard"]("", sessionCtx);
+  const built = sessionCtx.getFactory()(undefined, { fg: (_n, s) => s, bg: (_n, s) => s }, undefined, () => {});
+  built.render(80);
+
+  assert.equal(pickCalled, false);
+  assert.deepEqual(seen, ["only-active-path"]);
+});
+
+test("registerCrewDashboardCommand shows the picker when more than one roster is active, and opens the chosen one", async () => {
+  const pi = fakePi();
+  const seen = [];
+  const getData = (target) => {
+    seen.push(target);
+    return { automataRows: [], planRows: [] };
+  };
+  const entries = [
+    { path: "path-a", roster: { runId: "run-a", status: "started", members: [] } },
+    { path: "path-b", roster: { runId: "run-b", status: "queued", members: [] } },
+  ];
+  let pickArgs;
+  registerCrewDashboardCommand(
+    pi,
+    getData,
+    undefined,
+    () => entries,
+    async (_sessionCtx, items) => {
+      pickArgs = items;
+      return "path-b";
+    },
+  );
+
+  const sessionCtx = fakeSessionCtx();
+  await pi.handlers.shortcut(sessionCtx);
+  const built = sessionCtx.getFactory()(undefined, { fg: (_n, s) => s, bg: (_n, s) => s }, undefined, () => {});
+  built.render(80);
+
+  assert.equal(pickArgs.length, 2);
+  assert.deepEqual(seen, ["path-b"]);
+});
+
+test("registerCrewDashboardCommand never opens the dashboard when the picker is cancelled", async () => {
+  const pi = fakePi();
+  let opened = false;
+  const getData = () => {
+    opened = true;
+    return { automataRows: [], planRows: [] };
+  };
+  const entries = [
+    { path: "path-a", roster: { runId: "run-a", status: "started", members: [] } },
+    { path: "path-b", roster: { runId: "run-b", status: "queued", members: [] } },
+  ];
+  registerCrewDashboardCommand(
+    pi,
+    getData,
+    undefined,
+    () => entries,
+    async () => undefined,
+  );
+
+  await pi.handlers["crew-dashboard"]("", fakeSessionCtx());
+  assert.equal(opened, false);
 });
