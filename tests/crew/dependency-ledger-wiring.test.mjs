@@ -4,6 +4,7 @@ import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller
 import { createDependencyLedger } from "../../.pi/extensions/crew/lib/dependency-ledger.mjs";
 import {
   attachRawEnvelopeObserver,
+  ledgerStatusByActor,
   readableDependencyLedgerSnapshot,
   seedDependencyLedgerFromSelectedCrew,
 } from "../../.pi/extensions/crew/lib/dependency-ledger-wiring.mjs";
@@ -194,4 +195,22 @@ test("attachRawEnvelopeObserver ignores a report with no taskStatus field (plain
   assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", status: "BLOCKED" }));
   assert.equal(ledger.status("developer-alpha-00"), "running");
   unsubscribe();
+});
+
+test("ledgerStatusByActor folds live ledger status into a roster's actorId keying", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  ledger.start("developer-alpha-00");
+  ledger.complete("developer-alpha-00");
+  const members = [
+    { actorId: "actor-1", name: "developer-alpha-00" },
+    { actorId: "actor-2", name: "developer-bravo-00" }, // not a ledger node -- omitted, not guessed
+    { actorId: "actor-3" }, // no name -- omitted
+  ];
+  assert.deepEqual(ledgerStatusByActor(ledger, members), { "actor-1": "complete" });
+});
+
+test("ledgerStatusByActor tolerates a missing ledger or member list", () => {
+  assert.deepEqual(ledgerStatusByActor(undefined, [{ actorId: "actor-1", name: "developer-alpha-00" }]), {});
+  assert.deepEqual(ledgerStatusByActor(createDependencyLedger()), {});
 });

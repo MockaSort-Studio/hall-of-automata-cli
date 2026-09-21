@@ -85,3 +85,9 @@ test("the Plan tab reads a live ledger kept current by attachRawEnvelopeObserver
   assert.match(source, /ensureLiveLedgerTracker\(\)\?\.ledgerFor\(selected\)/);
   assert.match(source, /liveLedgerTracker\?\.stop\(\)/);
 });
+
+test("the footer and Automata tab read live ledger status too, not only the roster-recorded one", () => {
+  assert.match(source, /import \{ ledgerStatusByActor \} from "\.\/dependency-ledger-wiring\.mjs"/);
+  assert.match(source, /ledgerStatusByActor\(liveLedgerFor\(roster\), roster\.members\)/);
+  assert.match(source, /ledgerStatusByActor\(ledger, roster\.members\)/);
+});

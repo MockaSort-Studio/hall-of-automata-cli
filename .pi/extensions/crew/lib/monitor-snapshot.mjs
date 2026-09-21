@@ -27,11 +27,26 @@ function hasLiveActivity(actorId, workerMetricsByActor) {
   return (Number.isFinite(turns) && turns > 0) || (Number.isFinite(toolCalls) && toolCalls > 0);
 }
 
-function bucketFor(actorId, lifecycleByActor, workerMetricsByActor) {
+// A member's roster-recorded lifecycle status only ever advances when Main
+// explicitly reconciles it (records an outcome, or removes/infers one on
+// stop) -- see roster-lifecycle.mjs. A worker's own completion report
+// updates the dependency ledger live (dependency-ledger-wiring.mjs's
+// taskStatus handling) well before Main gets around to that, so a finished
+// member would otherwise read back as "running" indefinitely, waiting on a
+// Main-side action nothing guarantees happens promptly. When there is no
+// explicit roster entry, prefer the ledger's own terminal call over the
+// weaker live-activity heuristic below.
+const BUCKET_FOR_LEDGER_STATUS = Object.freeze({ complete: "complete", blocked: "blocked", failed: "failed" });
+
+function bucketFor(actorId, lifecycleByActor, workerMetricsByActor, ledgerStatusByActor) {
   const recorded = lifecycleByActor[actorId];
-  const state = recorded ?? (hasLiveActivity(actorId, workerMetricsByActor) ? "running" : "queued");
-  if (!KNOWN_STATES.has(state)) throw new Error(`Unknown Crew lifecycle state: ${state}`);
-  return BUCKET_FOR_STATE[state];
+  if (recorded) {
+    if (!KNOWN_STATES.has(recorded)) throw new Error(`Unknown Crew lifecycle state: ${recorded}`);
+    return BUCKET_FOR_STATE[recorded];
+  }
+  const ledgerBucket = BUCKET_FOR_LEDGER_STATUS[ledgerStatusByActor?.[actorId]];
+  if (ledgerBucket) return ledgerBucket;
+  return hasLiveActivity(actorId, workerMetricsByActor) ? "running" : "queued";
 }
 
 function generatedOutputFor(actorId, workerMetricsByActor) {
@@ -80,7 +95,10 @@ function automatonDetail(member, actorId, bucket, workerMetricsByActor) {
   };
 }
 
-export function crewMonitorSnapshot(roster, { lifecycleByActor = {}, workerMetricsByActor = {} } = {}) {
+export function crewMonitorSnapshot(
+  roster,
+  { lifecycleByActor = {}, workerMetricsByActor = {}, ledgerStatusByActor = {} } = {},
+) {
   if (!roster) return null;
   const members = Array.isArray(roster.members) ? roster.members : [];
 
@@ -90,7 +108,7 @@ export function crewMonitorSnapshot(roster, { lifecycleByActor = {}, workerMetri
 
   for (const member of members) {
     const actorId = member?.actorId;
-    const bucket = bucketFor(actorId, lifecycleByActor, workerMetricsByActor);
+    const bucket = bucketFor(actorId, lifecycleByActor, workerMetricsByActor, ledgerStatusByActor);
     counts[bucket] += 1;
     counts.total += 1;
     totalGeneratedOutputTokens += generatedOutputFor(actorId, workerMetricsByActor);

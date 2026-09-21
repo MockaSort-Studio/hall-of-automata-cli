@@ -12,6 +12,7 @@ import { buildAutomataTab } from "./monitor-dashboard.mjs";
 import { planRowsFor, registerCrewDashboardCommand, selectedCrewFor } from "./monitor-dashboard-command.mjs";
 import { wrapDashboardChrome } from "./monitor-dashboard-chrome.mjs";
 import { createLiveLedgerTracker } from "./monitor-live-ledger.mjs";
+import { ledgerStatusByActor } from "./dependency-ledger-wiring.mjs";
 
 const WIDGET = "crew-monitor";
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
@@ -63,6 +64,18 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     return liveLedgerTracker;
   };
 
+  // A member's own completion report updates the live dependency ledger
+  // immediately (dependency-ledger-wiring.mjs); its roster-recorded status
+  // only advances when Main explicitly reconciles it. Bridge the two so the
+  // footer and Automata tab can show "complete"/"blocked"/"failed" as soon
+  // as the worker itself reports it, not only once Main gets around to
+  // acting -- see monitor-snapshot.mjs's bucketFor precedence.
+  const liveLedgerFor = (roster) => {
+    if (!ctx) return undefined;
+    const selected = selectedCrewFor(readJson, ctx.cwd, roster);
+    return selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
+  };
+
   const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);
   const latestActive = () => {
     const dir = root();
@@ -84,6 +97,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     const snapshot = crewMonitorSnapshot(roster, {
       lifecycleByActor: lifecycleByActor(roster),
       workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
+      ledgerStatusByActor: ledgerStatusByActor(liveLedgerFor(roster), roster.members),
     });
     const footer = renderCrewStatusFooter(snapshot);
     ctx.ui.setWidget(
@@ -169,12 +183,12 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       const path = activePath ?? latestActive();
       const roster = path ? readJson(path) : null;
       if (!ctx || !roster) return { automataRows: [], planRows: [] };
+      const ledger = liveLedgerFor(roster);
       const snapshot = crewMonitorSnapshot(roster, {
         lifecycleByActor: lifecycleByActor(roster),
         workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
+        ledgerStatusByActor: ledgerStatusByActor(ledger, roster.members),
       });
-      const selected = selectedCrewFor(readJson, ctx.cwd, roster);
-      const ledger = selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
       return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster, ledger) };
     },
     wrapDashboardChrome,

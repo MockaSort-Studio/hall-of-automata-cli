@@ -33,6 +33,22 @@ export function readableDependencyLedgerSnapshot(ledger, members = []) {
   }));
 }
 
+// ledgerStatusByActor folds live ledger status into a roster's actorId
+// keying instead of the ledger's own handle keying, for callers (the Crew
+// monitor footer/Automata tab) that key everything else by actorId. Only
+// includes a member the ledger actually tracks (member.name matches a
+// ledger node's handle, e.g. "developer-snowball-00") -- absent or
+// not-yet-tracked members are simply omitted, never guessed.
+export function ledgerStatusByActor(ledger, members = []) {
+  const byActor = {};
+  if (!ledger) return byActor;
+  for (const member of members) {
+    if (member?.actorId && member?.name && ledger.has(member.name))
+      byActor[member.actorId] = ledger.status(member.name);
+  }
+  return byActor;
+}
+
 // A structured kickoff names its recipients explicitly via
 // payload.assignments (comm-native kickoff design); a plain kickoff
 // broadcast (today's no-Lead path) has no assignments and simply targets

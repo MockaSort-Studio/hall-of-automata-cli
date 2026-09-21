@@ -160,3 +160,37 @@ test("crewMonitorSnapshot defaults a missing worker-metrics entry to zeroed deta
   assert.equal(row.turns, 0);
   assert.equal(row.sessionContext, "\u2014 / \u2014");
 });
+
+// Regression: a worker's own completion report updates the dependency
+// ledger immediately, but its roster-recorded status only advances once
+// Main explicitly reconciles it -- which can lag arbitrarily. Without this
+// fallback a finished member reads back as "running" (or "queued") forever
+// until Main happens to act, not because anything is actually still going.
+test("crewMonitorSnapshot reads a member as complete/blocked/failed from live ledger status when no roster entry is recorded yet", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: {},
+    ledgerStatusByActor: { "actor-1": "complete", "actor-2": "blocked", "actor-3": "failed" },
+  });
+  assert.equal(snapshot.counts.complete, 1);
+  assert.equal(snapshot.counts.blocked, 1);
+  assert.equal(snapshot.counts.failed, 1);
+  assert.equal(snapshot.counts.running, 0);
+});
+
+test("crewMonitorSnapshot lets an explicit roster-recorded status take precedence over live ledger status", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: { "actor-1": "running" },
+    ledgerStatusByActor: { "actor-1": "complete" },
+  });
+  assert.equal(snapshot.counts.running, 1);
+  assert.equal(snapshot.counts.complete, 0);
+});
+
+test("crewMonitorSnapshot falls back to live-activity evidence when the ledger reports a non-terminal status", () => {
+  const snapshot = crewMonitorSnapshot(roster(), {
+    lifecycleByActor: {},
+    workerMetricsByActor: { "actor-1": { turns: 2, toolCalls: 0 } },
+    ledgerStatusByActor: { "actor-1": "running" },
+  });
+  assert.equal(snapshot.counts.running, 1);
+});
