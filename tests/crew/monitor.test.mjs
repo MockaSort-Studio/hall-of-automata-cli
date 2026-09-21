@@ -29,11 +29,10 @@ test("single-Crew view derives useful runtime phases", () => {
 });
 
 test("terminal Crew removes the monitor", () => {
-  assert.equal(isTerminalCrew(roster({ status: "closed" })), true);
-  assert.equal(isTerminalCrew(roster({ status: "failed" })), true);
+  assert.equal(isTerminalCrew(roster({ status: "done" })), true);
   assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true })), false);
   assert.equal(isTerminalCrew(roster({ status: "closing", discussionClosed: true, members: [{}] })), false);
-  assert.equal(crewMonitorView(roster({ status: "closed" })), null);
+  assert.equal(crewMonitorView(roster({ status: "done" })), null);
 });
 
 test("widget is fixed above editor, clickable when supported, and cleaned up", () => {
@@ -63,9 +62,20 @@ test("the Crew dashboard command/shortcut are wired from monitor-dashboard.mjs d
     source,
     /import \{ planRowsFor, registerCrewDashboardCommand, selectedCrewFor \} from "\.\/monitor-dashboard-command\.mjs"/,
   );
-  assert.match(source, /registerCrewDashboardCommand\(pi, \(\) => \{/);
+  assert.match(source, /registerCrewDashboardCommand\(\s*pi,\s*\(\) => \{/);
   assert.match(source, /buildAutomataTab\(snapshot\)/);
   assert.match(source, /planRowsFor\(readJson, ctx\.cwd, roster, ledger\)/);
+});
+
+test("the Crew dashboard is given real border/background chrome, not unframed text", () => {
+  // wrapDashboardChrome needs the real pi-tui/pi-coding-agent packages
+  // (DynamicBorder + Box), which aren't resolvable from plain `node --test`
+  // in this repo -- see monitor-dashboard-chrome.mjs's header comment. Its
+  // wiring here is verified the same way the rest of monitor.ts's pi-tui
+  // usage already is: source-pattern assertions, plus a manual TUI smoke
+  // test (`cc --plugin-dir . --debug`, then `/crew-dashboard`).
+  assert.match(source, /import \{ wrapDashboardChrome \} from "\.\/monitor-dashboard-chrome\.mjs"/);
+  assert.match(source, /\},\s*wrapDashboardChrome,?\s*\);/);
 });
 
 test("the Plan tab reads a live ledger kept current by attachRawEnvelopeObserver, not a fresh reseed per open", () => {

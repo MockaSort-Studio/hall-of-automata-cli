@@ -161,16 +161,16 @@ export function beginClose(roster, from, closedAt, github) {
     throw new Error("Human-gated closure requires GitHub-confirmed Discussion closure.");
   if (roster.completionMode !== "human-gated" && !roster.finalCommentId)
     throw new Error("Unattended Crews must publish acceptance with crew_close before closing.");
-  if (roster.status === "closed" || roster.status === "closing") return roster;
+  if (roster.status === "done" || roster.status === "closing") return roster;
   if (roster.status !== "started") throw new Error("Only an active Crew may begin closure.");
   return { ...roster, status: "closing", discussionClosed: true, discussionClosedAt: github?.closedAt || closedAt };
 }
 export function finishClose(roster, from) {
   assertLead(roster, from);
-  if (roster.status === "closed") return roster;
+  if (roster.status === "done") return roster;
   if (roster.status !== "closing" || (roster.members || []).length)
     throw new Error("All specialists must be unregistered before closure.");
-  return { ...roster, status: "closed" };
+  return { ...roster, status: "done" };
 }
 export function assertSubstantive(message) {
   const text = message
@@ -199,7 +199,7 @@ export function markDiscussionClosed(roster, closed) {
   if (!closed?.closed) throw new Error("GitHub did not report the Discussion as closed.");
   return {
     ...roster,
-    status: (roster.members || []).length ? "closing" : "closed",
+    status: (roster.members || []).length ? "closing" : "done",
     discussionClosed: true,
     discussionClosedAt: closed.closedAt,
   };

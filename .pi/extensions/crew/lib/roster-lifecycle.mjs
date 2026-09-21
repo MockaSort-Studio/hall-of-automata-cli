@@ -40,10 +40,14 @@ export function advanceMemberLifecycle(state, workerStatus) {
   return advanceMemberToOutcome(state, outcomeForWorkerStatus(workerStatus));
 }
 
-const ROSTER_STATUS_FOR_OUTCOME = Object.freeze({ FAIL: "failed", BLOCKED: "cancelled", PASS: "closed" });
-// Worst-outcome-wins: one failed member fails the Crew even if others
-// passed; one blocked member cancels it if nothing failed; only a Crew
-// where every member reached PASS closes clean.
+// Every roster member reaching a terminal per-member outcome (PASS/BLOCKED/FAIL)
+// rolls the roster up to the single terminal roster-level status "done" -- the
+// per-member outcome is the finer-grained detail the footer/dashboard need, the
+// roster itself only tracks whether the Crew run is over.
+const ROSTER_STATUS_FOR_OUTCOME = Object.freeze({ FAIL: "done", BLOCKED: "done", PASS: "done" });
+// Worst-outcome-wins ordering still determines *which* per-member outcome is
+// treated as representative when picking a rollup candidate, even though
+// every outcome now maps to the same terminal roster status.
 const OUTCOME_PRIORITY = Object.freeze(["FAIL", "BLOCKED", "PASS"]);
 
 // Once every roster member has reached a terminal per-member outcome, the

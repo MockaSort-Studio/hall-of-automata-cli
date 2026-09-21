@@ -95,15 +95,12 @@ test("rosterStatusForTerminalMembers returns null until every member is terminal
   assert.equal(rosterStatusForTerminalMembers([]), null);
   assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "running" }]), null);
 });
-test("rosterStatusForTerminalMembers closes clean only when every member passed", () => {
-  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "PASS" }]), "closed");
+test("rosterStatusForTerminalMembers marks the roster done once every member reached PASS", () => {
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "PASS" }]), "done");
 });
-test("rosterStatusForTerminalMembers prefers failed over blocked over passed", () => {
-  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "BLOCKED" }]), "cancelled");
-  assert.equal(
-    rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "FAIL" }, { status: "BLOCKED" }]),
-    "failed",
-  );
+test("rosterStatusForTerminalMembers marks the roster done regardless of which outcome wins", () => {
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "BLOCKED" }]), "done");
+  assert.equal(rosterStatusForTerminalMembers([{ status: "PASS" }, { status: "FAIL" }, { status: "BLOCKED" }]), "done");
 });
 
 test("applyWorkerStatusToRoster rolls the roster up to a terminal status once the last member lands, across separate calls", () => {
@@ -121,7 +118,7 @@ test("applyWorkerStatusToRoster rolls the roster up to a terminal status once th
   roster = applyWorkerStatusToRoster(roster, "actor-a", "completed");
   assert.equal(roster.status, "started");
   roster = applyWorkerStatusToRoster(roster, "actor-b", "completed");
-  assert.equal(roster.status, "closed");
+  assert.equal(roster.status, "done");
 });
 test("rosterStatusForTerminalMembers treats a lead member the same as a specialist for worst-outcome-wins", () => {
   // The Lead is carried inside roster.members (with role: "lead") in
@@ -132,21 +129,21 @@ test("rosterStatusForTerminalMembers treats a lead member the same as a speciali
       { role: "lead", status: "FAIL" },
       { role: "specialist", status: "PASS" },
     ]),
-    "failed",
+    "done",
   );
   assert.equal(
     rosterStatusForTerminalMembers([
       { role: "lead", status: "PASS" },
       { role: "specialist", status: "BLOCKED" },
     ]),
-    "cancelled",
+    "done",
   );
   assert.equal(
     rosterStatusForTerminalMembers([
       { role: "lead", status: "PASS" },
       { role: "specialist", status: "PASS" },
     ]),
-    "closed",
+    "done",
   );
 });
 
@@ -163,18 +160,18 @@ test("applyWorkerStatusToRoster withholds rollup until the lead's own member ent
   roster = applyWorkerStatusToRoster(roster, "actor-dev", "completed");
   assert.equal(roster.status, "started");
   roster = applyWorkerStatusToRoster(roster, "actor-lead", "failed");
-  assert.equal(roster.status, "failed");
+  assert.equal(roster.status, "done");
   assert.equal(roster.members.find((m) => m.actorId === "actor-lead").status, "FAIL");
 });
 
 test("applyWorkerStatusToRoster never overwrites an already-terminal roster status", () => {
   const roster = {
     runId: "run-1",
-    status: "failed",
+    status: "done",
     members: [{ name: "a", actorId: "actor-a" }],
   };
   const next = applyWorkerStatusToRoster(roster, "actor-a", "completed");
-  assert.equal(next.status, "failed");
+  assert.equal(next.status, "done");
   assert.equal(next.members[0].status, "PASS");
 });
 
@@ -192,7 +189,7 @@ test("applyMemberOutcomeToRoster lets Main record PASS for a resident worker tha
   const roster = { runId: "run-1", status: "started", members: [{ name: "a", actorId: "actor-a" }] };
   const next = applyMemberOutcomeToRoster(roster, "actor-a", "PASS");
   assert.equal(next.members[0].status, "PASS");
-  assert.equal(next.status, "closed");
+  assert.equal(next.status, "done");
 });
 test("applyMemberOutcomeToRosterFiles updates only the roster listing the actor", () => {
   const dir = tmpCrewLaunchDir("crew-lifecycle-outcome-");
@@ -204,7 +201,7 @@ test("applyMemberOutcomeToRosterFiles updates only the roster listing the actor"
     );
     const updated = applyMemberOutcomeToRosterFiles(dir, "actor-a", "PASS");
     assert.deepEqual(updated, [{ runId: "run-active", actorId: "actor-a", status: "PASS" }]);
-    assert.equal(JSON.parse(readFileSync(path, "utf8")).status, "closed");
+    assert.equal(JSON.parse(readFileSync(path, "utf8")).status, "done");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

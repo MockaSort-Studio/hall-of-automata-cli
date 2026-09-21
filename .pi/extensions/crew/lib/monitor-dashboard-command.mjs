@@ -40,23 +40,31 @@ const DASHBOARD_OVERLAY_OPTIONS = Object.freeze({
   margin: 1,
 });
 
-const openDashboard = (sessionCtx, getData) =>
+// wrapChrome is optional and injected (never imported here) so this file
+// stays free of pi-tui imports and importable by plain `node --test`: see
+// monitor-dashboard-chrome.mjs for why. monitor.ts is the only real caller
+// and always passes wrapDashboardChrome; omitting it (as tests do) falls
+// back to the unframed content component instead of throwing.
+export const openDashboard = (sessionCtx, getData, wrapChrome) =>
   sessionCtx.ui.custom(
-    (_tui, _theme, _keybindings, done) => createCrewDashboardComponent({ getData, onClose: () => done(undefined) }),
+    (_tui, theme, _keybindings, done) => {
+      const content = createCrewDashboardComponent({ getData, onClose: () => done(undefined) });
+      return wrapChrome ? wrapChrome(theme, content) : content;
+    },
     { overlay: true, overlayOptions: DASHBOARD_OVERLAY_OPTIONS },
   );
 
-export function registerCrewDashboardCommand(pi, getData) {
+export function registerCrewDashboardCommand(pi, getData, wrapChrome) {
   pi.registerCommand("crew-dashboard", {
     description: "Open the Crew dashboard (Automata / Plan tabs)",
     handler: async (_args, sessionCtx) => {
-      await openDashboard(sessionCtx, getData);
+      await openDashboard(sessionCtx, getData, wrapChrome);
     },
   });
   pi.registerShortcut("ctrl+shift+d", {
     description: "Open the Crew dashboard",
     handler: async (sessionCtx) => {
-      await openDashboard(sessionCtx, getData);
+      await openDashboard(sessionCtx, getData, wrapChrome);
     },
   });
 }

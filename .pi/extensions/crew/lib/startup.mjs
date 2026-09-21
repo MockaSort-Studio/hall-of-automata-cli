@@ -158,7 +158,7 @@ export async function launchPreparedCrew(cwd, prepared) {
       comm: launched.comm,
     };
   } catch (error) {
-    roster.status = "failed";
+    roster.status = "done";
     roster.launchError = String(error);
     writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
     throw error;

@@ -4,7 +4,7 @@ import { isTerminalCrew } from "./monitor-state.mjs";
 
 export function terminalizeRoster(roster) {
   if (isTerminalCrew(roster)) return roster;
-  return { ...roster, status: "cancelled", members: [] };
+  return { ...roster, status: "done", members: [] };
 }
 
 // Runtime cleanup/removal tears down specific SDK workers by actorId. A

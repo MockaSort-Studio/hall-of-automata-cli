@@ -10,6 +10,7 @@ import { lifecycleByActor } from "./monitor-actor-state.mjs";
 import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { buildAutomataTab } from "./monitor-dashboard.mjs";
 import { planRowsFor, registerCrewDashboardCommand, selectedCrewFor } from "./monitor-dashboard-command.mjs";
+import { wrapDashboardChrome } from "./monitor-dashboard-chrome.mjs";
 import { createLiveLedgerTracker } from "./monitor-live-ledger.mjs";
 
 const WIDGET = "crew-monitor";
@@ -162,18 +163,22 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   // Command-activated dashboard: opens over the current active roster (the
   // same one the footer already tracks) with two tabs, each pulling rows
   // from crewMonitorSnapshot / monitor-dashboard.mjs, never from prose.
-  registerCrewDashboardCommand(pi, () => {
-    const path = activePath ?? latestActive();
-    const roster = path ? readJson(path) : null;
-    if (!ctx || !roster) return { automataRows: [], planRows: [] };
-    const snapshot = crewMonitorSnapshot(roster, {
-      lifecycleByActor: lifecycleByActor(roster),
-      workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
-    });
-    const selected = selectedCrewFor(readJson, ctx.cwd, roster);
-    const ledger = selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
-    return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster, ledger) };
-  });
+  registerCrewDashboardCommand(
+    pi,
+    () => {
+      const path = activePath ?? latestActive();
+      const roster = path ? readJson(path) : null;
+      if (!ctx || !roster) return { automataRows: [], planRows: [] };
+      const snapshot = crewMonitorSnapshot(roster, {
+        lifecycleByActor: lifecycleByActor(roster),
+        workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
+      });
+      const selected = selectedCrewFor(readJson, ctx.cwd, roster);
+      const ledger = selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
+      return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster, ledger) };
+    },
+    wrapDashboardChrome,
+  );
 
   return {
     activate(sessionCtx: ExtensionContext, rosterPath: string) {

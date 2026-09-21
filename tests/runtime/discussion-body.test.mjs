@@ -31,11 +31,8 @@ test("contentDigest is stable for identical (to, message) pairs and differs othe
   assert.notEqual(a, d);
 });
 
-test("closingCommentBody names each terminal roster status plainly", () => {
-  assert.match(closingCommentBody("closed"), /PASS/);
-  assert.match(closingCommentBody("failed"), /FAIL/);
-  assert.match(closingCommentBody("cancelled"), /blocked or removed/);
-  assert.match(closingCommentBody("weird"), /weird/);
+test("closingCommentBody names the run as done", () => {
+  assert.match(closingCommentBody(), /This Crew run is done\./);
 });
 
 test("withRecentDigest is append-only, de-duplicating, and bounded", () => {

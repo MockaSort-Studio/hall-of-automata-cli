@@ -43,7 +43,7 @@ const postCount = (log) =>
 
 test("postDiscussionClosingComment is a no-op when the run never had a Discussion", async (t) => {
   const { dir } = withFakeGh(t);
-  const result = await postDiscussionClosingComment(join(dir, "missing-github-discussion.json"), { status: "closed" });
+  const result = await postDiscussionClosingComment(join(dir, "missing-github-discussion.json"), { status: "done" });
   assert.deepEqual(result, { posted: false, reason: "no-discussion" });
 });
 
@@ -52,23 +52,23 @@ test("postDiscussionClosingComment posts once and marks the state file closed", 
   const stateFile = discussionStateFilePath(dir, "run-1");
   writeFileSync(stateFile, JSON.stringify({ id: "DISC1", owner: "o", repo: "r", number: 1, seen: [] }));
 
-  const first = await postDiscussionClosingComment(stateFile, { status: "closed" });
+  const first = await postDiscussionClosingComment(stateFile, { status: "done" });
   assert.equal(first.posted, true);
   assert.equal(postCount(log), 1);
 
-  const second = await postDiscussionClosingComment(stateFile, { status: "closed" });
+  const second = await postDiscussionClosingComment(stateFile, { status: "done" });
   assert.deepEqual(second, { posted: false, reason: "already-closed" });
   assert.equal(postCount(log), 1);
 
   const state = JSON.parse(readFileSync(stateFile, "utf8"));
-  assert.equal(state.closedRosterStatus, "closed");
+  assert.equal(state.closedRosterStatus, "done");
   assert.ok(state.closedAt);
 });
 
 test("closeTerminalRosterDiscussions only closes runs whose roster is actually terminal", async (t) => {
   const { dir, log } = withFakeGh(t);
   writeFileSync(join(dir, "run-open-roster.json"), JSON.stringify({ runId: "run-open", status: "started" }));
-  writeFileSync(join(dir, "run-done-roster.json"), JSON.stringify({ runId: "run-done", status: "closed" }));
+  writeFileSync(join(dir, "run-done-roster.json"), JSON.stringify({ runId: "run-done", status: "done" }));
   writeFileSync(
     discussionStateFilePath(dir, "run-done"),
     JSON.stringify({ id: "DISC2", owner: "o", repo: "r", number: 2, seen: [] }),
@@ -85,7 +85,7 @@ test("closeTerminalRosterDiscussions only closes runs whose roster is actually t
 
 test("closeTerminalRosterDiscussions de-duplicates repeated run IDs", async (t) => {
   const { dir, log } = withFakeGh(t);
-  writeFileSync(join(dir, "run-a-roster.json"), JSON.stringify({ runId: "run-a", status: "failed" }));
+  writeFileSync(join(dir, "run-a-roster.json"), JSON.stringify({ runId: "run-a", status: "done" }));
   writeFileSync(
     discussionStateFilePath(dir, "run-a"),
     JSON.stringify({ id: "DISC3", owner: "o", repo: "r", number: 3, seen: [] }),

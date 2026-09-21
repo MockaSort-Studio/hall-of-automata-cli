@@ -59,7 +59,7 @@ export async function postDiscussionClosingComment(stateFilePath, { status }) {
     return { posted: false, reason: "no-discussion" };
   }
   if (state.closedRosterStatus) return { posted: false, reason: "already-closed" };
-  const comment = await post(state.id, closingCommentBody(status));
+  const comment = await post(state.id, closingCommentBody());
   state.closedRosterStatus = status;
   state.closedAt = new Date().toISOString();
   await writeFile(stateFilePath, JSON.stringify(state, null, 2));

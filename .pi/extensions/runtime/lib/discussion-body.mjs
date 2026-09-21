@@ -24,18 +24,13 @@ export function contentDigest(to, message) {
   return createHash("sha256").update(`${to}\u0000${message}`).digest("hex").slice(0, 24);
 }
 
-const TERMINAL_STATUS_LABEL = Object.freeze({
-  closed: "closed — every member reached PASS",
-  failed: "failed — at least one member reported FAIL",
-  cancelled: "cancelled — at least one member was blocked or removed unresolved",
-});
-
 // One bounded, idempotently-postable comment marking a Crew run's terminal
 // rollup on its mirrored Discussion, so a human watching there sees the run
-// end even if they never open the Crew monitor.
-export function closingCommentBody(status) {
-  const label = TERMINAL_STATUS_LABEL[status] ?? status;
-  return `This Crew run has reached a terminal state: **${label}**.\n\nNo further Crew communication will be posted to this Discussion.`;
+// end even if they never open the Crew monitor. The roster-level status is a
+// single terminal value now; per-member PASS/BLOCKED/FAIL detail lives in the
+// roster/lifecycle files, not in this comment.
+export function closingCommentBody() {
+  return `This Crew run is done.\n\nNo further Crew communication will be posted to this Discussion.`;
 }
 
 const MAX_RECENT_DIGESTS = 200;

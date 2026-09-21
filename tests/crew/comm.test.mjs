@@ -120,7 +120,7 @@ test("closure reaches terminal state only after verified specialist cleanup", ()
     { actorId: "actor-a", removed: true },
     { actorId: "actor-b", removed: true },
   ]);
-  assert.equal(finishClose(empty, "lead-old-major").status, "closed");
+  assert.equal(finishClose(empty, "lead-old-major").status, "done");
 });
 
 test("unattended Crews cannot close without published acceptance", () => {
@@ -130,8 +130,8 @@ test("unattended Crews cannot close without published acceptance", () => {
   assert.equal(beginClose(accepted, "lead-old-major", "2026-09-03T00:00:00Z").status, "closing");
 });
 
-test("failed Crews reject late registration and Discussion mutations", () => {
-  const failed = { ...roster, status: "failed", lead: { name: "lead-old-major", actorId: "lead-1" } };
+test("done Crews reject late registration and Discussion mutations", () => {
+  const failed = { ...roster, status: "done", lead: { name: "lead-old-major", actorId: "lead-1" } };
   assert.throws(
     () =>
       registerMembers(failed, "lead-old-major", [
@@ -151,7 +151,7 @@ test("Discussion close stays non-terminal while specialists remain", () => {
   assert.equal(closed.status, "closing");
   assert.equal(
     markDiscussionClosed({ ...roster, members: [] }, { closed: true, closedAt: "2026-09-01T00:00:00Z" }).status,
-    "closed",
+    "done",
   );
   assert.equal(closed.discussionClosed, true);
   assert.throws(() => markDiscussionClosed(roster, { closed: false }), /did not report/);

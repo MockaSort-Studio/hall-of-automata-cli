@@ -48,8 +48,10 @@ canonical in [runtime-structure.md](runtime-structure.md).
       transitions.
 - [x] Wire worker completion/failure/removal into that contract (`roster-lifecycle.mjs`) and
       roll the per-member outcomes up into a terminal roster-level status
-      (`closed`/`failed`/`cancelled`) once every member is terminal — including when workers
-      are stopped one at a time across separate calls, not only in a single batch.
+      (originally `closed`/`failed`/`cancelled`, later simplified to a single `done` value —
+      see the roster-status simplification entry below) once every member is terminal —
+      including when workers are stopped one at a time across separate calls, not only in a
+      single batch.
 - [x] Wire the live footer into the Crew TUI monitor (`monitor.ts` + `monitor-snapshot.mjs` +
       `monitor-footer.mjs`): automaton counts by lifecycle bucket and total generated-output
       tokens, sourced only from the durable roster/lifecycle/worker-metrics files.
@@ -169,6 +171,17 @@ canonical in [runtime-structure.md](runtime-structure.md).
       that legitimately has no firm answer should be scoped to report `PASS` with its
       finding, not `BLOCKED`/`FAIL` -- adding an "optional" escape hatch would just let a
       real stall or failure get silently absorbed instead of surfacing.
+- [x] Simplified the roster-level *terminal* status model from three values
+      (`closed`/`failed`/`cancelled`) down to one (`done`). The worst-outcome-wins ordering
+      above still determines the representative per-member outcome selected during rollup,
+      but every outcome now maps to the same terminal roster status; per-member detail
+      (`PASS`/`BLOCKED`/`FAIL` in `lifecycle-state.mjs`/`roster-lifecycle.mjs`) is unchanged
+      and remains the finer-grained source the footer/dashboard read from. Updated
+      `roster-lifecycle.mjs`, `monitor-state.mjs`'s `isTerminalCrew`, `roster-terminal.mjs`'s
+      `terminalizeRoster`, `startup.mjs`'s launch-failure path, and `comm.mjs`'s
+      `crew_finish_close`/`beginClose`/`markDiscussionClosed` paths; `discussion-body.mjs`'s
+      three-sentence `TERMINAL_STATUS_LABEL` lookup was deleted in favor of one generic
+      closing comment.
 
 ## Evidence and performance work
 

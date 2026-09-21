@@ -8,13 +8,13 @@ import {
   terminalizeRostersForRemovedActors,
 } from "../../.pi/extensions/crew/lib/roster-terminal.mjs";
 
-test("terminalizeRoster cancels a non-terminal roster and clears members", () => {
+test("terminalizeRoster marks a non-terminal roster done and clears members", () => {
   const roster = { runId: "run-1", status: "started", members: [{ name: "snowball" }] };
-  assert.deepEqual(terminalizeRoster(roster), { runId: "run-1", status: "cancelled", members: [] });
+  assert.deepEqual(terminalizeRoster(roster), { runId: "run-1", status: "done", members: [] });
 });
 
 test("terminalizeRoster leaves an already-terminal roster untouched", () => {
-  const closed = { runId: "run-1", status: "closed", members: [] };
+  const closed = { runId: "run-1", status: "done", members: [] };
   assert.equal(terminalizeRoster(closed), closed);
 });
 
@@ -22,7 +22,7 @@ function tmpCrewLaunchDir(prefix) {
   return mkdtempSync(join(tmpdir(), prefix));
 }
 
-test("terminalizeRostersForRemovedActors cancels a roster once Runtime removed every member", () => {
+test("terminalizeRostersForRemovedActors marks a roster done once Runtime removed every member", () => {
   const dir = tmpCrewLaunchDir("crew-cleanup-full-");
   try {
     const path = join(dir, "run-active-roster.json");
@@ -43,7 +43,7 @@ test("terminalizeRostersForRemovedActors cancels a roster once Runtime removed e
     assert.deepEqual(terminalized, ["run-active"]);
     assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), {
       runId: "run-active",
-      status: "cancelled",
+      status: "done",
       members: [],
     });
   } finally {
@@ -78,7 +78,7 @@ test("terminalizeRostersForRemovedActors skips rosters already in a terminal sta
   const dir = tmpCrewLaunchDir("crew-cleanup-terminal-");
   try {
     const path = join(dir, "run-closed-roster.json");
-    const original = { runId: "run-closed", status: "closed", members: [] };
+    const original = { runId: "run-closed", status: "done", members: [] };
     writeFileSync(path, JSON.stringify(original));
 
     const terminalized = terminalizeRostersForRemovedActors(dir, []);
