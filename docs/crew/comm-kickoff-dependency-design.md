@@ -18,7 +18,11 @@ dependents only. Kickoff does not reach Main; terminal `comm_notify_all` does.
 - Make waiting and release a deterministic worker state machine.
 - Validate handles, reject cycles, and report unsatisfied dependencies.
 - Define failed-dependency timeout, retry, and blocked behavior.
-- Add an end-to-end parallel-root and chained-release test.
+- Add an end-to-end parallel-root and chained-release test (tracked as #464).
+
+complete/fail/blocked transitions now fire from live envelopes via the
+`taskStatus` report field above (#462); the ledger no longer only reacts to
+kickoff.
 
 ## CommAdapter
 
@@ -66,12 +70,40 @@ the same `subscribe()` and `injectHuman()` boundary.
 
 ### Raw envelope observation
 
-Internal runtime observers (e.g. a future dependency ledger) need more than an
+Internal runtime observers (e.g. the dependency ledger) need more than an
 adapter: payload `kind`, kickoff assignments, and other structured fields that
 the human-readable projection above drops. `CommController.observeRaw(handler)`
 subscribes to the full flat V1 envelope, unfiltered, alongside `subscribe()`.
 Both read from the same `comm-envelope-observation.mjs` module so the
 controller itself does not grow as ledger/DAG concerns are added.
+
+### Task completion signal (`taskStatus`)
+
+A `kind: "report"` payload may carry a `taskStatus` field of `complete`,
+`failed`, or `blocked`. This is the minimal Comm-native signal that marks a
+task's ledger node leaving `running`. It is deliberately distinct from the
+unrelated lifecycle `status` field some reports already carry (`PASS` /
+`BLOCKED` / `FAIL`, the roster-level outcome vocabulary) — `taskStatus` is
+lower-case and ledger-scoped, `status` is upper-case and lifecycle-scoped.
+
+`taskStatus` is keyed by the envelope's own `from` field, never by an
+in-payload handle: a report can only ever move the ledger node for the actor
+that sent it, so one Crew member cannot claim completion on another's behalf.
+`dependency-ledger-wiring.mjs`'s `attachRawEnvelopeObserver` reads it directly
+from the same `observeRaw()` stream that already drives kickoff, alongside
+kickoff-driven `waiting`/`ready` → `running` transitions:
+
+```text
+kind: "report", taskStatus: "complete" → ledger.complete(envelope.from)
+kind: "report", taskStatus: "failed"   → ledger.fail(envelope.from)
+kind: "report", taskStatus: "blocked"  → ledger.block(envelope.from)
+```
+
+An unknown sender, a node not currently `running`, a missing `taskStatus`, or
+an unrecognized value is silently ignored — the same untrusted-input handling
+already applied to kickoff envelopes. Emitting `taskStatus` is optional for
+callers; a report without it (e.g. a plain progress notify) never moves the
+ledger.
 
 ## GitHub Discussion adapter
 

@@ -114,3 +114,84 @@ test("attachRawEnvelopeObserver ignores a second kickoff once a node is already 
   assert.equal(ledger.status("developer-alpha-00"), "running");
   unsubscribe();
 });
+
+test("attachRawEnvelopeObserver completes a running node when its sender reports taskStatus complete", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "complete", summary: "done" });
+  assert.equal(ledger.status("developer-alpha-00"), "complete");
+  unsubscribe();
+});
+
+test("attachRawEnvelopeObserver releases dependents once the prerequisite's report marks it complete", () => {
+  const ledger = seedDependencyLedgerFromSelectedCrew(selectedCrew());
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  assert.equal(ledger.status("developer-bravo-00"), "waiting");
+  comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "complete" });
+  assert.equal(ledger.status("developer-alpha-00"), "complete");
+  assert.equal(ledger.status("developer-bravo-00"), "ready");
+  unsubscribe();
+});
+
+test("attachRawEnvelopeObserver fails a running node when its sender reports taskStatus failed", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "failed", reason: "broke" });
+  assert.equal(ledger.status("developer-alpha-00"), "failed");
+  unsubscribe();
+});
+
+test("attachRawEnvelopeObserver blocks a node when its sender reports taskStatus blocked and propagates to dependents", () => {
+  const ledger = seedDependencyLedgerFromSelectedCrew(selectedCrew());
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "blocked", reason: "stuck" });
+  assert.equal(ledger.status("developer-alpha-00"), "blocked");
+  assert.equal(ledger.status("developer-bravo-00"), "blocked");
+  unsubscribe();
+});
+
+test("attachRawEnvelopeObserver ignores report envelopes from senders the ledger does not track or with an unknown taskStatus", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("stranger");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  assert.doesNotThrow(() => comm.emit("stranger", "main", { kind: "report", taskStatus: "complete" }));
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "BLOCKED" }));
+  assert.equal(ledger.status("developer-alpha-00"), "running");
+  unsubscribe();
+});
+
+test("attachRawEnvelopeObserver ignores a report with no taskStatus field (plain progress notify)", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  const comm = new CommController();
+  comm.registerActor("developer-alpha-00");
+  comm.registerActor("main");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
+  assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", status: "BLOCKED" }));
+  assert.equal(ledger.status("developer-alpha-00"), "running");
+  unsubscribe();
+});

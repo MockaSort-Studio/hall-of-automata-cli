@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { closingCommentBody, contentDigest, truncateForDiscussion, withRecentDigest } from "./discussion-body.mjs";
 
 const exec = promisify(execFile);
 const query = (text) => ["api", "graphql", "-f", `query=${text}`];
@@ -40,6 +42,30 @@ async function discussion({ owner, repo, runId, startedAt, category }) {
   return result.data.createDiscussion.discussion;
 }
 
+// Shared by both prepareCrew (which creates the adapter's config) and the
+// terminal-rollup closer (which reads the adapter's already-written state)
+// so the state file path is defined in exactly one place.
+export const discussionStateFilePath = (crewLaunchDir, runId) => join(crewLaunchDir, `${runId}-github-discussion.json`);
+
+// Idempotent: posts one closing comment for a terminal roster status and
+// marks the adapter state file so a later call (e.g. a repeated
+// runtime_cleanup) never reposts it. A no-op, not an error, when this run
+// never had a Discussion (adapter disabled or state file not yet created).
+export async function postDiscussionClosingComment(stateFilePath, { status }) {
+  let state;
+  try {
+    state = JSON.parse(await readFile(stateFilePath, "utf8"));
+  } catch {
+    return { posted: false, reason: "no-discussion" };
+  }
+  if (state.closedRosterStatus) return { posted: false, reason: "already-closed" };
+  const comment = await post(state.id, closingCommentBody(status));
+  state.closedRosterStatus = status;
+  state.closedAt = new Date().toISOString();
+  await writeFile(stateFilePath, JSON.stringify(state, null, 2));
+  return { posted: true, comment };
+}
+
 async function post(discussionId, body) {
   const mutation =
     "mutation($id:ID!,$body:String!){addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}}";
@@ -70,7 +96,7 @@ async function comments(owner, repo, number) {
 
 function render(message, handle) {
   const mention = message.replyTo ? "" : `@${handle(message.to)}\n\n`;
-  return `${mention}${message.message}\n\n${handle(message.from)}\n\n<!-- comm:${message.id} -->`;
+  return `${mention}${truncateForDiscussion(message.message)}\n\n${handle(message.from)}\n\n<!-- comm:${message.id} -->`;
 }
 
 export async function startGithubDiscussionAdapter(controller, config) {
@@ -87,10 +113,22 @@ export async function startGithubDiscussionAdapter(controller, config) {
   const handle = (id) => handles.get(id) ?? id;
   const recipient = (name) => config.recipients[name];
   const seen = new Set(state.seen || []);
+  let recentDigests = state.recentPostDigests || [];
   let writes = Promise.resolve();
   const unsubscribe = controller.subscribe((message) => {
     writes = writes.then(async () => {
       if (message.from === "human:github-discussion") return;
+      // A reply always threads under its own request and is never itself a
+      // repost of prior content; only dedupe top-level notify/request posts,
+      // which is where a specialist resending an identical finished report
+      // has been observed to repeat the exact same content.
+      if (!message.replyTo) {
+        const digest = contentDigest(message.to, message.message);
+        if (recentDigests.includes(digest)) return;
+        recentDigests = withRecentDigest(recentDigests, digest);
+        state.recentPostDigests = recentDigests;
+        await writeFile(config.stateFile, JSON.stringify(state, null, 2));
+      }
       const parent = message.replyTo && parents.get(message.replyTo);
       const body = render(message, handle);
       const comment = parent ? await reply(state.id, parent, body) : await post(state.id, body);

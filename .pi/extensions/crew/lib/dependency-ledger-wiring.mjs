@@ -57,10 +57,38 @@ function tryStart(ledger, rawHandle) {
   }
 }
 
+// A report-kind payload's `taskStatus` field is the minimal Comm-native
+// signal that a task's ledger node has left `running`: `complete` releases
+// dependents, `failed`/`blocked` propagate blocked to them. It is keyed by
+// the envelope's own sender (`from`), never by an in-payload handle, so a
+// report can only ever move the ledger node for the actor that sent it.
+// Distinct from the unrelated lifecycle `status` field (`PASS`/`BLOCKED`/
+// `FAIL`) some reports already carry; unrecognized or missing values are
+// silently ignored, matching kickoff's untrusted-input handling below.
+const TASK_STATUS_HANDLERS = Object.freeze({
+  complete: (ledger, handle) => ledger.complete(handle),
+  failed: (ledger, handle) => ledger.fail(handle),
+  blocked: (ledger, handle) => ledger.block(handle),
+});
+
+function tryApplyTaskStatus(ledger, rawHandle, taskStatus) {
+  const apply = TASK_STATUS_HANDLERS[taskStatus];
+  if (!apply || !rawHandle || !ledger.has(rawHandle)) return;
+  try {
+    apply(ledger, rawHandle);
+  } catch {
+    // Not running yet, already terminal, or a race with another observer call.
+  }
+}
+
 function handleEnvelope(ledger, envelope) {
   const payload = envelope?.payload;
-  if (!payload || typeof payload !== "object" || payload.kind !== "kickoff") return;
-  for (const recipient of kickoffRecipients(envelope, payload)) tryStart(ledger, recipient);
+  if (!payload || typeof payload !== "object") return;
+  if (payload.kind === "kickoff") {
+    for (const recipient of kickoffRecipients(envelope, payload)) tryStart(ledger, recipient);
+  } else if (payload.kind === "report") {
+    tryApplyTaskStatus(ledger, envelope.from, payload.taskStatus);
+  }
 }
 
 // attachRawEnvelopeObserver subscribes to CommController.observeRaw() and

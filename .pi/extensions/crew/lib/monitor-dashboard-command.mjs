@@ -11,19 +11,21 @@ import { readableDependencyLedgerSnapshot, seedDependencyLedgerFromSelectedCrew 
 // resolved from roster.selectedCrew (a path relative to cwd, written by
 // prepareCrew). Absent until a Crew's plan is recorded, or once its files
 // are cleaned up.
-const selectedCrewFor = (readJson, cwd, roster) =>
+export const selectedCrewFor = (readJson, cwd, roster) =>
   roster.selectedCrew ? readJson(join(cwd, roster.selectedCrew)) : null;
 
 // Plan tab rows: task/dependsOn come from selected_crew_<uuid>.json, live
-// status comes from a dependency ledger seeded fresh from that same plan
-// (no CommController wiring reaches this render path yet, so every node
-// reports its structural "waiting"/"ready" ledger state rather than a
-// terminal outcome -- still programmatically sourced, never report/prose).
-export function planRowsFor(readJson, cwd, roster) {
+// status comes from `ledger` when the caller has one (monitor.ts's
+// monitor-live-ledger.mjs tracker, kept current by live kickoff/report
+// envelopes via attachRawEnvelopeObserver) -- otherwise falls back to a
+// fresh ledger seeded from the same plan, which only ever reports
+// structural "waiting"/"ready" state. Either way, status is always
+// programmatically sourced, never report/prose.
+export function planRowsFor(readJson, cwd, roster, ledger) {
   const selected = selectedCrewFor(readJson, cwd, roster);
   if (!selected) return [];
-  const ledger = seedDependencyLedgerFromSelectedCrew(selected);
-  const ledgerSnapshot = readableDependencyLedgerSnapshot(ledger, selected.members ?? []);
+  const activeLedger = ledger ?? seedDependencyLedgerFromSelectedCrew(selected);
+  const ledgerSnapshot = readableDependencyLedgerSnapshot(activeLedger, selected.members ?? []);
   return buildPlanTab({ selectedCrew: selected, ledgerSnapshot });
 }
 

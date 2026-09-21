@@ -7,8 +7,10 @@ import { crewMonitorView } from "./monitor-state.mjs";
 import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
 import { lifecycleByActor } from "./monitor-actor-state.mjs";
+import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { buildAutomataTab } from "./monitor-dashboard.mjs";
-import { planRowsFor, registerCrewDashboardCommand } from "./monitor-dashboard-command.mjs";
+import { planRowsFor, registerCrewDashboardCommand, selectedCrewFor } from "./monitor-dashboard-command.mjs";
+import { createLiveLedgerTracker } from "./monitor-live-ledger.mjs";
 
 const WIDGET = "crew-monitor";
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
@@ -50,6 +52,15 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   let watcher: FSWatcher | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let reconciler: ReturnType<typeof setInterval> | undefined;
+  // Lazily created once ctx.cwd is known, and kept for the life of the
+  // session: one live ledger tracker per Runtime, so the Plan tab reads a
+  // ledger kept current by attachRawEnvelopeObserver instead of
+  // planRowsFor reseeding a fresh structural-only one on every open.
+  let liveLedgerTracker: ReturnType<typeof createLiveLedgerTracker> | undefined;
+  const ensureLiveLedgerTracker = () => {
+    if (!liveLedgerTracker && ctx) liveLedgerTracker = createLiveLedgerTracker(runtimeFor(ctx.cwd));
+    return liveLedgerTracker;
+  };
 
   const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);
   const latestActive = () => {
@@ -133,6 +144,8 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
     watcher?.close();
     watcher = undefined;
     activePath = undefined;
+    liveLedgerTracker?.stop();
+    liveLedgerTracker = undefined;
     clear();
     ctx = undefined;
   };
@@ -157,7 +170,9 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
       lifecycleByActor: lifecycleByActor(roster),
       workerMetricsByActor: workerMetricsByActor(ctx.cwd, roster),
     });
-    return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster) };
+    const selected = selectedCrewFor(readJson, ctx.cwd, roster);
+    const ledger = selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
+    return { automataRows: buildAutomataTab(snapshot), planRows: planRowsFor(readJson, ctx.cwd, roster, ledger) };
   });
 
   return {

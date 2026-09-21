@@ -103,13 +103,11 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
-- [ ] Investigate and clean up orphaned `lifecycle-server.mjs` processes from past Main
-      sessions. Observed live via `ps`: multiple `lifecycle-server.mjs` processes from prior
-      days (e.g. Saturday) still running, unowned by the current Runtime session's `#agents`
-      map, so `runtime_cleanup`/`runtime_delete_agent` cannot reach them (those tools only
-      iterate agents this session itself spawned). Need either a durable owner/PID record
-      per launched Lifecycle server so a later session can find and reap orphans, or a
-      liveness/heartbeat convention that lets a stale server self-terminate. Tracked:
+- [x] Investigate and clean up orphaned `lifecycle-server.mjs` processes from past Main
+      sessions. `lifecycle-registry.mjs` records one owner file per launched Lifecycle
+      server (its host Main-session PID); `Runtime#ensureLifecycle()` best-effort reaps any
+      record whose host PID is dead before spawning its own, and a manual
+      `runtime_reap_orphans` tool covers out-of-band cleanup. Tracked:
       [#465](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/465).
 - [x] Surface session-context percent/window in the monitor snapshot and dashboard.
       `formatSessionContext()` renders "percent / model window" per automaton, sourced from
@@ -124,23 +122,32 @@ canonical in [runtime-structure.md](runtime-structure.md).
       the same way its existing wiring already is (source-pattern assertions) plus full unit
       coverage of every pure function underneath. Recommend a manual
       `cc --plugin-dir . --debug` smoke test of `/crew-dashboard` before relying on it.
-- [ ] Wire a Comm completion signal so the dependency ledger can transition
-      `complete`/`fail`/`blocked` from live envelopes (no such protocol field exists yet).
-      Tracked: [#462](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/462).
-- [ ] Wire a live `CommController`/dependency-ledger observer into the dashboard's render
-      path. The Plan tab currently reseeds a fresh ledger from `selected_crew_<uuid>.json`
-      on every open, so it only ever shows structural `waiting`/`ready` state, never a live
-      `running`/terminal transition. Blocked by #462. Tracked:
+- [x] Wire a Comm completion signal so the dependency ledger can transition
+      `complete`/`fail`/`blocked` from live envelopes. A `kind: "report"` payload's
+      `taskStatus` field (`complete`/`failed`/`blocked`), keyed by the envelope's own
+      `from`, drives `dependency-ledger-wiring.mjs`'s `attachRawEnvelopeObserver` alongside
+      the existing kickoff handling. Tracked:
+      [#462](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/462).
+- [x] Wire a live `CommController`/dependency-ledger observer into the dashboard's render
+      path. `CommController` gained a `comm.observe_raw` WS method (`comm-raw-observer-sockets.mjs`)
+      and `Runtime.observeRawComm()`; `monitor.ts` now keeps one live ledger
+      (`monitor-live-ledger.mjs`, wired via `attachRawEnvelopeObserver`) per active Crew run
+      instead of `planRowsFor` reseeding a fresh one on every dashboard open, so the Plan tab
+      shows real `running`/terminal status. Tracked:
       [#463](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/463).
-- [ ] Add an end-to-end dependency test covering parallel roots, chained release, directed
-      completion recipients, blocked status, and the Lead final report. Blocked by #462.
+- [x] Add an end-to-end dependency test covering parallel roots, chained release, directed
+      completion recipients, blocked status, and a final resolved-state report
+      (`tests/runtime/dependency-ledger-e2e.test.mjs`, over a real WS `CommController`).
       Tracked: [#464](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/464).
-- [ ] Bound and deduplicate external transcript posts. A validated run produced repeated
-      reports and multi-kilobyte payloads unsuitable as Discussion comments. Tracked:
-      [#466](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/466).
-- [ ] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
-      The roster-level terminal rollup is done; the Discussion-adapter side is untouched.
-      Tracked: [#467](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/467).
+- [x] Bound and deduplicate external transcript posts. `discussion-body.mjs` truncates a
+      posted report to 4000 characters with a pointer back to the originating Comm delivery,
+      and skips an identical repost to the same recipient via a bounded content-digest
+      dedupe. Tracked: [#466](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/466).
+- [x] Mark the GitHub Discussion lifecycle terminal when a run completes or is cleaned up.
+      `roster-discussion-close.mjs` posts an idempotent closing comment once a roster reaches
+      terminal rollup, wired into both `runtime_cleanup` and `runtime_delete_agent`. A future
+      terminal-rollup write path outside those two tools will need the same wiring. Tracked:
+      [#467](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/467).
 - [x] Fixed the `BLOCKED`-for-a-successful-stop mismatch without adding a fourth outcome.
       `runtime_delete_agent` now accepts an optional `outcome` (`PASS|FAIL|BLOCKED`); when
       Main has already received and accepted a member's report before removing it, it

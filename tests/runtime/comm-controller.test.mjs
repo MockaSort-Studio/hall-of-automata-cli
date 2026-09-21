@@ -115,6 +115,37 @@ test("gives internal observers the raw envelope, not the adapter projection", ()
   unsubscribe();
 });
 
+test("comm.observe_raw pushes the unfiltered envelope stream over the same socket, not the adapter projection", async () => {
+  const comm = new CommController();
+  comm.registerActor("a");
+  comm.registerActor("b");
+  const port = await comm.start();
+  const observer = await connect(port, "a");
+  observer.send(JSON.stringify({ jsonrpc: "2.0", id: "observe", method: "comm.observe_raw", params: {} }));
+  assert.deepEqual((await receive(observer)).result, { observing: true });
+  const pushed = receive(observer);
+  comm.emit("b", "a", { kind: "kickoff", task: "go" });
+  const envelope = (await pushed).params;
+  assert.equal(envelope.kind, "notify");
+  assert.deepEqual(envelope.payload, { kind: "kickoff", task: "go" });
+  observer.close();
+  await comm.stop();
+});
+test("comm.observe_raw is idempotent per socket and stops after disconnect", async () => {
+  const comm = new CommController();
+  comm.registerActor("a");
+  const port = await comm.start();
+  const observer = await connect(port, "a");
+  observer.send(JSON.stringify({ jsonrpc: "2.0", id: "observe", method: "comm.observe_raw", params: {} }));
+  await receive(observer);
+  observer.send(JSON.stringify({ jsonrpc: "2.0", id: "observe2", method: "comm.observe_raw", params: {} }));
+  await receive(observer);
+  observer.close();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.doesNotThrow(() => comm.emit("a", "main", { kind: "kickoff", task: "go" }));
+  await comm.stop();
+});
+
 test("rejects duplicate Crew actor IDs before spawning", async () => {
   const runtime = new Runtime(process.cwd());
   await assert.rejects(
@@ -126,6 +157,25 @@ test("rejects duplicate Crew actor IDs before spawning", async () => {
   );
   await runtime.stop();
 });
+test("Runtime.observeRawComm streams raw envelopes over Main's own Comm connection", async () => {
+  const runtime = new Runtime(process.cwd());
+  await runtime.startComm(["peer"]);
+  const observed = [];
+  const unsubscribe = runtime.observeRawComm((envelope) => observed.push(envelope));
+  await runtime.send("peer", { kind: "kickoff", task: "go" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(observed.length, 1);
+  assert.equal(observed[0].to, "peer");
+  assert.deepEqual(observed[0].payload, { kind: "kickoff", task: "go" });
+  unsubscribe();
+  await runtime.stop();
+});
+test("Runtime.observeRawComm is a no-op unsubscribe before Comm has started", () => {
+  const runtime = new Runtime(process.cwd());
+  const unsubscribe = runtime.observeRawComm(() => {});
+  assert.doesNotThrow(() => unsubscribe());
+});
+
 test("launchCrew starts isolated agents and Runtime stop removes them", async () => {
   const runtime = new Runtime(process.cwd()),
     prefix = `launch-${randomUUID()}`;

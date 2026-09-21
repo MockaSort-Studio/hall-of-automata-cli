@@ -1,22 +1,14 @@
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { Type } from "typebox";
-import { applyMemberOutcomeToRosterFiles, applyWorkerStatusToRosterFiles } from "../crew/lib/roster-lifecycle.mjs";
-import { terminalizeRostersForRemovedActors } from "../crew/lib/roster-terminal.mjs";
+import { registerCleanupTools } from "./lib/cleanup-tools.ts";
 import { runtimeFor } from "./lib/shared-runtime.mjs";
 
 const crewLaunchDir = (cwd: string) => join(cwd, CONFIG_DIR_NAME, "runtime", "crew-launch");
 
-// A worker already reached a natural terminal status (completed/failed)
-// before removal reaches it; LifecycleController.remove() always finalizes
-// to "removed" regardless, so the pre-removal snapshot is the only place
-// that natural outcome is still observable. Only "removed" reflects a
-// genuinely intentional stop.
-const workerStatusForRoster = (before: any, removalStatus: string) =>
-  before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus;
-
 export default function runtimeExtension(pi: any): void {
   const runtime = runtimeFor(process.cwd());
+  registerCleanupTools(pi, runtime, crewLaunchDir);
   pi.registerTool({
     name: "runtime_launch_crew",
     label: "Runtime: launch crew",
@@ -41,29 +33,6 @@ export default function runtimeExtension(pi: any): void {
     async execute(_id, input) {
       const result = await runtime.launchCrew(input.agents);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
-    },
-  });
-  pi.registerTool({
-    name: "runtime_cleanup",
-    label: "Runtime: cleanup",
-    description: "Remove every SDK worker and worktree owned by this Runtime session.",
-    parameters: Type.Object({}),
-    async execute() {
-      const beforeList = await runtime.list();
-      const result = await runtime.stop();
-      const removedIds = result.removals.filter((item: any) => item.removed && item.id).map((item: any) => item.id);
-      const rosterLifecycleUpdates = removedIds.flatMap((id: string) => {
-        const before = beforeList.find((agent: any) => agent.id === id);
-        const removal = result.removals.find((item: any) => item.id === id);
-        return applyWorkerStatusToRosterFiles(
-          crewLaunchDir(process.cwd()),
-          id,
-          workerStatusForRoster(before, removal?.status ?? "removed"),
-        );
-      });
-      const terminalizedRosters = terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), removedIds);
-      const details = { ...result, terminalizedRosters, rosterLifecycleUpdates };
-      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
   pi.registerTool({
@@ -146,38 +115,6 @@ export default function runtimeExtension(pi: any): void {
     async execute(_id, input) {
       const result = await runtime.inspect(input.id);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
-    },
-  });
-  pi.registerTool({
-    name: "runtime_delete_agent",
-    label: "Runtime: delete agent",
-    description: "Stop an SDK agent and remove its worktree.",
-    parameters: Type.Object({
-      id: Type.String(),
-      // Set this when Main has already received and accepted (or rejected)
-      // this member's report before removing it, so the roster records what
-      // actually happened instead of the removal-inferred BLOCKED ("stalled
-      // unattended") -- e.g. a resident worker that reported done and is now
-      // simply being cleaned up should land on PASS, not BLOCKED.
-      outcome: Type.Optional(Type.Union([Type.Literal("PASS"), Type.Literal("FAIL"), Type.Literal("BLOCKED")])),
-    }),
-    async execute(_id, input) {
-      const before = await runtime.inspect(input.id);
-      const result = await runtime.remove(input.id);
-      const rosterLifecycleUpdates = result.removed
-        ? input.outcome
-          ? applyMemberOutcomeToRosterFiles(crewLaunchDir(process.cwd()), input.id, input.outcome)
-          : applyWorkerStatusToRosterFiles(
-              crewLaunchDir(process.cwd()),
-              input.id,
-              workerStatusForRoster(before, result.status ?? "removed"),
-            )
-        : [];
-      const terminalizedRosters = result.removed
-        ? terminalizeRostersForRemovedActors(crewLaunchDir(process.cwd()), [input.id])
-        : [];
-      const details = { ...result, terminalizedRosters, rosterLifecycleUpdates };
-      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     },
   });
 }

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { resolveBundles } from "./tool-bundles.mjs";
 import { connectComm } from "./comm-client.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
+import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const stopProcess = async (child) => {
@@ -34,6 +35,9 @@ export class Runtime {
 
   async #ensureLifecycle() {
     if (this.#lifecycle) return;
+    // Best-effort: reap Lifecycle servers left behind by a dead Main
+    // session before starting a new one. Never blocks startup on failure.
+    await reapOrphans(this.cwd).catch(() => {});
     const config = JSON.stringify({ cwd: this.cwd, workerModule: join(import.meta.dirname, "worker.mjs") });
     this.#lifecycleProcess = spawn(process.execPath, [join(import.meta.dirname, "lifecycle-server.mjs"), config], {
       stdio: ["ignore", "pipe", "ignore"],
@@ -43,6 +47,7 @@ export class Runtime {
       this.#lifecycleProcess.once("error", reject);
     });
     const { port } = JSON.parse(line);
+    await recordOwner(this.cwd, { pid: this.#lifecycleProcess.pid, hostPid: process.pid, port }).catch(() => {});
     this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`);
   }
 
@@ -91,6 +96,17 @@ export class Runtime {
   async inspectComm() {
     if (!this.#comm) throw new Error("Communication controller is not running");
     return this.#comm.inspect();
+  }
+
+  // Internal-facing, like CommController.observeRaw(): the full unfiltered
+  // envelope stream over Main's own WS connection, for in-process observers
+  // (e.g. the live dependency ledger behind the Crew dashboard) that must
+  // stay current with kickoff/report activity across the whole Crew, not
+  // only messages addressed to "main". A no-op unsubscribe when Comm is not
+  // running yet (nothing to observe before startComm()).
+  observeRawComm(handler) {
+    if (!this.#comm) return () => {};
+    return this.#comm.observeRaw(handler);
   }
 
   async launchCrew(agents, adapters = []) {
@@ -177,7 +193,9 @@ export class Runtime {
     const removals = await Promise.allSettled(agents.map((agent) => this.remove(agent.id)));
     this.#lifecycle?.close();
     this.#comm?.close();
+    const ownerPid = this.#lifecycleProcess?.pid;
     await Promise.all([stopProcess(this.#lifecycleProcess), stopProcess(this.#commProcess)]);
+    if (ownerPid) await removeOwner(this.cwd, ownerPid).catch(() => {});
     this.#lifecycle = undefined;
     this.#comm = undefined;
     this.#lifecycleProcess = undefined;

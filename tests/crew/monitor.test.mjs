@@ -61,9 +61,17 @@ test("the Crew dashboard command/shortcut are wired from monitor-dashboard.mjs d
   assert.match(source, /import \{ buildAutomataTab \} from "\.\/monitor-dashboard\.mjs"/);
   assert.match(
     source,
-    /import \{ planRowsFor, registerCrewDashboardCommand \} from "\.\/monitor-dashboard-command\.mjs"/,
+    /import \{ planRowsFor, registerCrewDashboardCommand, selectedCrewFor \} from "\.\/monitor-dashboard-command\.mjs"/,
   );
   assert.match(source, /registerCrewDashboardCommand\(pi, \(\) => \{/);
   assert.match(source, /buildAutomataTab\(snapshot\)/);
-  assert.match(source, /planRowsFor\(readJson, ctx\.cwd, roster\)/);
+  assert.match(source, /planRowsFor\(readJson, ctx\.cwd, roster, ledger\)/);
+});
+
+test("the Plan tab reads a live ledger kept current by attachRawEnvelopeObserver, not a fresh reseed per open", () => {
+  assert.match(source, /import \{ createLiveLedgerTracker \} from "\.\/monitor-live-ledger\.mjs"/);
+  assert.match(source, /import \{ runtimeFor \} from "\.\.\/\.\.\/runtime\/lib\/shared-runtime\.mjs"/);
+  assert.match(source, /createLiveLedgerTracker\(runtimeFor\(ctx\.cwd\)\)/);
+  assert.match(source, /ensureLiveLedgerTracker\(\)\?\.ledgerFor\(selected\)/);
+  assert.match(source, /liveLedgerTracker\?\.stop\(\)/);
 });

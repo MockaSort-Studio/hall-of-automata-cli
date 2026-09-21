@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { discussionStateFilePath } from "../../runtime/lib/github-discussion.mjs";
 import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { assemble } from "./assembly.mjs";
 
@@ -108,7 +109,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
                     runId,
                     startedAt: new Date().toISOString(),
                     category: input.discussionCategory ?? "General",
-                    stateFile: join(configDir, "runtime", "crew-launch", `${runId}-github-discussion.json`),
+                    stateFile: discussionStateFilePath(join(configDir, "runtime", "crew-launch"), runId),
                   },
                 ],
         },

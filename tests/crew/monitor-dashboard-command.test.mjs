@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { planRowsFor } from "../../.pi/extensions/crew/lib/monitor-dashboard-command.mjs";
+import { seedDependencyLedgerFromSelectedCrew } from "../../.pi/extensions/crew/lib/dependency-ledger-wiring.mjs";
 
 const selectedCrew = {
   runId: "run-1",
@@ -41,4 +42,20 @@ test("planRowsFor returns no rows when selected_crew fails to parse", () => {
     planRowsFor(() => null, "/repo", roster),
     [],
   );
+});
+
+test("planRowsFor uses an injected live ledger's status instead of reseeding a fresh one", () => {
+  const ledger = seedDependencyLedgerFromSelectedCrew(selectedCrew);
+  ledger.start("developer-alpha-00");
+  const readJson = () => selectedCrew;
+  const rows = planRowsFor(readJson, "/repo", roster, ledger);
+  assert.deepEqual(rows, [
+    { task: "Do alpha work.", status: "running", assignedAutomaton: "developer-alpha-00", dependsOn: [] },
+    {
+      task: "Do bravo work.",
+      status: "waiting",
+      assignedAutomaton: "developer-bravo-00",
+      dependsOn: ["developer-alpha-00"],
+    },
+  ]);
 });

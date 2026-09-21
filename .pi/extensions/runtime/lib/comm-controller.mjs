@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { CommEnvelopeObservation, projectEnvelope } from "./comm-envelope-observation.mjs";
+import { RawObserverSockets } from "./comm-raw-observer-sockets.mjs";
+import { dispatchCommRequest } from "./comm-controller-dispatch.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -12,6 +14,10 @@ export class CommController {
   #actors = new Set(["main"]);
   #pendingReplies = new Map();
   #observation = new CommEnvelopeObservation();
+  // Per-socket observeRaw() subscriptions for "comm.observe_raw" below, so
+  // an out-of-process observer (e.g. Main's live dependency ledger) gets
+  // the same unfiltered stream observeRaw() gives in-process callers.
+  #rawSockets = new RawObserverSockets();
   // A synchronous broadcast delivers every resident worker's first prompt in
   // the same tick, which has produced a real, reproducible collision: near-
   // simultaneous fresh sessions racing the same provider/session-auth path,
@@ -128,49 +134,39 @@ export class CommController {
   injectHuman({ to, body, author, externalId }) {
     return this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   }
+  // Registration bookkeeping shared by comm.register's dispatch handler:
+  // track the socket under its actorId, record the event, and flush any
+  // message already queued for it before the socket connected.
+  registerConnection(actorId, socket) {
+    this.#connections.set(actorId, socket);
+    this.#record("worker_registered", { actorId });
+    setImmediate(() => this.#flush(actorId));
+  }
+  observeRawOverSocket(actorId) {
+    if (!actorId) throw new Error("comm.observe_raw requires a registered actorId");
+    return this.#rawSockets.subscribe(actorId, this.observeRaw.bind(this), (id, envelope) => {
+      const socket = this.#connections.get(id);
+      if (socket?.readyState === 1)
+        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.raw_envelope", params: envelope }));
+    });
+  }
   #attach(socket) {
-    let actorId;
+    const state = { actorId: undefined };
     socket.on("message", async (raw) => {
       const request = JSON.parse(String(raw));
       try {
-        let result;
-        if (request.method === "comm.register") {
-          actorId = request.params.actorId;
-          this.#connections.set(actorId, socket);
-          this.#record("worker_registered", { actorId });
-          result = { registered: actorId };
-          setImmediate(() => this.#flush(actorId));
-        } else if (request.method === "comm.register_actor") {
-          this.registerActor(request.params.actorId);
-          result = { registered: request.params.actorId };
-        } else if (request.method === "comm.broadcast")
-          result = await this.broadcast(
-            actorId,
-            request.params.namespace,
-            request.params.payload,
-            request.params.includeMain,
-          );
-        else if (request.method === "comm.emit")
-          result = this.emit(
-            actorId,
-            request.params.to,
-            request.params.payload,
-            request.params.replyRequired,
-            request.params.replyTo,
-          );
-        else if (request.method === "comm.claim") result = this.claim(request.params.actorId);
-        else if (request.method === "comm.ack") result = this.acknowledge(actorId, request.params.messageId);
-        else if (request.method === "comm.inspect") result = this.events();
+        const result = await dispatchCommRequest(this, socket, state, request);
         this.#reply(socket, request.id, result);
       } catch (error) {
         socket.send(JSON.stringify({ jsonrpc: "2.0", id: request.id, error: { message: String(error) } }));
       }
     });
     socket.once("close", () => {
-      if (actorId) {
-        this.release(actorId);
-        this.#connections.delete(actorId);
-        this.#record("worker_disconnected", { actorId });
+      if (state.actorId) {
+        this.release(state.actorId);
+        this.#connections.delete(state.actorId);
+        this.#rawSockets.release(state.actorId);
+        this.#record("worker_disconnected", { actorId: state.actorId });
       }
     });
   }
