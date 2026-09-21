@@ -17,10 +17,16 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Remaining runtime hardening
 
-- [ ] Audit context and persona assembly after the SDK port: make the checked-in
-      automaton body and roster the sole Crew persona source, remove the obsolete
-      Claude consultation overlay, and test bounded prompt snapshots with the full
-      ordinal-suffixed Crew handle.
+- [x] Audit context and persona assembly after the SDK port. The "obsolete Claude
+      consultation overlay" was already fully removed prior to this session (commit
+      `3bcb74b`, closing KR 2.3/#185 and KR 5.1/#195) -- confirmed via grep, no removal work
+      needed. Confirmed `automaton-body/` + `roster.json` + `roles.json`/`roles/*.md`
+      (assembled by `assembly.mjs`, wrapped by `startup.mjs`) are the sole persona source
+      with no dead alternate path anywhere in the tree. Added the missing bounded
+      prompt-snapshot test (`tests/crew/startup.test.mjs`) asserting the assembled prompt's
+      section order and ordinal-suffixed Crew handle substitution. No sitewide max-prompt-
+      size concept exists (only per-field caps); the test's size bound is a derived soft
+      heuristic, not a hard product decision -- flagged, not invented as fact.
 - [x] Add lifecycle failure-injection and RPC protocol tests.
 - [x] Run a concurrent two-Crew cleanup probe; verify no worker, worktree, owner record,
       launcher, or RPC process remains after the idle window.
@@ -176,10 +182,26 @@ canonical in [runtime-structure.md](runtime-structure.md).
       terminal width) with real table rendering for both tabs. `monitor-dashboard-view.mjs`
       gained a shared `renderTable()` primitive (fixed columns sized to content, one flex
       column absorbing remaining width) and the overlay got explicit `overlayOptions`
-      (`width: "33%"`, `minWidth: 70`, `maxHeight: "80%"`). Real border/background chrome
+      (`width: "50%"`, `minWidth: 120`, `maxHeight: "80%"`). Real border/background chrome
       followed separately (`monitor-dashboard-chrome.mjs`: `DynamicBorder` top/bottom rule +
       `Box` background band -- `Box` has no native border, checked its source first).
       [#469](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/469).
+- [x] Fixed the dashboard overlay's initial `width: "33%"`/`minWidth: 70` rendering
+      illegibly narrow on real terminals. Traced to `pi-tui`'s `resolveOverlayLayout`
+      (`width = Math.max(width, opt.minWidth)`): `minWidth` is an unconditional floor, not
+      a fallback, so it dominates the percentage target on any terminal under
+      `minWidth / (percentage / 100)` columns -- ~212 for the original numbers, i.e. almost
+      always. The 70-column floor was also below the Automata table's own real minimum
+      content width. Recomputed `minWidth: 120` from `AUTOMATA_COLUMNS`' actual widths
+      (fixed columns + separators + a full Crew handle in the flex NAME column, not a
+      guess) and raised `width` to `50%` so wide terminals genuinely grow the panel instead
+      of pinning to the floor. Left an explicit comment on the gotcha so it isn't
+      reintroduced.
+- [ ] Whether the dashboard's _height_ should look "roomier" despite being content-driven
+      by design (`pi-tui`'s `maxHeight` is a ceiling, not a forced fill -- confirmed from
+      source, framework-wide behavior, not a bug) is an open design question, not decided.
+      Padding the table with blank lines for breathing room is one option; not implemented
+      pending a real answer.
 - [x] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
       cancels it, else PASS closes it). Validated with a Lead present. Considered and
       rejected a required-vs-optional member distinction: the smallest-party discipline
