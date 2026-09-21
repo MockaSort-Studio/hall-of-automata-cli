@@ -172,12 +172,17 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Evidence and performance work
 
-- [ ] Capture a per-actor, content-free timeline for the next representative run, including
-      context deltas, response usage, tool result sizes, compactions, errors, and timestamps.
+- [x] Capture a per-actor, content-free timeline for the next representative run. Rejected:
+      aggregate per-actor stats (`worker-metrics.mjs`, `crew-monitor.mjs`, the dashboard)
+      already cover what's needed; an ordered per-turn sequence is not something we
+      currently have a use for.
 - [ ] Establish an untouched baseline, then run an A/B quality gate before changing prompt
-      or context policy.
+      or context policy. Deferred, not rejected: this is worth having once Crew itself is
+      stable. Building a formal evaluation harness on top of a system still finding and
+      fixing collision/telemetry/dashboard bugs (this session) would be premature -- revisit
+      once the runtime hardening backlog is genuinely quiet.
 - [ ] Run three controlled serial-versus-Crew benchmark rounds and publish median/range;
-      the current single pilot is not a performance decision.
+      the current single pilot is not a performance decision. Same deferral as above.
 
 ## Deferred product work
 
