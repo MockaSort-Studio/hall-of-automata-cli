@@ -166,18 +166,14 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
-- [ ] The Crew monitor assumes exactly one active Crew at a time. `monitor.ts`'s footer is
-      one named widget (`"crew-monitor"`) backed by `latestActive()`, which picks the single
-      most-recently-modified `*-roster.json` in `.pi/runtime/crew-launch/`; `/crew-dashboard`
-      has the same single-roster assumption. Confirmed live: dispatching a second Crew while
-      a first was still running did not create a duplicate footer or merge into the running
-      Crew (each is a fully independent roster/run, verified), but the footer silently
-      switched to showing only the newer one -- the first Crew's progress became invisible
-      in the UI (still correct in the underlying files, just not surfaced) until the second
-      finished. Needs real design work, not a quick patch: either multiple footer lines (one
-      per active Crew), a Crew picker/tab in the dashboard, or something better -- worth
-      studying `pi-tui`'s own multi-item list patterns (`SelectList`, etc., see `tui.md`)
-      rather than assuming the current single-widget shape is the right starting point.
+- [x] Fixed the Crew monitor's single-active-Crew assumption. The footer now renders one
+      compact line per active roster (`monitor-active-rosters.mjs`, bounded to
+      `MAX_ACTIVE_ROSTERS = 5`, most-recently-touched first) instead of `latestActive()`
+      silently dropping a second concurrent Crew from view. `/crew-dashboard` shows a
+      `SelectList` picker (`monitor-dashboard-picker.mjs`, per `tui.md`'s documented
+      pattern) when more than one Crew is active; with 0 or 1, behavior is unchanged.
+      `monitor-footer-widget.mjs` and `monitor-worker-metrics.mjs` were extracted to keep
+      `monitor.ts` at 197 lines.
 - [x] Rebuild the Crew dashboard as a structured, comfortably-spaced panel (~1/3 of the
       terminal width) with real table rendering for both tabs. `monitor-dashboard-view.mjs`
       gained a shared `renderTable()` primitive (fixed columns sized to content, one flex
@@ -197,11 +193,10 @@ canonical in [runtime-structure.md](runtime-structure.md).
       guess) and raised `width` to `50%` so wide terminals genuinely grow the panel instead
       of pinning to the floor. Left an explicit comment on the gotcha so it isn't
       reintroduced.
-- [ ] Whether the dashboard's _height_ should look "roomier" despite being content-driven
-      by design (`pi-tui`'s `maxHeight` is a ceiling, not a forced fill -- confirmed from
-      source, framework-wide behavior, not a bug) is an open design question, not decided.
-      Padding the table with blank lines for breathing room is one option; not implemented
-      pending a real answer.
+- [x] Added breathing room to the dashboard overlay: one blank line after the tab bar, one
+      before the closing border, in `monitor-dashboard-view.mjs` (kept in the pure content
+      module, not the chrome wrapper, since the tab bar/table are assembled there). Overlay
+      sizing itself is untouched -- height stays intentionally content-driven.
 - [x] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
       cancels it, else PASS closes it). Validated with a Lead present. Considered and
       rejected a required-vs-optional member distinction: the smallest-party discipline
@@ -252,6 +247,28 @@ canonical in [runtime-structure.md](runtime-structure.md).
       real namespace-qualified actor IDs end to end, and added explicit regression tests
       for the namespaced-envelope shape in `dependency-ledger-wiring.test.mjs` and
       `monitor-live-ledger.test.mjs`.
+- [ ] The Plan tab is still permanently stuck at `waiting` in a real TUI session despite the
+      namespace fix above. Root cause: `monitor.ts`'s live ledger tracker calls
+      `runtimeFor(ctx.cwd)`, a `Runtime` instance scoped to _whichever process calls it_.
+      The Crew was launched by a separate process (the Crew MCP tool's own `Runtime`), which
+      has its own, entirely different Comm connection. `Runtime.observeRawComm()` is
+      `if (!this.#comm) return () => {}` -- since the TUI session's own `Runtime` never
+      called `startComm()` for that Crew, this is a permanent no-op. The live ledger has
+      never received a single envelope in a real TUI session, for any Crew, ever. (The
+      Automata tab/footer are unaffected -- they read worker-metrics files on disk, no Comm
+      involved.) Fix: each roster already records its own Comm URL (`roster.comm.url`); the
+      already-built `comm.observe_raw` WS method supports connecting as a distinct,
+      non-`main` observer identity. `monitor-live-ledger.mjs` needs to connect directly to
+      `roster.comm.url` instead of relying on a same-process `Runtime`.
+- [ ] Context percent/window never shows (`"\u2014 / \u2014"` for every automaton, every Crew,
+      all session). Root cause: `worker.json`'s launch config has no `model` field at all --
+      nothing in `assembly.mjs`/`startup.mjs`/`runtime.mjs`'s `spawn()` records which model a
+      worker actually runs with (it inherits whatever default `pi --mode rpc` resolves to,
+      but that resolved id is never captured or relayed back). `resolveModelWindow(undefined)`
+      correctly returns `null` (by design, never guess), so the field has been blank all
+      session, not just for one Crew. Fix: capture the worker's actual resolved model id at
+      runtime (likely via the same `agent_start` handler that already relays
+      `STATIC_CONTEXT_MARKER` content-free) and thread it through to `worker-metrics.mjs`.
 
 ## Evidence and performance work
 
