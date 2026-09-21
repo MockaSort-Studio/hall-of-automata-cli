@@ -162,9 +162,13 @@ canonical in [runtime-structure.md](runtime-structure.md).
       terminal width) with real table rendering for both tabs, instead of the current
       single padded-string row per line with no explicit overlay size. In progress:
       [#469](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/469).
-- [ ] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
-      cancels it, else PASS closes it). Validated with a Lead present; still not validated
-      against a Crew with a required-vs-optional member distinction.
+- [x] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
+      cancels it, else PASS closes it). Validated with a Lead present. Considered and
+      rejected a required-vs-optional member distinction: the smallest-party discipline
+      already means every dispatched member's task is load-bearing, and an open-ended task
+      that legitimately has no firm answer should be scoped to report `PASS` with its
+      finding, not `BLOCKED`/`FAIL` -- adding an "optional" escape hatch would just let a
+      real stall or failure get silently absorbed instead of surfacing.
 
 ## Evidence and performance work
 
