@@ -160,9 +160,13 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
-- [ ] Rebuild the Crew dashboard as a structured, comfortably-spaced panel (~1/3 of the
-      terminal width) with real table rendering for both tabs, instead of the current
-      single padded-string row per line with no explicit overlay size. In progress:
+- [x] Rebuild the Crew dashboard as a structured, comfortably-spaced panel (~1/3 of the
+      terminal width) with real table rendering for both tabs. `monitor-dashboard-view.mjs`
+      gained a shared `renderTable()` primitive (fixed columns sized to content, one flex
+      column absorbing remaining width) and the overlay got explicit `overlayOptions`
+      (`width: "33%"`, `minWidth: 70`, `maxHeight: "80%"`). Real border/background chrome
+      followed separately (`monitor-dashboard-chrome.mjs`: `DynamicBorder` top/bottom rule +
+      `Box` background band -- `Box` has no native border, checked its source first).
       [#469](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/469).
 - [x] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
       cancels it, else PASS closes it). Validated with a Lead present. Considered and
@@ -171,7 +175,7 @@ canonical in [runtime-structure.md](runtime-structure.md).
       that legitimately has no firm answer should be scoped to report `PASS` with its
       finding, not `BLOCKED`/`FAIL` -- adding an "optional" escape hatch would just let a
       real stall or failure get silently absorbed instead of surfacing.
-- [x] Simplified the roster-level *terminal* status model from three values
+- [x] Simplified the roster-level _terminal_ status model from three values
       (`closed`/`failed`/`cancelled`) down to one (`done`). The worst-outcome-wins ordering
       above still determines the representative per-member outcome selected during rollup,
       but every outcome now maps to the same terminal roster status; per-member detail
@@ -182,6 +186,19 @@ canonical in [runtime-structure.md](runtime-structure.md).
       `crew_finish_close`/`beginClose`/`markDiscussionClosed` paths; `discussion-body.mjs`'s
       three-sentence `TERMINAL_STATUS_LABEL` lookup was deleted in favor of one generic
       closing comment.
+- [x] Fixed the footer/Automata tab never showing `complete`/`blocked`/`failed` promptly.
+      A member's roster-recorded status only ever advances when Main explicitly acts
+      (records an outcome, or removes/infers one on stop); a worker's own completion
+      report already updated the live dependency ledger immediately (#462/#463), but
+      nothing fed that into the footer/Automata tab's bucket derivation, only the Plan tab
+      consulted it. Added `dependency-ledger-wiring.mjs`'s `ledgerStatusByActor()` (actorId-
+      keyed fold, mirrors the existing handle-keyed `readableDependencyLedgerSnapshot()`)
+      and wired it into `monitor-snapshot.mjs`'s bucket precedence: explicit roster status
+      (Main-authoritative) > live ledger terminal status (worker-reported) > live-activity
+      heuristic (queued/running) > queued. Also fixed a real, unrelated bug found while
+      reconciling this: `lifecycle-owner-integration.test.mjs` imported but never used
+      `mkdtempSync`/`rmSync`, so it ran against the literal repo `cwd` and could collide
+      with any real Runtime's owner file already on disk -- isolated to a per-test temp cwd.
 
 ## Evidence and performance work
 
