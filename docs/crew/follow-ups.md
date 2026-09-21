@@ -90,7 +90,7 @@ canonical in [runtime-structure.md](runtime-structure.md).
 - [x] Wire `dependency-ledger.mjs` to raw Comm envelopes (`comm.observeRaw()`) and to each
       member's `task`/`dependsOn` in `selected_crew_<uuid>.json`
       (`dependency-ledger-wiring.mjs`). `complete`/`fail`/`blocked` transitions from live
-      envelopes are still not wired (no Comm protocol field marks task completion yet).
+      envelopes were wired later in this doc (see the `taskStatus` entry below, #462).
 - [x] Validate the worst-outcome-wins roster rollup against a Lead-present Crew. Confirmed
       by regression test, not a source fix: `applyWorkerStatusToRoster` looks members up by
       `actorId` with no role filtering, so the Lead's terminal outcome already folds into
@@ -101,7 +101,7 @@ canonical in [runtime-structure.md](runtime-structure.md).
       prefixed `ctx.ui.notify`, decoded by `worker-events.mjs` into a `static_context`
       log record.
 
-## Open
+## Dashboard and dependency-ledger completion — resolved
 
 - [x] Investigate and clean up orphaned `lifecycle-server.mjs` processes from past Main
       sessions. `lifecycle-registry.mjs` records one owner file per launched Lifecycle
@@ -114,14 +114,15 @@ canonical in [runtime-structure.md](runtime-structure.md).
       `worker-metrics.mjs`'s existing `sessionContext` field.
 - [x] Build the expandable Crew dashboard (Automata tab + Plan tab) on top of
       `monitor-snapshot.mjs`. `/crew-dashboard` command + `ctrl+shift+d` shortcut open an
-      overlay with both tabs; Automata rows are the snapshot's per-actor detail, Plan rows
-      come from `selected_crew_<uuid>.json` overlaid with a dependency-ledger snapshot
-      seeded fresh on open (no live Comm wiring into the render path yet -- see below).
-      Not yet verified in a real TUI: no TypeScript/pi-tui packages are resolvable from a
-      plain `node --test` process in this repo, so `monitor.ts`'s new wiring is validated
-      the same way its existing wiring already is (source-pattern assertions) plus full unit
-      coverage of every pure function underneath. Recommend a manual
-      `cc --plugin-dir . --debug` smoke test of `/crew-dashboard` before relying on it.
+      overlay with both tabs, Automata rows the snapshot's per-actor detail, Plan rows now
+      backed by a live dependency ledger (see the next entry, #463) rather than a reseeded
+      structural-only one. Not yet verified in a real TUI: no TypeScript/pi-tui packages are
+      resolvable from a plain `node --test` process in this repo, so `monitor.ts`'s wiring is
+      validated the same way its existing wiring already is (source-pattern assertions) plus
+      full unit coverage of every pure function underneath. Recommend a manual
+      `cc --plugin-dir . --debug` smoke test of `/crew-dashboard` before relying on it. The
+      dashboard's current rendering (single padded-string rows, no explicit overlay size) is
+      being reworked into a proper ~1/3-screen table panel -- see Open below (#469).
 - [x] Wire a Comm completion signal so the dependency ledger can transition
       `complete`/`fail`/`blocked` from live envelopes. A `kind: "report"` payload's
       `taskStatus` field (`complete`/`failed`/`blocked`), keyed by the envelope's own
@@ -154,6 +155,13 @@ canonical in [runtime-structure.md](runtime-structure.md).
       declares the real outcome directly (`applyMemberOutcomeToRosterFiles`) instead of
       letting removal be inferred as BLOCKED. The automatic inference path is unchanged and
       still used whenever Main has no such prior knowledge (e.g. a crash).
+
+## Open
+
+- [ ] Rebuild the Crew dashboard as a structured, comfortably-spaced panel (~1/3 of the
+      terminal width) with real table rendering for both tabs, instead of the current
+      single padded-string row per line with no explicit overlay size. In progress:
+      [#469](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/469).
 - [ ] Roster-level rollup uses worst-outcome-wins (any FAIL fails the Crew, else any BLOCKED
       cancels it, else PASS closes it). Validated with a Lead present; still not validated
       against a Crew with a required-vs-optional member distinction.
