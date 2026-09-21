@@ -97,19 +97,40 @@ function tryApplyTaskStatus(ledger, rawHandle, taskStatus) {
   }
 }
 
-function handleEnvelope(ledger, envelope) {
+// A real worker's Comm actorId is always namespace-qualified
+// ("crew-<runId>-<handle>", e.g. "crew-521574dc-...-developer-snowball-00"
+// -- see runtime.mjs's spawn() and worker-comm-extension.mjs's qualify()),
+// but the ledger is seeded with the bare handle from
+// selected_crew_<uuid>.json ("developer-snowball-00"). Without stripping
+// the namespace first, ledger.has()/status() never match a real envelope's
+// to/from field -- this was a real, confirmed bug: no ledger node ever left
+// "waiting" in any live dispatch, only in tests that emit bare handles
+// directly. canonicalHandle() (dependency-ledger.mjs) does not strip this;
+// it only validates shape, so stripping must happen here, before the
+// ledger ever sees the raw value.
+function stripNamespace(rawHandle, namespace) {
+  if (!rawHandle || !namespace) return rawHandle;
+  const prefix = `${namespace}-`;
+  return rawHandle.startsWith(prefix) ? rawHandle.slice(prefix.length) : rawHandle;
+}
+
+function handleEnvelope(ledger, envelope, namespace) {
   const payload = envelope?.payload;
   if (!payload || typeof payload !== "object") return;
   if (payload.kind === "kickoff") {
-    for (const recipient of kickoffRecipients(envelope, payload)) tryStart(ledger, recipient);
+    for (const recipient of kickoffRecipients(envelope, payload))
+      tryStart(ledger, stripNamespace(recipient, namespace));
   } else if (payload.kind === "report") {
-    tryApplyTaskStatus(ledger, envelope.from, payload.taskStatus);
+    tryApplyTaskStatus(ledger, stripNamespace(envelope.from, namespace), payload.taskStatus);
   }
 }
 
 // attachRawEnvelopeObserver subscribes to CommController.observeRaw() and
 // keeps the ledger's running/waiting state in sync with kickoff activity.
-// Returns the unsubscribe function observeRaw hands back.
-export function attachRawEnvelopeObserver(ledger, comm) {
-  return comm.observeRaw((envelope) => handleEnvelope(ledger, envelope));
+// `namespace` is the Crew run's actor-id prefix ("crew-<runId>"), stripped
+// from every envelope's to/from before matching against the ledger's
+// bare-handle nodes; omit it only for tests that already use bare handles
+// end to end. Returns the unsubscribe function observeRaw hands back.
+export function attachRawEnvelopeObserver(ledger, comm, namespace) {
+  return comm.observeRaw((envelope) => handleEnvelope(ledger, envelope, namespace));
 }

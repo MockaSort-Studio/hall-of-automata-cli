@@ -47,6 +47,24 @@ test("ledgerFor stays current with live kickoff/report envelopes, not just struc
   assert.equal(ledger.status("developer-bravo-00"), "ready");
 });
 
+// Regression: a real worker's Comm actorId is namespace-qualified
+// ("crew-<runId>-<handle>"), never the bare handle used above. Without
+// stripping that prefix before matching, ledgerFor's subscription would
+// look correct in every test using bare handles directly while never
+// actually transitioning any node in a real dispatch -- this exact gap
+// shipped and went unnoticed because no test exercised the real shape.
+test("ledgerFor strips the run's namespace prefix from real, namespace-qualified envelope to/from fields", () => {
+  const runtime = fakeRuntime();
+  const tracker = createLiveLedgerTracker(runtime);
+  const ledger = tracker.ledgerFor(selectedCrew("run-1"));
+  runtime.push({
+    payload: { kind: "kickoff", assignments: [{ to: "crew-run-1-developer-alpha-00" }] },
+  });
+  assert.equal(ledger.status("developer-alpha-00"), "running");
+  runtime.push({ from: "crew-run-1-developer-alpha-00", payload: { kind: "report", taskStatus: "complete" } });
+  assert.equal(ledger.status("developer-alpha-00"), "complete");
+});
+
 test("ledgerFor rebuilds and unsubscribes the previous run when the plan's runId changes", () => {
   const runtime = fakeRuntime();
   const tracker = createLiveLedgerTracker(runtime);

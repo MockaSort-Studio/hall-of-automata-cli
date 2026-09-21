@@ -4,6 +4,15 @@
 // in-process observeRaw() unit coverage in dependency-ledger-wiring.test.mjs.
 // Every assertion reads ledger.status()/snapshot() -- mechanical, structured
 // state -- never report/prose, per docs/crew/comm-kickoff-dependency-design.md.
+//
+// Actor identity matters here, not just transport: a real worker's Comm
+// actorId is namespace-qualified ("crew-<runId>-<handle>", never the bare
+// handle -- see runtime.mjs's spawn() and worker-comm-extension.mjs's
+// qualify()). An earlier version of this file registered/emitted with bare
+// handles directly, which exercised the real WebSocket transport but not
+// the real identity shape -- and missed a real bug where the ledger never
+// actually transitioned any node in a live dispatch because of exactly
+// this mismatch. This harness uses namespaced actorIds end to end.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
@@ -12,6 +21,9 @@ import {
   attachRawEnvelopeObserver,
   seedDependencyLedgerFromSelectedCrew,
 } from "../../.pi/extensions/crew/lib/dependency-ledger-wiring.mjs";
+
+const NAMESPACE = "crew-run-e2e";
+const qualified = (handle) => `${NAMESPACE}-${handle}`;
 
 // Two parallel roots (alpha, beta), each with one dependent (gamma, delta)
 // chained one level deep -- enough to exercise parallel roots, chained
@@ -29,13 +41,13 @@ const selectedCrew = () => ({
 
 async function harness() {
   const comm = new CommController();
-  for (const member of selectedCrew().members) comm.registerActor(member.handle);
+  for (const member of selectedCrew().members) comm.registerActor(qualified(member.handle));
   const port = await comm.start();
   const ledger = seedDependencyLedgerFromSelectedCrew(selectedCrew());
-  const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm, NAMESPACE);
   const clients = {};
   for (const member of selectedCrew().members) {
-    clients[member.handle] = await connectComm({ url: `ws://127.0.0.1:${port}`, actorId: member.handle });
+    clients[member.handle] = await connectComm({ url: `ws://127.0.0.1:${port}`, actorId: qualified(member.handle) });
   }
   const main = await connectComm({ url: `ws://127.0.0.1:${port}`, actorId: "main" });
   return {
@@ -56,12 +68,12 @@ test("dependency-ledger-e2e: parallel roots both start from one structured kicko
   const { ledger, main, close } = await harness();
   try {
     await main.emit({
-      to: "developer-alpha-00",
+      to: qualified("developer-alpha-00"),
       payload: {
         kind: "kickoff",
         assignments: [
-          { to: "developer-alpha-00", task: "Root A.", dependsOn: [] },
-          { to: "developer-beta-00", task: "Root B.", dependsOn: [] },
+          { to: qualified("developer-alpha-00"), task: "Root A.", dependsOn: [] },
+          { to: qualified("developer-beta-00"), task: "Root B.", dependsOn: [] },
         ],
       },
     });
@@ -83,7 +95,7 @@ test("dependency-ledger-e2e: a taskStatus:complete report releases the direct de
     assert.equal(ledger.status("developer-alpha-00"), "complete");
     assert.equal(ledger.status("developer-gamma-00"), "ready");
     // Chained release: the ready dependent can now legally be started.
-    await main.emit({ to: "developer-gamma-00", payload: { kind: "kickoff", task: "Depends on alpha." } });
+    await main.emit({ to: qualified("developer-gamma-00"), payload: { kind: "kickoff", task: "Depends on alpha." } });
     assert.equal(ledger.status("developer-gamma-00"), "running");
   } finally {
     await close();
@@ -97,12 +109,12 @@ test("dependency-ledger-e2e: completion is directed to Main and the dependent on
     await clients["developer-alpha-00"].emit({ to: "main", payload: { kind: "report", taskStatus: "complete" } });
     const mainDelivery = await delivered;
     assert.equal(mainDelivery.payload.taskStatus, "complete");
-    assert.equal(mainDelivery.from, "developer-alpha-00");
+    assert.equal(mainDelivery.from, qualified("developer-alpha-00"));
     // Directed completion recipients: Lead (main) got the report above;
     // beta/delta -- not gamma's dependency chain -- never receive anything
     // about alpha's completion.
-    assert.equal(comm.claim("developer-beta-00"), undefined);
-    assert.equal(comm.claim("developer-delta-00"), undefined);
+    assert.equal(comm.claim(qualified("developer-beta-00")), undefined);
+    assert.equal(comm.claim(qualified("developer-delta-00")), undefined);
   } finally {
     await close();
   }

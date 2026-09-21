@@ -66,6 +66,24 @@ test("attachRawEnvelopeObserver starts a ready node when a kickoff envelope name
   unsubscribe();
 });
 
+// Regression: a real worker's Comm actorId is namespace-qualified
+// ("crew-<runId>-<handle>"), not the bare handle the ledger is seeded
+// with. Every other test in this file uses bare handles directly and
+// would pass even if namespace stripping were silently removed --this one
+// specifically exercises the real, qualified shape.
+test("attachRawEnvelopeObserver strips a namespace prefix from envelope to/from before matching the ledger", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-00");
+  const comm = new CommController();
+  comm.registerActor("crew-run-1-developer-alpha-00");
+  const unsubscribe = attachRawEnvelopeObserver(ledger, comm, "crew-run-1");
+  comm.emit("main", "crew-run-1-developer-alpha-00", { kind: "kickoff", task: "go" });
+  assert.equal(ledger.status("developer-alpha-00"), "running");
+  comm.emit("crew-run-1-developer-alpha-00", "main", { kind: "report", taskStatus: "complete" });
+  assert.equal(ledger.status("developer-alpha-00"), "complete");
+  unsubscribe();
+});
+
 test("attachRawEnvelopeObserver starts every ready assignment named in a structured kickoff", () => {
   const ledger = seedDependencyLedgerFromSelectedCrew(selectedCrew());
   const comm = new CommController();

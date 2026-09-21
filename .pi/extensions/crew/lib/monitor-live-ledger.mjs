@@ -34,7 +34,14 @@ export function createLiveLedgerTracker(runtime) {
       if (nextKey !== key) {
         teardown();
         ledger = seedDependencyLedgerFromSelectedCrew(selected);
-        unsubscribe = attachRawEnvelopeObserver(ledger, { observeRaw: (handler) => runtime.observeRawComm(handler) });
+        // Real envelope to/from fields are namespace-qualified
+        // ("crew-<runId>-<handle>"); see dependency-ledger-wiring.mjs's
+        // attachRawEnvelopeObserver for why this must be passed through.
+        unsubscribe = attachRawEnvelopeObserver(
+          ledger,
+          { observeRaw: (handler) => runtime.observeRawComm(handler) },
+          `crew-${selected.runId}`,
+        );
         key = nextKey;
       }
       return ledger;
