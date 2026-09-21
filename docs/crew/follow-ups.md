@@ -160,6 +160,18 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Open
 
+- [ ] The Crew monitor assumes exactly one active Crew at a time. `monitor.ts`'s footer is
+      one named widget (`"crew-monitor"`) backed by `latestActive()`, which picks the single
+      most-recently-modified `*-roster.json` in `.pi/runtime/crew-launch/`; `/crew-dashboard`
+      has the same single-roster assumption. Confirmed live: dispatching a second Crew while
+      a first was still running did not create a duplicate footer or merge into the running
+      Crew (each is a fully independent roster/run, verified), but the footer silently
+      switched to showing only the newer one -- the first Crew's progress became invisible
+      in the UI (still correct in the underlying files, just not surfaced) until the second
+      finished. Needs real design work, not a quick patch: either multiple footer lines (one
+      per active Crew), a Crew picker/tab in the dashboard, or something better -- worth
+      studying `pi-tui`'s own multi-item list patterns (`SelectList`, etc., see `tui.md`)
+      rather than assuming the current single-widget shape is the right starting point.
 - [x] Rebuild the Crew dashboard as a structured, comfortably-spaced panel (~1/3 of the
       terminal width) with real table rendering for both tabs. `monitor-dashboard-view.mjs`
       gained a shared `renderTable()` primitive (fixed columns sized to content, one flex
