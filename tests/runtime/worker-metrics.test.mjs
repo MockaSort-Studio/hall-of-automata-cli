@@ -63,6 +63,16 @@ test("derives modelWindow from a resolved_model event when no explicit modelWind
   assert.equal(metrics.sessionContext.lastPercent, 10);
 });
 
+test("uses the worker-reported modelWindow even when the model id is not catalogued", () => {
+  const events = [
+    { type: "resolved_model", modelId: "anthropic/claude-sonnet-5", modelWindow: 200_000 },
+    { type: "turn", usage: { input: 20_000, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 20_000 } },
+  ];
+  const metrics = summarizeWorkerEvents(events);
+  assert.equal(metrics.sessionContext.modelWindow, 200_000);
+  assert.equal(metrics.sessionContext.lastPercent, 10);
+});
+
 test("stays null when the resolved model id is unknown, never guessing a window", () => {
   const events = [{ type: "resolved_model", modelId: "some-future-model-nobody-has-catalogued" }, ...turns];
   assert.equal(summarizeWorkerEvents(events).sessionContext.modelWindow, null);

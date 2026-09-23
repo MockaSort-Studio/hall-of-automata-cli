@@ -104,6 +104,8 @@ export function crewMonitorSnapshot(
 
   const counts = { queued: 0, running: 0, attention: 0, complete: 0, blocked: 0, failed: 0, total: 0 };
   let totalGeneratedOutputTokens = 0;
+  let maxContextPercent = null;
+  const contextWindows = new Set();
   const automata = [];
 
   for (const member of members) {
@@ -112,6 +114,10 @@ export function crewMonitorSnapshot(
     counts[bucket] += 1;
     counts.total += 1;
     totalGeneratedOutputTokens += generatedOutputFor(actorId, workerMetricsByActor);
+    const sessionContext = workerMetricsByActor?.[actorId]?.sessionContext;
+    if (Number.isFinite(sessionContext?.lastPercent))
+      maxContextPercent = Math.max(maxContextPercent ?? 0, sessionContext.lastPercent);
+    if (Number.isFinite(sessionContext?.modelWindow)) contextWindows.add(sessionContext.modelWindow);
     automata.push(automatonDetail(member, actorId, bucket, workerMetricsByActor));
   }
 
@@ -119,6 +125,7 @@ export function crewMonitorSnapshot(
     runId: String(roster.runId ?? "unknown"),
     counts,
     totalGeneratedOutputTokens,
+    contextSummary: { maxPercent: maxContextPercent, modelWindows: [...contextWindows] },
     automata,
   };
 }

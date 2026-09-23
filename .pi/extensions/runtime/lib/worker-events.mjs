@@ -70,8 +70,10 @@ export function mapWorkerEvent(event) {
       if (event.method !== "notify" || typeof event.message !== "string") return null;
       if (event.message.startsWith(RESOLVED_MODEL_MARKER)) {
         try {
-          const { modelId } = JSON.parse(event.message.slice(RESOLVED_MODEL_MARKER.length));
-          return typeof modelId === "string" && modelId.length > 0 ? { type: "resolved_model", modelId } : null;
+          const { modelId, modelWindow } = JSON.parse(event.message.slice(RESOLVED_MODEL_MARKER.length));
+          return typeof modelId === "string" && modelId.length > 0
+            ? { type: "resolved_model", modelId, ...(Number.isFinite(modelWindow) ? { modelWindow } : {}) }
+            : null;
         } catch {
           return null;
         }

@@ -22,6 +22,11 @@ export function renderCrewStatusFooter(snapshot) {
   }
   const tokens = Number.isFinite(totalGeneratedOutputTokens) ? totalGeneratedOutputTokens : 0;
   parts.push(`${tokens} output tokens`);
+  const context = snapshot.contextSummary;
+  const percent = Number.isFinite(context?.maxPercent) ? `${context.maxPercent}%` : "—";
+  const windows = context?.modelWindows ?? [];
+  const window = windows.length === 1 ? `${windows[0]}` : windows.length > 1 ? "mixed" : "—";
+  parts.push(`context ${percent} / ${window}`);
 
   return parts.join(" · ");
 }

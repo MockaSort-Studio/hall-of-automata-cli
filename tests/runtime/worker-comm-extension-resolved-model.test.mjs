@@ -37,7 +37,7 @@ test("agent_start relays the RPC session's actually-resolved model id", async ()
   extension(pi);
   const ctx = {
     getSystemPrompt: () => "",
-    model: { provider: "anthropic", id: "claude-sonnet-4-6" },
+    model: { provider: "anthropic", id: "claude-sonnet-4-6", contextWindow: 200_000 },
     ui: { notify: (message) => notified.push(message) },
   };
   pi.handlers.get("agent_start")({}, ctx);
@@ -45,6 +45,7 @@ test("agent_start relays the RPC session's actually-resolved model id", async ()
   assert.ok(resolved, "expected a resolved-model marker notification");
   assert.deepEqual(JSON.parse(resolved.slice(RESOLVED_MODEL_MARKER.length)), {
     modelId: "anthropic/claude-sonnet-4-6",
+    modelWindow: 200_000,
   });
 });
 

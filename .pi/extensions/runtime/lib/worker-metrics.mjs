@@ -6,9 +6,9 @@ const number = (value) => (Number.isFinite(value) ? value : 0);
 // its live RPC session (see worker-comm-extension.mjs's agent_start handler
 // and worker-events.mjs's RESOLVED_MODEL_MARKER). Last one wins, in case a
 // future extension of this ever fires more than once per worker.
-const resolvedModelId = (events) => {
+const resolvedModel = (events) => {
   const records = events.filter((event) => event.type === "resolved_model");
-  return records.length ? records[records.length - 1].modelId : null;
+  return records.length ? records[records.length - 1] : null;
 };
 
 // Percent of the model's context window consumed by one turn's provider
@@ -28,8 +28,13 @@ export function summarizeWorkerEvents(events, { modelWindow } = {}) {
   // Otherwise, fall back to what the worker's own session actually reported
   // it was running with -- resolveModelWindow(null) stays null, never a
   // guess, exactly like the explicit-only path already did.
+  const resolved = resolvedModel(events);
   const window =
-    Number.isFinite(modelWindow) && modelWindow > 0 ? modelWindow : resolveModelWindow(resolvedModelId(events));
+    Number.isFinite(modelWindow) && modelWindow > 0
+      ? modelWindow
+      : Number.isFinite(resolved?.modelWindow) && resolved.modelWindow > 0
+        ? resolved.modelWindow
+        : resolveModelWindow(resolved?.modelId);
   const perTurnPercent = turns.map((event) =>
     window === null ? null : round1(Math.min(100, (contextTokens(event.usage) / window) * 100)),
   );

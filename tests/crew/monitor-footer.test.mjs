@@ -6,6 +6,7 @@ const snapshot = (overrides) => ({
   runId: "run-123456",
   counts: { queued: 1, running: 2, attention: 0, complete: 1, blocked: 0, failed: 0, total: 4 },
   totalGeneratedOutputTokens: 4200,
+  contextSummary: { maxPercent: 12.5, modelWindows: [200_000] },
   ...overrides,
 });
 
@@ -18,6 +19,7 @@ test("renderCrewStatusFooter is a compact single line with automaton counts and 
   assert.match(line, /1 queued/);
   assert.match(line, /1 complete/);
   assert.match(line, /4200 output tokens/);
+  assert.match(line, /context 12\.5% \/ 200000/);
 });
 
 test("renderCrewStatusFooter omits zero-count buckets to stay compact", () => {

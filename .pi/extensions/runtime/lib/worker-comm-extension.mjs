@@ -62,7 +62,8 @@ export default function workerCommExtension(pi) {
     // ctx.model is the one place that resolution is actually knowable, per
     // docs/extensions.md's `ctx.model` ("the active model").
     const modelId = ctx.model?.provider && ctx.model?.id ? `${ctx.model.provider}/${ctx.model.id}` : ctx.model?.id;
-    if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId })}`, "info");
+    const modelWindow = Number.isFinite(ctx.model?.contextWindow) ? ctx.model.contextWindow : undefined;
+    if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");
   });
   if (!config.comm) return;
   if (granted.has("comm_notify"))
