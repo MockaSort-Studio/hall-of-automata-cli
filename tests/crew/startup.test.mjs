@@ -56,7 +56,13 @@ test("prepareCrew preserves validated per-member task and dependsOn in the selec
         task: "Measure safely",
         members: [
           { name: "old-major", role: "lead", task: "Coordinate the run" },
-          { name: "snowball", role: "developer", task: "Build the windmill", dependsOn: ["lead-old-major-00"] },
+          {
+            name: "snowball",
+            role: "developer",
+            model: "terra-5.6",
+            task: "Build the windmill",
+            dependsOn: ["lead-old-major-00"],
+          },
         ],
       },
       { cwd },
@@ -67,6 +73,9 @@ test("prepareCrew preserves validated per-member task and dependsOn in the selec
     assert.deepEqual(selected.members[0].dependsOn, []);
     assert.equal(selected.members[1].task, "Build the windmill");
     assert.deepEqual(selected.members[1].dependsOn, ["lead-old-major-00"]);
+    assert.equal(selected.members[1].model, "terra-5.6");
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.equal(config.agents[1].model, "terra-5.6");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

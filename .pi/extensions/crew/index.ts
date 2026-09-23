@@ -15,6 +15,7 @@ const initialMember = Type.Object({
   name: Type.String(),
   role: Type.String(),
   task: Type.Optional(Type.String()),
+  model: Type.Optional(Type.String()),
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
 const parameters = Type.Object({
