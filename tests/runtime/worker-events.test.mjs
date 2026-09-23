@@ -1,6 +1,11 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { STATIC_CONTEXT_MARKER, boundedText, mapWorkerEvent } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
+import {
+  RESOLVED_MODEL_MARKER,
+  STATIC_CONTEXT_MARKER,
+  boundedText,
+  mapWorkerEvent,
+} from "../../.pi/extensions/runtime/lib/worker-events.mjs";
 
 test("mapWorkerEvent produces a content-free tool_end record with a size, not the payload", () => {
   const entry = mapWorkerEvent({
@@ -70,6 +75,35 @@ test("mapWorkerEvent ignores notify calls and other extension UI requests withou
     null,
   );
   assert.equal(mapWorkerEvent({ type: "extension_ui_request", method: "select", title: "Pick one" }), null);
+});
+
+test("mapWorkerEvent decodes the resolved-model marker into the actual model id", () => {
+  const entry = mapWorkerEvent({
+    type: "extension_ui_request",
+    method: "notify",
+    message: `${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId: "anthropic/claude-sonnet-4-6" })}`,
+    notifyType: "info",
+  });
+  assert.deepEqual(entry, { type: "resolved_model", modelId: "anthropic/claude-sonnet-4-6" });
+});
+
+test("mapWorkerEvent ignores a malformed or empty resolved-model marker payload", () => {
+  assert.equal(
+    mapWorkerEvent({
+      type: "extension_ui_request",
+      method: "notify",
+      message: `${RESOLVED_MODEL_MARKER}not-json`,
+    }),
+    null,
+  );
+  assert.equal(
+    mapWorkerEvent({
+      type: "extension_ui_request",
+      method: "notify",
+      message: `${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId: "" })}`,
+    }),
+    null,
+  );
 });
 
 test("boundedText passes short text through unchanged and truncates long text", () => {

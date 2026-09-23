@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import { connectComm } from "./comm-client.mjs";
 import { staticContextTokens } from "../../crew/lib/observability-ledger.mjs";
 import { isDegenerateTurn } from "./degenerate-turn.mjs";
-import { STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
+import { RESOLVED_MODEL_MARKER, STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
 
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
 let comm;
@@ -56,6 +56,13 @@ export default function workerCommExtension(pi) {
       .map(({ name, parameters }) => ({ name, parameters }));
     const tokens = staticContextTokens(ctx.getSystemPrompt(), tools);
     ctx.ui.notify(`${STATIC_CONTEXT_MARKER}${JSON.stringify(tokens)}`, "info");
+    // Relay the worker's own actually-resolved model id: a worker launched
+    // without an explicit --model flag inherits whatever default `pi
+    // --mode rpc` resolves to, which the launch config never captures.
+    // ctx.model is the one place that resolution is actually knowable, per
+    // docs/extensions.md's `ctx.model` ("the active model").
+    const modelId = ctx.model?.provider && ctx.model?.id ? `${ctx.model.provider}/${ctx.model.id}` : ctx.model?.id;
+    if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId })}`, "info");
   });
   if (!config.comm) return;
   if (granted.has("comm_notify"))

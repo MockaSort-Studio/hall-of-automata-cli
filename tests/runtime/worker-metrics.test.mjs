@@ -52,6 +52,31 @@ test("ignores a non-positive or non-finite modelWindow", () => {
   assert.equal(summarizeWorkerEvents(turns, { modelWindow: NaN }).sessionContext.modelWindow, null);
 });
 
+test("derives modelWindow from a resolved_model event when no explicit modelWindow is given", () => {
+  const events = [
+    { type: "resolved_model", modelId: "anthropic/claude-sonnet-4-6" },
+    { type: "turn", usage: { input: 20_000, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 20_000 } },
+  ];
+  const metrics = summarizeWorkerEvents(events);
+  // claude-sonnet-4-6's known window is 200_000: 20_000 / 200_000 = 10%.
+  assert.equal(metrics.sessionContext.modelWindow, 200_000);
+  assert.equal(metrics.sessionContext.lastPercent, 10);
+});
+
+test("stays null when the resolved model id is unknown, never guessing a window", () => {
+  const events = [{ type: "resolved_model", modelId: "some-future-model-nobody-has-catalogued" }, ...turns];
+  assert.equal(summarizeWorkerEvents(events).sessionContext.modelWindow, null);
+});
+
+test("an explicit modelWindow still wins over a resolved_model event", () => {
+  const events = [
+    { type: "resolved_model", modelId: "anthropic/claude-sonnet-4-6" },
+    { type: "turn", usage: { input: 500, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 500 } },
+  ];
+  const metrics = summarizeWorkerEvents(events, { modelWindow: 1000 });
+  assert.equal(metrics.sessionContext.modelWindow, 1000);
+});
+
 test("clamps context percent at 100 when usage exceeds the model window", () => {
   const metrics = summarizeWorkerEvents(
     [{ type: "turn", usage: { input: 5000, cacheRead: 0, cacheWrite: 0, output: 0, totalTokens: 5000 } }],

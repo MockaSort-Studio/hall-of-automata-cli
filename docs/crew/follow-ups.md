@@ -260,15 +260,37 @@ canonical in [runtime-structure.md](runtime-structure.md).
       already-built `comm.observe_raw` WS method supports connecting as a distinct,
       non-`main` observer identity. `monitor-live-ledger.mjs` needs to connect directly to
       `roster.comm.url` instead of relying on a same-process `Runtime`.
-- [ ] Context percent/window never shows (`"\u2014 / \u2014"` for every automaton, every Crew,
-      all session). Root cause: `worker.json`'s launch config has no `model` field at all --
-      nothing in `assembly.mjs`/`startup.mjs`/`runtime.mjs`'s `spawn()` records which model a
-      worker actually runs with (it inherits whatever default `pi --mode rpc` resolves to,
-      but that resolved id is never captured or relayed back). `resolveModelWindow(undefined)`
-      correctly returns `null` (by design, never guess), so the field has been blank all
-      session, not just for one Crew. Fix: capture the worker's actual resolved model id at
-      runtime (likely via the same `agent_start` handler that already relays
-      `STATIC_CONTEXT_MARKER` content-free) and thread it through to `worker-metrics.mjs`.
+- [x] Fixed context percent/window never showing (`"\u2014 / \u2014"` for every automaton,
+      every Crew, all session). Confirmed the diagnosis first: `worker.json`'s launch config
+      genuinely has no `model` field populated when a member's `automaton-body` sets none
+      (`assembly.mjs`'s `...(body.model ? { model: body.model } : {})`), so `worker.mjs`
+      never passes `--model` and the RPC child inherits whatever default `pi --mode rpc`
+      resolves to -- nothing captured or relayed that resolved id back.
+      `resolveModelWindow(undefined)` correctly stays `null` by design; the bug was upstream
+      of it, not in it. Fix: `worker-comm-extension.mjs`'s existing `agent_start` handler now
+      also reads `ctx.model` (the RPC session's actually-resolved model, per `rpc.md`'s
+      `get_state`/`Model` type and `extensions.md`'s `ctx.model`) and relays it content-free
+      via a sibling marker (`RESOLVED_MODEL_MARKER` in `worker-events.mjs`, decoded into a
+      `resolved_model` log record next to the existing `static_context` one).
+      `worker-metrics.mjs`'s `summarizeWorkerEvents` now derives `modelWindow` from that
+      record via `resolveModelWindow()` whenever no explicit `modelWindow` override is
+      passed in -- an explicit override (tests, or a caller with real launch-config
+      knowledge) still wins. This fixes both real consumers: `lifecycle-controller.mjs`
+      (previously passed `resolveModelWindow(agent.model)`, `null` whenever `agent.model`
+      was unset) and, more importantly, `monitor-worker-metrics.mjs` -- the actual
+      dashboard/footer path -- which previously called `summarizeWorkerEvents` with no
+      `modelWindow` argument at all, so it was unconditionally `null` for every automaton
+      regardless of this fix's other half. New coverage:
+      `worker-events.test.mjs` (marker encode/decode, malformed/empty payload),
+      `worker-comm-extension-resolved-model.test.mjs` (split out to keep
+      `worker-comm-extension.test.mjs` at its original size: `ctx.model` present/absent),
+      `worker-metrics.test.mjs` (derivation, unknown-model-stays-null, explicit-override-
+      wins), and `monitor-worker-metrics.test.mjs` (end-to-end through the real dashboard
+      read path). Known residual limitation, out of this bounded fix's scope: `ctx.model.id`
+      may be a dated provider id (e.g. `claude-sonnet-4-20250514`) that doesn't match
+      `model-window.mjs`'s `KNOWN_WINDOWS` table's undated keys -- that table's own
+      maintenance is a separate concern from "is the real id ever relayed at all", which is
+      what was broken here.
 
 ## Evidence and performance work
 

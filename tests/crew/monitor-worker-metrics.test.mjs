@@ -30,6 +30,19 @@ test("workerMetricsByActor summarizes each member's own events.jsonl, keyed by a
   });
 });
 
+test("workerMetricsByActor resolves sessionContext.modelWindow from the worker's own relayed model id, not launch config", () => {
+  withTempDir((cwd) => {
+    writeEvents(cwd, ".pi", "actor-1", [
+      { type: "resolved_model", modelId: "anthropic/claude-sonnet-4-6" },
+      { type: "turn", usage: { input: 100_000, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 100_000 } },
+    ]);
+    const roster = { members: [{ actorId: "actor-1" }] };
+    const metrics = workerMetricsByActor(cwd, ".pi", roster);
+    assert.equal(metrics["actor-1"].sessionContext.modelWindow, 200_000);
+    assert.equal(metrics["actor-1"].sessionContext.lastPercent, 50);
+  });
+});
+
 test("workerMetricsByActor degrades to all-zero counts when a member's run directory is already gone", () => {
   withTempDir((cwd) => {
     const roster = { members: [{ actorId: "gone-actor" }] };

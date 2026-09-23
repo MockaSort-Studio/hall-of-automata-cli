@@ -10,6 +10,13 @@ const MAX_ERROR_CHARS = 4000;
 // events carry no system-prompt or tool-schema data of their own.
 export const STATIC_CONTEXT_MARKER = "__crew_static_context__:";
 
+// Same relay mechanism, carrying the worker's own actually-resolved model
+// id (read from the live RPC session at agent_start, never guessed) instead
+// of the launch-config model, which is frequently absent -- a worker
+// inherits whatever default `pi --mode rpc` resolves to when no `--model`
+// flag was passed, and nothing else observes that resolution.
+export const RESOLVED_MODEL_MARKER = "__crew_resolved_model__:";
+
 export const boundedText = (value, max) => {
   const text = String(value);
   return text.length <= max
@@ -61,6 +68,14 @@ export function mapWorkerEvent(event) {
       return { type: "agent_error", message: boundedText(event.error, MAX_ERROR_CHARS) };
     case "extension_ui_request": {
       if (event.method !== "notify" || typeof event.message !== "string") return null;
+      if (event.message.startsWith(RESOLVED_MODEL_MARKER)) {
+        try {
+          const { modelId } = JSON.parse(event.message.slice(RESOLVED_MODEL_MARKER.length));
+          return typeof modelId === "string" && modelId.length > 0 ? { type: "resolved_model", modelId } : null;
+        } catch {
+          return null;
+        }
+      }
       if (!event.message.startsWith(STATIC_CONTEXT_MARKER)) return null;
       try {
         const tokens = JSON.parse(event.message.slice(STATIC_CONTEXT_MARKER.length));
