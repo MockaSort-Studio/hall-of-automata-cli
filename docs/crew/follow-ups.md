@@ -286,7 +286,12 @@ canonical in [runtime-structure.md](runtime-structure.md).
       may be a dated provider id (e.g. `claude-sonnet-4-20250514`) that doesn't match
       `model-window.mjs`'s `KNOWN_WINDOWS` table's undated keys -- that table's own
       maintenance is a separate concern from "is the real id ever relayed at all", which is
-      what was broken here.
+      what was broken here. The follow-up telemetry pass now also relays the active model's
+      own `ctx.model.contextWindow` alongside its id, so dated or newly catalogued ids no
+      longer depend on the hand-maintained `KNOWN_WINDOWS` table; unknown legacy event logs
+      without that field remain intentionally null. The footer now includes a compact
+      `context percent / window` summary (maximum observed percent for the Crew; `mixed`
+      when members use different windows).
 
 ## Typed live-state snapshot/subscription — resolved (this session)
 
