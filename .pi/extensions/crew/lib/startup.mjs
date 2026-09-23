@@ -14,8 +14,8 @@ export function crewPaths(configDir, runId) {
 }
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
 const runtimeIdentity = (name) => `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.`;
-const workerTask = (actor, runId, topic, input) =>
-  `${actor.instructions}\n\n${runtimeIdentity(actor.handle)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.${actor.role === "lead" ? `\n\n## CREW INPUT\n${input.task}` : ""}`;
+const workerTask = (actor, runId, topic) =>
+  `${actor.instructions}\n\n${runtimeIdentity(actor.handle)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched on the SDK runtime.`;
@@ -23,7 +23,6 @@ export function queuedMessage(prepared) {
 export async function prepareCrew(pi, input, ctx, configDir) {
   if (input.completionMode === "human-gated")
     throw new Error("SDK Crew does not yet support scheduled human-gated mode");
-  if (String(input.task || "").trim().length > 8000) throw new Error("Crew task exceeds 8000 characters");
   const runId = crypto.randomUUID();
   const namespace = `crew-${runId}`;
   const topic = `crew.${runId}`;
@@ -55,7 +54,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     namespace,
     crewMembers: actors.map((item) => item.handle),
     crewLead: leads[0]?.handle,
-    task: workerTask(actor, runId, topic, input),
+    task: workerTask(actor, runId, topic),
     tools: actor.tools,
     commTools: actor.commTools,
     model: actor.model,
@@ -80,7 +79,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       dependsOn: input.members[index].dependsOn || [],
     })),
   };
-  const kickoff = leads.length ? undefined : { kind: "kickoff", task: input.task, coordinator: "main" };
+  const kickoff = undefined;
   try {
     writeFileSync(join(ctx.cwd, paths.selected), JSON.stringify(selected, null, 2));
     writeFileSync(

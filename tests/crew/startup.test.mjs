@@ -39,7 +39,7 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     );
     assert.equal(config.kickoff, undefined);
     assert.equal(selected.members[0].handle, "lead-old-major-00");
-    assert.match(config.agents[0].task, /## CREW INPUT/);
+    assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
     assert.ok(config.agents[0].commTools.includes("comm_notify_all"));
     assert.ok(!config.agents[1].commTools.includes("comm_notify_all"));
@@ -136,7 +136,7 @@ test("prepareCrew assembles a bounded snapshot prompt with the full ordinal-suff
     rmSync(cwd, { recursive: true, force: true });
   }
 });
-test("prepareCrew injects Main kickoff when no lead is selected", async () => {
+test("prepareCrew leaves task delivery to a later Comm message", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
     const prepared = await prepareCrew(
@@ -146,7 +146,7 @@ test("prepareCrew injects Main kickoff when no lead is selected", async () => {
       ".pi",
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.deepEqual(config.kickoff, { kind: "kickoff", task: "Measure safely", coordinator: "main" });
+    assert.equal(config.kickoff, undefined);
     assert.equal(config.agents[0].initialTurn, "first-delivery");
   } finally {
     rmSync(cwd, { recursive: true, force: true });

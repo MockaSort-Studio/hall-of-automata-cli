@@ -19,7 +19,6 @@ const initialMember = Type.Object({
   dependsOn: Type.Optional(Type.Array(Type.String())),
 });
 const parameters = Type.Object({
-  task: Type.String(),
   members: Type.Array(initialMember, { minItems: 1 }),
   outputPath: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
@@ -59,8 +58,8 @@ export default function crewExtension(pi: ExtensionAPI) {
     description: "Launch a Crew on the SDK runtime with Comm and Lifecycle processes.",
     parameters,
     renderCall(args, theme) {
-      const task = args.task.length > 72 ? `${args.task.slice(0, 69)}...` : args.task;
-      return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", task), 0, 0);
+      const label = `${args.members.length} member${args.members.length === 1 ? "" : "s"}`;
+      return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", label), 0, 0);
     },
     renderResult(result, { isPartial }, theme) {
       if (isPartial) return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
