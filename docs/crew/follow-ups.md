@@ -295,60 +295,28 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Typed live-state snapshot/subscription — resolved (this session)
 
-- [x] Made the Comm server the live state owner instead of the TUI. The Comm
-      server (comm-server.mjs's CommController, already a standalone
-      process/transport, unchanged Unix-socket-free WebSocket) gained a typed
-      live-state owner (`comm-state-owner.mjs`): one dependency-ledger per
-      registered Crew run, fed by the same in-process `observeRaw()` stream
-      that already existed, computed exactly once, server-side. Main's
-      `Runtime.launchCrew()` registers each run's static plan shape
-      (`comm.register_plan`, threaded from `startup.mjs`'s
-      `selected_crew_<uuid>.json`) once, right after starting Comm. Remote
-      callers ask for a typed snapshot (`comm.state_snapshot`) or subscribe to
-      compact `{handle, status}` updates (`comm.observe_state`) instead of
-      reconstructing the DAG themselves from raw envelopes.
-- [x] Replaced the TUI's raw-envelope/live-ledger coupling with the new API.
-      `monitor-live-ledger.mjs` no longer calls `attachRawEnvelopeObserver`
-      or touches a raw envelope at all -- it is a read-only client
-      projection: local plan-shape identity (handle/dependsOn/task, still
-      read once from `selected_crew_<uuid>.json` -- static, not live state)
-      overlaid with whatever status the server reports via
-      `getStateSnapshot()`/`observeState()`. `dependency-ledger-wiring.mjs`'s
-      DAG-transition logic is unchanged in behavior but now runs exactly
-      once, inside the Comm server, not once per remote observer.
-      `ledgerStatusByActor()`/`readableDependencyLedgerSnapshot()` (consumed
-      by the footer/Plan tab) needed no changes: the tracker still hands back
-      a facade matching the same narrow `has/status/nodes/dependenciesOf`
-      interface, just backed by an immutable server-reported snapshot instead
-      of a client-mutated ledger.
-      Transport is unchanged: the existing portable WebSocket/Comm channel,
-      no Unix sockets or platform-specific shared memory.
-      New/updated coverage: `tests/crew/comm-state-owner.test.mjs` (pure
-      owner unit tests), `tests/runtime/comm-controller.test.mjs` (WS-level
-      `comm.register_plan`/`comm.state_snapshot`/`comm.observe_state`, plus
-      `Runtime.launchCrew` end-to-end plan registration), and
-      `tests/crew/monitor-live-ledger.test.mjs` (added explicit teardown/
-      reconnect coverage: a stopped tracker never applies a later envelope,
-      and a facade returned for an earlier run stays frozen once `ledgerFor`
-      moves on).
-- [x] Inventoried every use of `Runtime.observeRawComm()` and the raw-socket
-      observer plumbing (`comm.observe_raw`, `observeRawOverSocket`,
-      `RawObserverSockets`) before touching anything. `Runtime.observeRawComm()`
-      has no production caller today (only its own two unit tests) -- it was
-      already dead in practice before this session, since a real Crew is
-      launched by the Crew MCP tool's Runtime, not by whichever process is
-      watching the TUI. Left in place rather than deleted: removing a public
-      Runtime method is a larger, separately-reviewable decision than this
-      bounded slice, and it is still exercised by its own tests as a
-      documented (if currently unused) capability. `comm.observe_raw` and its
-      socket plumbing remain genuinely used -- by `comm-state-owner.mjs`
-      itself internally (in-process, not over a socket) and by
-      `tests/runtime/dependency-ledger-e2e.test.mjs`/
-      `tests/crew/dependency-ledger-wiring.test.mjs`, which validate the raw-
-      envelope-to-ledger transition logic directly against a real
-      `CommController`. The TUI (the one real production consumer of the
-      WS-exposed `comm.observe_raw`) has fully migrated off it onto
-      `comm.state_snapshot`/`comm.observe_state`.
+- [x] Made the Comm server the live state owner instead of the TUI. Main
+      registers each run's static plan (`comm.register_plan`); workers then
+      update only their own node through the separate typed
+      `comm.lifecycle_update` RPC (`running`, `complete`, `blocked`, or
+      `failed`). Free-form Comm envelopes never change lifecycle state.
+      `comm-state-owner.mjs` validates the namespaced actor identity and
+      legal dependency-ledger transition, then exposes the unchanged typed
+      snapshot/subscription API (`comm.state_snapshot`/`comm.observe_state`).
+- [x] The TUI remains a read-only projection. `monitor-live-ledger.mjs` reads
+      static node identity locally and overlays only server-reported lifecycle
+      state; it neither parses reports nor computes DAG transitions. The
+      worker receives `lifecycle_update` as a dedicated tool and the shared
+      Crew discipline requires it at terminal work states without constraining
+      normal `comm_notify`/request/reply collaboration. Transport remains the
+      portable existing WebSocket/Comm channel. Coverage verifies owner
+      transitions, WS snapshot/subscription, worker tool routing, and a TUI
+      tracker driven by real typed lifecycle updates.
+- [ ] Remove now-unused raw-envelope observer APIs (`Runtime.observeRawComm`,
+      `comm.observe_raw`, `RawObserverSockets`, and raw-envelope-to-ledger
+      tests). They have no production consumer after lifecycle updates became
+      the sole state writer; retain no diagnostic API without an explicit
+      purpose.
 - [ ] Remaining staged-migration step, not implemented here: today
       `registerPlan()` is idempotent per namespace but has no explicit replay
       contract for a Comm server that outlives Main's own process across a

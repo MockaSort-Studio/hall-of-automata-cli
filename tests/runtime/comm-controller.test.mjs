@@ -197,27 +197,32 @@ test("comm.state_snapshot is undefined for a namespace with no registered plan",
   client.close();
   await comm.stop();
 });
-test("comm.observe_state pushes a compact status update over the same socket as live envelopes land", async () => {
+test("comm.observe_state pushes lifecycle updates, not free-form Comm envelopes", async () => {
   const comm = new CommController();
-  comm.registerActor("crew-run-1-developer-alpha-00");
+  const actorId = "crew-run-1-developer-alpha-00";
+  comm.registerActor(actorId);
   const port = await comm.start();
   const url = `ws://127.0.0.1:${port}`;
   const main = await connectComm({ url, actorId: "main" });
-  await main.registerPlan("crew-run-1", [{ handle: "developer-alpha-00", dependsOn: [], task: "x" }]);
   const observer = await connectComm({ url, actorId: "observer" });
-  const updates = [];
-  observer.observeState("crew-run-1", (nodes) => updates.push(nodes));
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  await main.emit({
-    to: "crew-run-1-developer-alpha-00",
-    payload: { kind: "kickoff", assignments: [{ to: "crew-run-1-developer-alpha-00" }] },
-  });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.ok(updates.length >= 1);
-  assert.deepEqual(updates.at(-1), [{ handle: "developer-alpha-00", status: "running" }]);
-  main.close();
-  observer.close();
-  await comm.stop();
+  const worker = await connectComm({ url, actorId });
+  try {
+    await main.registerPlan("crew-run-1", [{ handle: "developer-alpha-00", dependsOn: [], task: "x" }]);
+    const updates = [];
+    observer.observeState("crew-run-1", (nodes) => updates.push(nodes));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await main.emit({ to: actorId, payload: { kind: "kickoff", task: "x" } });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(updates.length, 0);
+    await worker.lifecycleUpdate("crew-run-1", "running");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual(updates.at(-1), [{ handle: "developer-alpha-00", status: "running" }]);
+  } finally {
+    main.close();
+    observer.close();
+    worker.close();
+    await comm.stop();
+  }
 });
 
 test("rejects duplicate Crew actor IDs before spawning", async () => {

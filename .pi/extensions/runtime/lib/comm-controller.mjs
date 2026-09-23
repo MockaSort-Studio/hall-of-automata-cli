@@ -138,6 +138,9 @@ export class CommController {
   registerPlan(namespace, members) {
     return this.#observers.registerPlan(namespace, members);
   }
+  lifecycleUpdate(actorId, namespace, state) {
+    return this.#observers.lifecycleUpdate(actorId, namespace, state);
+  }
   stateSnapshot(namespace) {
     return this.#observers.stateSnapshot(namespace);
   }

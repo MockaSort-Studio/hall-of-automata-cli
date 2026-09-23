@@ -66,6 +66,15 @@ export default function workerCommExtension(pi) {
     if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");
   });
   if (!config.comm) return;
+  pi.registerTool({
+    name: "lifecycle_update",
+    label: "Lifecycle: update current work state",
+    description: "Set your current assigned work state. Required at terminal completion, block, or failure.",
+    parameters: Type.Object({
+      state: Type.Union([Type.Literal("complete"), Type.Literal("blocked"), Type.Literal("failed")]),
+    }),
+    execute: (_id, input) => result(requireComm().lifecycleUpdate(config.comm.namespace, input.state)),
+  });
   if (granted.has("comm_notify"))
     pi.registerTool({
       name: "comm_notify",
@@ -112,6 +121,7 @@ export default function workerCommExtension(pi) {
     comm.onDelivery((message) => {
       deliveries = deliveries.then(async () => {
         replyContext = message;
+        await comm.lifecycleUpdate(config.comm.namespace, "running");
         const prompt = deliveryPrompt(message);
         let settled = nextSettled();
         sawTurnEnd = false;

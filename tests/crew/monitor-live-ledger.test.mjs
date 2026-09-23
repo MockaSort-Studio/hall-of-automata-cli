@@ -3,8 +3,8 @@
 // dedicated observer actor distinct from "main" (see monitor-live-ledger.mjs's
 // header for why). This harness spins up a real CommController and drives
 // the tracker the same way a real, separate-process TUI session would:
-// over the wire, with a second independent WS client emitting the
-// kickoff/report envelopes. It also calls comm.registerPlan() itself, the
+// over the wire, with a second independent WS client publishing typed
+// lifecycle updates. It also calls comm.registerPlan() itself, the
 // same way Runtime.launchCrew() now does for a real run, so the server
 // actually owns a ledger for this run's namespace before the tracker asks
 // for a snapshot/subscription.
@@ -51,32 +51,18 @@ async function waitFor(predicate, timeoutMs = 2000) {
   }
 }
 
-test("ledgerFor connects to a run's real Comm URL as a distinct observer and reflects live kickoff/report envelopes", async () => {
+test("ledgerFor projects typed lifecycle updates from a run's real Comm URL", async () => {
   const { url, main, close } = await harness();
   try {
     const tracker = createLiveLedgerTracker();
     const ledger = tracker.ledgerFor(selectedCrew(), url);
     assert.equal(ledger.status("developer-alpha-00"), "waiting");
 
-    // Give the tracker's WS connection + comm.observe_raw subscription time
-    // to complete before emitting -- an envelope emitted before the
-    // subscription exists is never replayed (observeRaw is live-only).
     await new Promise((resolve) => setTimeout(resolve, 200));
-
-    await main.emit({
-      to: qualified("run-1", "developer-alpha-00"),
-      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
-    });
-    await waitFor(() => ledger.status("developer-alpha-00") === "running");
-
-    // A report's taskStatus is keyed by the envelope's own `from`, so this
-    // must be emitted by alpha's own connection to carry that identity --
-    // a second, independent client connecting to the same real Comm URL.
     const alphaClient = await connectComm({ url, actorId: qualified("run-1", "developer-alpha-00") });
-    await alphaClient.emit({
-      to: qualified("run-1", "developer-alpha-00"),
-      payload: { kind: "report", taskStatus: "complete" },
-    });
+    await alphaClient.lifecycleUpdate("crew-run-1", "running");
+    await waitFor(() => ledger.status("developer-alpha-00") === "running");
+    await alphaClient.lifecycleUpdate("crew-run-1", "complete");
     alphaClient.close();
     await waitFor(() => ledger.status("developer-alpha-00") === "complete");
     assert.equal(ledger.status("developer-bravo-00"), "ready");
@@ -99,10 +85,7 @@ test("ledgerFor rebuilds and reconnects when the plan's runId changes", async ()
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const alphaClient = await connectComm({ url: second.url, actorId: qualified("run-2", "developer-alpha-00") });
-    await alphaClient.emit({
-      to: qualified("run-2", "developer-alpha-00"),
-      payload: { kind: "kickoff", assignments: [{ to: qualified("run-2", "developer-alpha-00") }] },
-    });
+    await alphaClient.lifecycleUpdate("crew-run-2", "running");
     await waitFor(() => b.status("developer-alpha-00") === "running");
     // The first run's ledger must not have received the second run's envelope.
     assert.equal(a.status("developer-alpha-00"), "waiting");
@@ -137,10 +120,9 @@ test("stop() tears down the live connection: further server-side updates never r
 
     tracker.stop();
 
-    await main.emit({
-      to: qualified("run-1", "developer-alpha-00"),
-      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
-    });
+    const alphaClient = await connectComm({ url, actorId: qualified("run-1", "developer-alpha-00") });
+    await alphaClient.lifecycleUpdate("crew-run-1", "running");
+    alphaClient.close();
     await new Promise((resolve) => setTimeout(resolve, 200));
     // The facade handed out before stop() is read-only and frozen: it must
     // never observe an envelope emitted after teardown.
@@ -161,10 +143,9 @@ test("a facade returned for an earlier run stays frozen once ledgerFor moves on 
     // (the "active roster disappeared" case a real TUI hits between polls).
     assert.equal(tracker.ledgerFor(null), undefined);
 
-    await first.main.emit({
-      to: qualified("run-1", "developer-alpha-00"),
-      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
-    });
+    const alphaClient = await connectComm({ url: first.url, actorId: qualified("run-1", "developer-alpha-00") });
+    await alphaClient.lifecycleUpdate("crew-run-1", "running");
+    alphaClient.close();
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(stale.status("developer-alpha-00"), "waiting");
   } finally {

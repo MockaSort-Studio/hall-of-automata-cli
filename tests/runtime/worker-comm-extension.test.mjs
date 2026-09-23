@@ -37,13 +37,13 @@ const makeFakePi = () => {
     sendUserMessage: async (message) => deliveries.push(message),
   };
 };
-async function setup(t, commTools) {
+async function setup(t, commTools, actorId = "ns-worker") {
   const comm = new CommController();
   comm.registerActor("lead");
-  comm.registerActor("ns-worker");
+  comm.registerActor(actorId);
   const port = await comm.start();
   const extension = await loadExtension({
-    comm: { url: `ws://127.0.0.1:${port}`, actorId: "ns-worker", namespace: "ns" },
+    comm: { url: `ws://127.0.0.1:${port}`, actorId, namespace: "ns" },
     initialTurn: "resident",
     task: "",
     commTools,
@@ -57,6 +57,14 @@ async function setup(t, commTools) {
   });
   return { comm, pi };
 }
+test("lifecycle_update changes only this worker's typed state", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.registerPlan("ns", [{ handle: "developer-worker-00", dependsOn: [], task: "x" }]);
+  const update = await pi.tools.get("lifecycle_update").execute("call", { state: "running" });
+  assert.match(JSON.stringify(update), /updated/);
+  assert.equal(comm.stateSnapshot("ns").nodes[0].status, "running");
+});
+
 test("comm_notify to main reaches main directly, unprefixed", async (t) => {
   const { comm, pi } = await setup(t, ["comm_notify", "comm_request", "comm_reply"]);
   const notify = await pi.tools.get("comm_notify").execute("call", { to: "main", payload: { ok: true } });

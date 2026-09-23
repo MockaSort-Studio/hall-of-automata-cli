@@ -11,11 +11,8 @@ import { createCommStateOwner } from "../../crew/lib/comm-state-owner.mjs";
 // `getSocket(actorId)` looks up that actor's live connection, if any.
 export function createCommObservers({ observeRaw, getSocket }) {
   const rawSockets = new RawObserverSockets();
-  // The server's own typed live-state owner: one dependency-ledger per
-  // registered Crew run, fed by this same in-process observeRaw() stream,
-  // so remote callers (e.g. the TUI monitor) never reconstruct the DAG
-  // themselves from raw envelopes -- they get a typed snapshot/subscription.
-  const stateOwner = createCommStateOwner({ observeRaw });
+  // Lifecycle updates, not free-form Comm envelopes, own typed run state.
+  const stateOwner = createCommStateOwner();
   const stateSockets = new StateObserverSockets();
   const send = (actorId, message) => {
     const socket = getSocket(actorId);
@@ -28,10 +25,8 @@ export function createCommObservers({ observeRaw, getSocket }) {
         send(id, { jsonrpc: "2.0", method: "comm.raw_envelope", params: envelope }),
       );
     },
-    // Registers a run's static plan shape (handle/dependsOn/task) once, so
-    // the controller owns that run's live dependency-ledger status itself.
     registerPlan: (namespace, members) => stateOwner.registerPlan(namespace, members),
-    // Typed, read-only: the current status/dependsOn/task for every node.
+    lifecycleUpdate: (actorId, namespace, state) => stateOwner.update(namespace, actorId, state),
     stateSnapshot: (namespace) => stateOwner.snapshot(namespace),
     observeStateOverSocket(actorId, namespace) {
       if (!actorId) throw new Error("comm.observe_state requires a registered actorId");
