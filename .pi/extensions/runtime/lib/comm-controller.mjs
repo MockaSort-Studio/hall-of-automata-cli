@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { CommEnvelopeObservation, projectEnvelope } from "./comm-envelope-observation.mjs";
-import { RawObserverSockets } from "./comm-raw-observer-sockets.mjs";
+import { createCommObservers } from "./comm-controller-observers.mjs";
 import { dispatchCommRequest } from "./comm-controller-dispatch.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,18 +14,12 @@ export class CommController {
   #actors = new Set(["main"]);
   #pendingReplies = new Map();
   #observation = new CommEnvelopeObservation();
-  // Per-socket observeRaw() subscriptions for "comm.observe_raw" below, so
-  // an out-of-process observer (e.g. Main's live dependency ledger) gets
-  // the same unfiltered stream observeRaw() gives in-process callers.
-  #rawSockets = new RawObserverSockets();
-  // A synchronous broadcast delivers every resident worker's first prompt in
-  // the same tick, which has produced a real, reproducible collision: near-
-  // simultaneous fresh sessions racing the same provider/session-auth path,
-  // where most of them come back with a degenerate zero-usage turn. This is
-  // a scheduling fix (space activations out), not a retry: it never loops
-  // and never masks a genuine failure, it just avoids manufacturing the
-  // collision in the first place. 0 disables it (tests; also the existing,
-  // pre-fix behavior).
+  // Raw and typed observer wiring lives in a focused helper.
+  #observers = createCommObservers({
+    observeRaw: (handler) => this.observeRaw(handler),
+    getSocket: (actorId) => this.#connections.get(actorId),
+  });
+  // Staggered broadcast avoids simultaneous worker startup collisions.
   #broadcastStaggerMs;
   constructor({ broadcastStaggerMs = 250 } = {}) {
     this.#broadcastStaggerMs = broadcastStaggerMs;
@@ -36,9 +30,14 @@ export class CommController {
     this.#server.on("connection", (socket) => this.#attach(socket));
     return this.#server.address().port;
   }
+  // Terminate every socket, including unregistered clients, then bound
+  // server close so a dead peer cannot keep the Comm child alive.
   async stop() {
-    for (const socket of this.#connections.values()) socket.close();
-    await new Promise((resolve) => this.#server.close(resolve));
+    for (const socket of this.#server.clients) socket.terminate();
+    await Promise.race([
+      new Promise((resolve) => this.#server.close(resolve)),
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
   }
   registerActor(actorId) {
     this.#actors.add(actorId);
@@ -77,10 +76,7 @@ export class CommController {
     this.#flush(to);
     return { accepted: true, id: message.id };
   }
-  // Delivers with a fixed gap between recipients instead of all at once, so
-  // resident workers' first real provider request never lands in the same
-  // instant. Order is insertion order of #actors (registration order), which
-  // is stable and deterministic, not randomized.
+  // Deliver recipients in registration order with a fixed gap.
   async broadcast(from, namespace, payload, includeMain = false) {
     const recipients = [...this.#actors].filter(
       (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
@@ -119,36 +115,34 @@ export class CommController {
   events() {
     return this.#observation.events();
   }
-  // Adapter-facing: emits only the narrow human-readable projection.
   subscribe(handler) {
     return this.#observation.observe((envelope) => {
       const projected = projectEnvelope(envelope);
       if (projected) return handler(projected);
     });
   }
-  // Internal-facing: emits the full raw envelope for runtime observers
-  // (e.g. a dependency ledger) that need payload kind and kickoff data.
   observeRaw(handler) {
     return this.#observation.observe(handler);
   }
   injectHuman({ to, body, author, externalId }) {
     return this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   }
-  // Registration bookkeeping shared by comm.register's dispatch handler:
-  // track the socket under its actorId, record the event, and flush any
-  // message already queued for it before the socket connected.
   registerConnection(actorId, socket) {
     this.#connections.set(actorId, socket);
     this.#record("worker_registered", { actorId });
     setImmediate(() => this.#flush(actorId));
   }
   observeRawOverSocket(actorId) {
-    if (!actorId) throw new Error("comm.observe_raw requires a registered actorId");
-    return this.#rawSockets.subscribe(actorId, this.observeRaw.bind(this), (id, envelope) => {
-      const socket = this.#connections.get(id);
-      if (socket?.readyState === 1)
-        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.raw_envelope", params: envelope }));
-    });
+    return this.#observers.observeRawOverSocket(actorId);
+  }
+  registerPlan(namespace, members) {
+    return this.#observers.registerPlan(namespace, members);
+  }
+  stateSnapshot(namespace) {
+    return this.#observers.stateSnapshot(namespace);
+  }
+  observeStateOverSocket(actorId, namespace) {
+    return this.#observers.observeStateOverSocket(actorId, namespace);
   }
   #attach(socket) {
     const state = { actorId: undefined };
@@ -165,7 +159,7 @@ export class CommController {
       if (state.actorId) {
         this.release(state.actorId);
         this.#connections.delete(state.actorId);
-        this.#rawSockets.release(state.actorId);
+        this.#observers.release(state.actorId);
         this.#record("worker_disconnected", { actorId: state.actorId });
       }
     });

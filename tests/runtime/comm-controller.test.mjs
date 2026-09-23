@@ -4,6 +4,7 @@ import { Runtime } from "../../.pi/extensions/runtime/lib/runtime.mjs";
 import test from "node:test";
 import WebSocket from "ws";
 import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../.pi/extensions/runtime/lib/comm-client.mjs";
 
 const receive = (socket) => new Promise((resolve) => socket.once("message", (raw) => resolve(JSON.parse(String(raw)))));
 const connect = async (port, actorId) => {
@@ -146,6 +147,79 @@ test("comm.observe_raw is idempotent per socket and stops after disconnect", asy
   await comm.stop();
 });
 
+test("stop() resolves quickly even when a connected socket never completed comm.register (real, reproduced hang)", async () => {
+  const comm = new CommController();
+  const port = await comm.start();
+  // A raw socket that connects but never sends "comm.register" is never
+  // added to CommController's own #connections bookkeeping -- exactly the
+  // gap that let a real comm-server.mjs child process outlive a killed
+  // test: the old stop() only closed *tracked* connections, then awaited
+  // wss.close(), which never resolves while any client (tracked or not)
+  // is still open.
+  const unregistered = new WebSocket(`ws://127.0.0.1:${port}`);
+  await new Promise((resolve) => unregistered.once("open", resolve));
+  const start = Date.now();
+  await comm.stop();
+  assert.ok(Date.now() - start < 2_500, "stop() must resolve deterministically, not hang on an untracked socket");
+});
+test("stop() resolves quickly even when a registered socket is killed without a close handshake", async () => {
+  const comm = new CommController();
+  comm.registerActor("a");
+  const port = await comm.start();
+  const socket = await connect(port, "a");
+  // .terminate() drops the TCP connection immediately, the same way a
+  // SIGKILLed worker process would, without ever sending a close frame.
+  socket.terminate();
+  const start = Date.now();
+  await comm.stop();
+  assert.ok(Date.now() - start < 2_500, "stop() must resolve deterministically, not hang on a dead peer");
+});
+
+test("comm.state_snapshot returns the typed plan shape registered via comm.register_plan", async () => {
+  const comm = new CommController();
+  comm.registerActor("crew-run-1-developer-alpha-00");
+  const port = await comm.start();
+  const client = await connectComm({ url: `ws://127.0.0.1:${port}`, actorId: "main" });
+  await client.registerPlan("crew-run-1", [{ handle: "developer-alpha-00", dependsOn: [], task: "Do alpha work." }]);
+  const snapshot = await client.getStateSnapshot("crew-run-1");
+  assert.equal(snapshot.namespace, "crew-run-1");
+  assert.deepEqual(snapshot.nodes, [
+    { handle: "developer-alpha-00", status: "waiting", dependsOn: [], task: "Do alpha work." },
+  ]);
+  client.close();
+  await comm.stop();
+});
+test("comm.state_snapshot is undefined for a namespace with no registered plan", async () => {
+  const comm = new CommController();
+  const port = await comm.start();
+  const client = await connectComm({ url: `ws://127.0.0.1:${port}`, actorId: "main" });
+  assert.equal(await client.getStateSnapshot("crew-unknown"), undefined);
+  client.close();
+  await comm.stop();
+});
+test("comm.observe_state pushes a compact status update over the same socket as live envelopes land", async () => {
+  const comm = new CommController();
+  comm.registerActor("crew-run-1-developer-alpha-00");
+  const port = await comm.start();
+  const url = `ws://127.0.0.1:${port}`;
+  const main = await connectComm({ url, actorId: "main" });
+  await main.registerPlan("crew-run-1", [{ handle: "developer-alpha-00", dependsOn: [], task: "x" }]);
+  const observer = await connectComm({ url, actorId: "observer" });
+  const updates = [];
+  observer.observeState("crew-run-1", (nodes) => updates.push(nodes));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await main.emit({
+    to: "crew-run-1-developer-alpha-00",
+    payload: { kind: "kickoff", assignments: [{ to: "crew-run-1-developer-alpha-00" }] },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(updates.length >= 1);
+  assert.deepEqual(updates.at(-1), [{ handle: "developer-alpha-00", status: "running" }]);
+  main.close();
+  observer.close();
+  await comm.stop();
+});
+
 test("rejects duplicate Crew actor IDs before spawning", async () => {
   const runtime = new Runtime(process.cwd());
   await assert.rejects(
@@ -174,6 +248,52 @@ test("Runtime.observeRawComm is a no-op unsubscribe before Comm has started", ()
   const runtime = new Runtime(process.cwd());
   const unsubscribe = runtime.observeRawComm(() => {});
   assert.doesNotThrow(() => unsubscribe());
+});
+
+test("launchCrew registers the plan it is given, so the Comm server owns that run's typed state from the start", async () => {
+  const runtime = new Runtime(process.cwd()),
+    prefix = `plan-${randomUUID()}`;
+  try {
+    await runtime.launchCrew(
+      [
+        { name: "developer-a-00", actorId: `${prefix}-a`, task: "Reply done.", namespace: prefix },
+        { name: "developer-b-00", actorId: `${prefix}-b`, task: "Reply done.", namespace: prefix },
+      ],
+      [],
+      {
+        namespace: prefix,
+        members: [
+          { handle: "developer-a-00", dependsOn: [], task: "first" },
+          { handle: "developer-b-00", dependsOn: ["developer-a-00"], task: "second" },
+        ],
+      },
+    );
+    const client = await connectComm({ url: (await runtime.startComm()).url, actorId: `observer-${prefix}` });
+    const snapshot = await client.getStateSnapshot(prefix);
+    assert.deepEqual(
+      snapshot.nodes.map((node) => [node.handle, node.status]),
+      [
+        ["developer-a-00", "waiting"],
+        ["developer-b-00", "waiting"],
+      ],
+    );
+    client.close();
+  } finally {
+    await runtime.stop();
+  }
+});
+
+test("launchCrew without a plan registers nothing (plan is optional)", async () => {
+  const runtime = new Runtime(process.cwd()),
+    prefix = `noplan-${randomUUID()}`;
+  try {
+    await runtime.launchCrew([{ name: "developer-a-00", actorId: `${prefix}-a`, task: "Reply done." }]);
+    const client = await connectComm({ url: (await runtime.startComm()).url, actorId: `observer-${prefix}` });
+    assert.equal(await client.getStateSnapshot(prefix), undefined);
+    client.close();
+  } finally {
+    await runtime.stop();
+  }
 });
 
 test("launchCrew starts isolated agents and Runtime stop removes them", async () => {

@@ -4,7 +4,10 @@
 // header for why). This harness spins up a real CommController and drives
 // the tracker the same way a real, separate-process TUI session would:
 // over the wire, with a second independent WS client emitting the
-// kickoff/report envelopes.
+// kickoff/report envelopes. It also calls comm.registerPlan() itself, the
+// same way Runtime.launchCrew() now does for a real run, so the server
+// actually owns a ledger for this run's namespace before the tracker asks
+// for a snapshot/subscription.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
@@ -27,6 +30,7 @@ async function harness(runId = "run-1") {
   const port = await comm.start();
   const url = `ws://127.0.0.1:${port}`;
   const main = await connectComm({ url, actorId: "main" });
+  await main.registerPlan(`crew-${runId}`, selectedCrew(runId).members);
   return {
     url,
     main,
@@ -122,4 +126,48 @@ test("ledgerFor without a commUrl still returns a structural ledger (run not sta
   const ledger = tracker.ledgerFor(selectedCrew());
   assert.equal(ledger.status("developer-alpha-00"), "waiting");
   tracker.stop();
+});
+
+test("stop() tears down the live connection: further server-side updates never reach a ledger already stopped", async () => {
+  const { url, main, close } = await harness();
+  try {
+    const tracker = createLiveLedgerTracker();
+    const ledger = tracker.ledgerFor(selectedCrew(), url);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    tracker.stop();
+
+    await main.emit({
+      to: qualified("run-1", "developer-alpha-00"),
+      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // The facade handed out before stop() is read-only and frozen: it must
+    // never observe an envelope emitted after teardown.
+    assert.equal(ledger.status("developer-alpha-00"), "waiting");
+  } finally {
+    await close();
+  }
+});
+
+test("a facade returned for an earlier run stays frozen once ledgerFor moves on to a new run (TUI never mutates a torn-down projection)", async () => {
+  const first = await harness("run-1");
+  try {
+    const tracker = createLiveLedgerTracker();
+    const stale = tracker.ledgerFor(selectedCrew("run-1"), first.url);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Same tracker, no commUrl this time: ledgerFor(null) tears the run down
+    // (the "active roster disappeared" case a real TUI hits between polls).
+    assert.equal(tracker.ledgerFor(null), undefined);
+
+    await first.main.emit({
+      to: qualified("run-1", "developer-alpha-00"),
+      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(stale.status("developer-alpha-00"), "waiting");
+  } finally {
+    await first.close();
+  }
 });

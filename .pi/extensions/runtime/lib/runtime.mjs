@@ -51,7 +51,12 @@ export class Runtime {
     this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`);
   }
 
-  async startComm(actorIds = [], adapters = []) {
+  // `plan` ({ namespace, members: [{handle, dependsOn, task}] }) is
+  // optional and, when given, registered once with the Comm server so it
+  // becomes the live owner of that run's dependency-ledger status (see
+  // comm-state-owner.mjs) -- callers never need to reconstruct that DAG
+  // themselves from raw envelopes.
+  async startComm(actorIds = [], adapters = [], plan) {
     if (!this.#comm) {
       this.#commProcess = spawn(
         process.execPath,
@@ -70,6 +75,7 @@ export class Runtime {
       this.#comm.onDelivery((message) => this.#mainDeliveries.push(message));
     }
     await Promise.all(actorIds.map((actorId) => this.#comm.registerActor(actorId)));
+    if (plan?.namespace) await this.#comm.registerPlan(plan.namespace, plan.members ?? []);
     return { url: this.#commUrl };
   }
 
@@ -109,7 +115,7 @@ export class Runtime {
     return this.#comm.observeRaw(handler);
   }
 
-  async launchCrew(agents, adapters = []) {
+  async launchCrew(agents, adapters = [], plan) {
     const actorIds = agents.map((agent) => agent.actorId).filter(Boolean);
     if (new Set(actorIds).size !== actorIds.length) throw new Error("Crew agent actor IDs must be unique.");
     const members = Object.fromEntries(agents.map((agent) => [agent.name, agent.actorId]));
@@ -120,6 +126,7 @@ export class Runtime {
         recipients: members,
         lead: agents.find((agent) => agent.role === "lead")?.actorId,
       })),
+      plan,
     );
     const launched = [];
     try {

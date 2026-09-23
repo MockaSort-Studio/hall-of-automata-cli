@@ -21,11 +21,14 @@ export async function connectComm({ url, actorId }) {
     });
   const listeners = new Set();
   const rawListeners = new Set();
+  const stateListeners = new Set();
   let observing;
+  let observingState;
   socket.on("message", (raw) => {
     const message = JSON.parse(String(raw));
     if (message.method === "comm.deliver") listeners.forEach((listener) => listener(message.params));
     if (message.method === "comm.raw_envelope") rawListeners.forEach((listener) => listener(message.params));
+    if (message.method === "comm.state_update") stateListeners.forEach((listener) => listener(message.params.nodes));
   });
   await request("comm.register", { actorId });
   return {
@@ -46,6 +49,25 @@ export async function connectComm({ url, actorId }) {
       observing.catch(() => {});
       return () => rawListeners.delete(listener);
     },
-    close: () => socket.close(),
+    // Typed, read-only Crew-run state: registerPlan seeds a run's static
+    // shape once (Main, right after launchCrew starts Comm); getStateSnapshot
+    // and observeState let any remote caller (the TUI monitor) read the
+    // server-owned dependency-ledger status without ever touching a raw
+    // envelope itself. One connection observes at most one namespace.
+    registerPlan: (namespace, members) => request("comm.register_plan", { namespace, members }),
+    getStateSnapshot: (namespace) => request("comm.state_snapshot", { namespace }),
+    observeState: (namespace, listener) => {
+      stateListeners.add(listener);
+      observingState ??= request("comm.observe_state", { namespace });
+      observingState.catch(() => {});
+      return () => stateListeners.delete(listener);
+    },
+    // terminate(), not close(): a graceful close() waits for the server's
+    // own close-frame response, which may never come (server already gone,
+    // or busy). Callers (Runtime.stop(), the TUI's monitor-live-ledger.mjs
+    // teardown) need a deterministic, immediate local socket teardown, not
+    // a handshake -- see comm-controller.mjs's stop() for the server-side
+    // half of this same fix.
+    close: () => socket.terminate(),
   };
 }

@@ -77,6 +77,32 @@ subscribes to the full flat V1 envelope, unfiltered, alongside `subscribe()`.
 Both read from the same `comm-envelope-observation.mjs` module so the
 controller itself does not grow as ledger/DAG concerns are added.
 
+Raw envelope observation is now primarily an _implementation detail of the
+Comm server itself_, not something remote callers use directly. See "Typed
+live state" below.
+
+### Typed live state
+
+The Comm server owns one dependency-ledger per registered Crew run
+(`comm-state-owner.mjs`), fed by its own in-process `observeRaw()` stream.
+A launcher registers a run's static plan shape once
+(`CommController.registerPlan(namespace, members)`, exposed over WS as
+`comm.register_plan`); `Runtime.launchCrew()` does this automatically when
+given a `plan`. Remote callers never reconstruct the DAG themselves:
+
+```text
+comm.state_snapshot { namespace } -> { namespace, nodes: [{ handle, status, dependsOn, task }] }
+comm.observe_state  { namespace } -> pushes comm.state_update { namespace, nodes: [{ handle, status }] }
+```
+
+The TUI's Plan tab/footer (`monitor-live-ledger.mjs`) is a read-only
+projection of this API: it polls a snapshot once per connection and applies
+subsequent compact `comm.state_update` pushes, overlaying them on the static
+plan shape it already knows from `selected_crew_<uuid>.json`. It performs no
+DAG computation and never touches a raw envelope. Transport is unchanged --
+the same portable WebSocket/Comm channel `subscribe()`/`observeRaw()` already
+used, no Unix sockets or platform-specific shared memory.
+
 ### Task completion signal (`taskStatus`)
 
 A `kind: "report"` payload may carry a `taskStatus` field of `complete`,

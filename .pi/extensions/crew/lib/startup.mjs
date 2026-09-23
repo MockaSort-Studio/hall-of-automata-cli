@@ -99,6 +99,15 @@ export async function prepareCrew(pi, input, ctx, configDir) {
           topic,
           rosterFile: paths.roster,
           agents,
+          // Static plan shape (handle/dependsOn/task), threaded through to
+          // Runtime.launchCrew so the Comm server can register it as the
+          // live owner of this run's dependency-ledger status -- see
+          // comm-state-owner.mjs and launchPreparedCrew below.
+          plan: selected.members.map((member) => ({
+            handle: member.handle,
+            dependsOn: member.dependsOn,
+            task: member.task,
+          })),
           kickoff,
           adapters:
             input.githubDiscussion === false
@@ -132,7 +141,11 @@ export async function launchPreparedCrew(cwd, prepared) {
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
     const runtime = runtimeFor(cwd);
-    const launched = await runtime.launchCrew(config.agents, config.adapters);
+    const namespace = config.agents[0]?.namespace;
+    const launched = await runtime.launchCrew(config.agents, config.adapters, {
+      namespace,
+      members: config.plan ?? [],
+    });
     if (config.kickoff) await runtime.broadcast(config.agents[0].namespace, config.kickoff);
     const lead = launched.agents.find(
       (agent) => config.agents.find((item) => item.actorId === agent.id)?.role === "lead",
