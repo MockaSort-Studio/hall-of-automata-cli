@@ -247,19 +247,15 @@ canonical in [runtime-structure.md](runtime-structure.md).
       real namespace-qualified actor IDs end to end, and added explicit regression tests
       for the namespaced-envelope shape in `dependency-ledger-wiring.test.mjs` and
       `monitor-live-ledger.test.mjs`.
-- [ ] The Plan tab is still permanently stuck at `waiting` in a real TUI session despite the
-      namespace fix above. Root cause: `monitor.ts`'s live ledger tracker calls
-      `runtimeFor(ctx.cwd)`, a `Runtime` instance scoped to _whichever process calls it_.
-      The Crew was launched by a separate process (the Crew MCP tool's own `Runtime`), which
-      has its own, entirely different Comm connection. `Runtime.observeRawComm()` is
-      `if (!this.#comm) return () => {}` -- since the TUI session's own `Runtime` never
-      called `startComm()` for that Crew, this is a permanent no-op. The live ledger has
-      never received a single envelope in a real TUI session, for any Crew, ever. (The
-      Automata tab/footer are unaffected -- they read worker-metrics files on disk, no Comm
-      involved.) Fix: each roster already records its own Comm URL (`roster.comm.url`); the
-      already-built `comm.observe_raw` WS method supports connecting as a distinct,
-      non-`main` observer identity. `monitor-live-ledger.mjs` needs to connect directly to
-      `roster.comm.url` instead of relying on a same-process `Runtime`.
+- [x] Fixed the Plan tab being stuck at `waiting` in a real TUI session. The monitor now
+      connects directly to each roster's `roster.comm.url` using `comm-client.mjs`'s
+      `connectComm()`/`observeRaw()` path, registering a dedicated `observer-<runId>` actor
+      rather than hijacking `main`. `monitor-live-ledger.mjs` maintains one connection per
+      active run and tears it down when the plan changes or tracking stops. Added a real
+      independent-WebSocket test covering `waiting -> running -> complete`, run isolation,
+      teardown, and structural fallback. Namespace-qualified actor regression coverage is
+      preserved. Manual live `cc --plugin-dir . --debug` TUI smoke verification remains
+      recommended.
 - [x] Fixed context percent/window never showing (`"\u2014 / \u2014"` for every automaton,
       every Crew, all session). Confirmed the diagnosis first: `worker.json`'s launch config
       genuinely has no `model` field populated when a member's `automaton-body` sets none

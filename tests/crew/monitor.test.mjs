@@ -112,11 +112,14 @@ test("the Crew dashboard is given real border/background chrome, not unframed te
   assert.match(source, /\},\s*wrapDashboardChrome,/);
 });
 
-test("the Plan tab reads a live ledger kept current by attachRawEnvelopeObserver, not a fresh reseed per open", () => {
+test("the Plan tab reads a live ledger connected directly to the run's own Comm URL, not a same-process Runtime", () => {
+  // A real Crew is launched by a separate process (the Crew MCP tool's own
+  // Runtime), so a same-process runtimeFor(ctx.cwd) never observes its
+  // Comm traffic -- see monitor-live-ledger.mjs's header. roster.comm.url
+  // must be threaded through explicitly instead.
   assert.match(source, /import \{ createLiveLedgerTracker \} from "\.\/monitor-live-ledger\.mjs"/);
-  assert.match(source, /import \{ runtimeFor \} from "\.\.\/\.\.\/runtime\/lib\/shared-runtime\.mjs"/);
-  assert.match(source, /createLiveLedgerTracker\(runtimeFor\(ctx\.cwd\)\)/);
-  assert.match(source, /ensureLiveLedgerTracker\(\)\?\.ledgerFor\(selected\)/);
+  assert.doesNotMatch(source, /runtimeFor/);
+  assert.match(source, /ensureLiveLedgerTracker\(\)\.ledgerFor\(selected, roster\?\.comm\?\.url\)/);
   assert.match(source, /liveLedgerTracker\?\.stop\(\)/);
 });
 

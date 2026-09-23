@@ -5,7 +5,6 @@ import { crewMonitorView } from "./monitor-state.mjs";
 import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 import { crewMonitorSnapshot } from "./monitor-snapshot.mjs";
 import { lifecycleByActor } from "./monitor-actor-state.mjs";
-import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { buildAutomataTab } from "./monitor-dashboard.mjs";
 import { planRowsFor, registerCrewDashboardCommand, selectedCrewFor } from "./monitor-dashboard-command.mjs";
 import { wrapDashboardChrome } from "./monitor-dashboard-chrome.mjs";
@@ -34,15 +33,14 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   let watcher: FSWatcher | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let reconciler: ReturnType<typeof setInterval> | undefined;
-  // Lazily created once ctx.cwd is known, and kept for the life of the
-  // session: one live ledger tracker per Runtime, so the Plan tab reads a
-  // ledger kept current by attachRawEnvelopeObserver instead of
-  // planRowsFor reseeding a fresh structural-only one on every open.
+  // Lazily created and kept for the life of the session: one live ledger
+  // tracker per process, so the Plan tab reads a ledger kept current by a
+  // direct WS connection to that run's own Comm controller (roster.comm.url)
+  // instead of planRowsFor reseeding a fresh structural-only one on every
+  // open. Not scoped to a Runtime -- the run may have been launched by a
+  // completely different process (see monitor-live-ledger.mjs's header).
   let liveLedgerTracker: ReturnType<typeof createLiveLedgerTracker> | undefined;
-  const ensureLiveLedgerTracker = () => {
-    if (!liveLedgerTracker && ctx) liveLedgerTracker = createLiveLedgerTracker(runtimeFor(ctx.cwd));
-    return liveLedgerTracker;
-  };
+  const ensureLiveLedgerTracker = () => (liveLedgerTracker ??= createLiveLedgerTracker());
 
   // A member's own completion report updates the live dependency ledger
   // immediately (dependency-ledger-wiring.mjs); its roster-recorded status
@@ -53,7 +51,7 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   const liveLedgerFor = (roster) => {
     if (!ctx) return undefined;
     const selected = selectedCrewFor(readJson, ctx.cwd, roster);
-    return selected ? ensureLiveLedgerTracker()?.ledgerFor(selected) : undefined;
+    return selected ? ensureLiveLedgerTracker().ledgerFor(selected, roster?.comm?.url) : undefined;
   };
 
   const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);

@@ -1,5 +1,14 @@
+// createLiveLedgerTracker no longer depends on a same-process Runtime --
+// it connects directly to a run's own Comm controller over WebSocket, as a
+// dedicated observer actor distinct from "main" (see monitor-live-ledger.mjs's
+// header for why). This harness spins up a real CommController and drives
+// the tracker the same way a real, separate-process TUI session would:
+// over the wire, with a second independent WS client emitting the
+// kickoff/report envelopes.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
+import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../.pi/extensions/runtime/lib/comm-client.mjs";
 import { createLiveLedgerTracker } from "../../.pi/extensions/crew/lib/monitor-live-ledger.mjs";
 
 const selectedCrew = (runId = "run-1") => ({
@@ -10,82 +19,107 @@ const selectedCrew = (runId = "run-1") => ({
   ],
 });
 
-// A minimal fake Runtime: records every observeRawComm handler so the test
-// can push envelopes into it directly, the same shape attachRawEnvelopeObserver
-// expects from a CommController.
-function fakeRuntime() {
-  const handlers = new Set();
+const qualified = (runId, handle) => `crew-${runId}-${handle}`;
+
+async function harness(runId = "run-1") {
+  const comm = new CommController();
+  for (const member of selectedCrew(runId).members) comm.registerActor(qualified(runId, member.handle));
+  const port = await comm.start();
+  const url = `ws://127.0.0.1:${port}`;
+  const main = await connectComm({ url, actorId: "main" });
   return {
-    observeRawComm(handler) {
-      handlers.add(handler);
-      return () => handlers.delete(handler);
+    url,
+    main,
+    async close() {
+      main.close();
+      await comm.stop();
     },
-    push(envelope) {
-      for (const handler of handlers) handler(envelope);
-    },
-    handlerCount: () => handlers.size,
   };
 }
 
-test("ledgerFor seeds a ledger once per run and reuses it on repeat calls with the same plan", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  const ledger = tracker.ledgerFor(selectedCrew());
-  assert.equal(tracker.ledgerFor(selectedCrew()), ledger);
-  assert.equal(runtime.handlerCount(), 1);
+// Polls because the tracker's connection to the real Comm URL is
+// necessarily asynchronous (a real WS handshake, not an in-process call).
+async function waitFor(predicate, timeoutMs = 2000) {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeoutMs) throw new Error("timed out waiting for condition");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+test("ledgerFor connects to a run's real Comm URL as a distinct observer and reflects live kickoff/report envelopes", async () => {
+  const { url, main, close } = await harness();
+  try {
+    const tracker = createLiveLedgerTracker();
+    const ledger = tracker.ledgerFor(selectedCrew(), url);
+    assert.equal(ledger.status("developer-alpha-00"), "waiting");
+
+    // Give the tracker's WS connection + comm.observe_raw subscription time
+    // to complete before emitting -- an envelope emitted before the
+    // subscription exists is never replayed (observeRaw is live-only).
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    await main.emit({
+      to: qualified("run-1", "developer-alpha-00"),
+      payload: { kind: "kickoff", assignments: [{ to: qualified("run-1", "developer-alpha-00") }] },
+    });
+    await waitFor(() => ledger.status("developer-alpha-00") === "running");
+
+    // A report's taskStatus is keyed by the envelope's own `from`, so this
+    // must be emitted by alpha's own connection to carry that identity --
+    // a second, independent client connecting to the same real Comm URL.
+    const alphaClient = await connectComm({ url, actorId: qualified("run-1", "developer-alpha-00") });
+    await alphaClient.emit({
+      to: qualified("run-1", "developer-alpha-00"),
+      payload: { kind: "report", taskStatus: "complete" },
+    });
+    alphaClient.close();
+    await waitFor(() => ledger.status("developer-alpha-00") === "complete");
+    assert.equal(ledger.status("developer-bravo-00"), "ready");
+
+    tracker.stop();
+  } finally {
+    await close();
+  }
 });
 
-test("ledgerFor stays current with live kickoff/report envelopes, not just structural state", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  const ledger = tracker.ledgerFor(selectedCrew());
-  assert.equal(ledger.status("developer-alpha-00"), "waiting");
-  runtime.push({ payload: { kind: "kickoff", assignments: [{ to: "developer-alpha-00" }] } });
-  assert.equal(ledger.status("developer-alpha-00"), "running");
-  runtime.push({ from: "developer-alpha-00", payload: { kind: "report", taskStatus: "complete" } });
-  assert.equal(ledger.status("developer-alpha-00"), "complete");
-  assert.equal(ledger.status("developer-bravo-00"), "ready");
-});
+test("ledgerFor rebuilds and reconnects when the plan's runId changes", async () => {
+  const first = await harness("run-1");
+  const second = await harness("run-2");
+  try {
+    const tracker = createLiveLedgerTracker();
+    const a = tracker.ledgerFor(selectedCrew("run-1"), first.url);
+    const b = tracker.ledgerFor(selectedCrew("run-2"), second.url);
+    assert.notEqual(a, b);
 
-// Regression: a real worker's Comm actorId is namespace-qualified
-// ("crew-<runId>-<handle>"), never the bare handle used above. Without
-// stripping that prefix before matching, ledgerFor's subscription would
-// look correct in every test using bare handles directly while never
-// actually transitioning any node in a real dispatch -- this exact gap
-// shipped and went unnoticed because no test exercised the real shape.
-test("ledgerFor strips the run's namespace prefix from real, namespace-qualified envelope to/from fields", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  const ledger = tracker.ledgerFor(selectedCrew("run-1"));
-  runtime.push({
-    payload: { kind: "kickoff", assignments: [{ to: "crew-run-1-developer-alpha-00" }] },
-  });
-  assert.equal(ledger.status("developer-alpha-00"), "running");
-  runtime.push({ from: "crew-run-1-developer-alpha-00", payload: { kind: "report", taskStatus: "complete" } });
-  assert.equal(ledger.status("developer-alpha-00"), "complete");
-});
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-test("ledgerFor rebuilds and unsubscribes the previous run when the plan's runId changes", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  const first = tracker.ledgerFor(selectedCrew("run-1"));
-  const second = tracker.ledgerFor(selectedCrew("run-2"));
-  assert.notEqual(first, second);
-  assert.equal(runtime.handlerCount(), 1);
+    const alphaClient = await connectComm({ url: second.url, actorId: qualified("run-2", "developer-alpha-00") });
+    await alphaClient.emit({
+      to: qualified("run-2", "developer-alpha-00"),
+      payload: { kind: "kickoff", assignments: [{ to: qualified("run-2", "developer-alpha-00") }] },
+    });
+    await waitFor(() => b.status("developer-alpha-00") === "running");
+    // The first run's ledger must not have received the second run's envelope.
+    assert.equal(a.status("developer-alpha-00"), "waiting");
+
+    alphaClient.close();
+    tracker.stop();
+  } finally {
+    await first.close();
+    await second.close();
+  }
 });
 
 test("ledgerFor tears down and returns undefined when there is no plan", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  tracker.ledgerFor(selectedCrew());
+  const tracker = createLiveLedgerTracker();
+  tracker.ledgerFor(selectedCrew(), undefined);
   assert.equal(tracker.ledgerFor(null), undefined);
-  assert.equal(runtime.handlerCount(), 0);
 });
 
-test("stop() tears down the current subscription", () => {
-  const runtime = fakeRuntime();
-  const tracker = createLiveLedgerTracker(runtime);
-  tracker.ledgerFor(selectedCrew());
+test("ledgerFor without a commUrl still returns a structural ledger (run not started yet)", () => {
+  const tracker = createLiveLedgerTracker();
+  const ledger = tracker.ledgerFor(selectedCrew());
+  assert.equal(ledger.status("developer-alpha-00"), "waiting");
   tracker.stop();
-  assert.equal(runtime.handlerCount(), 0);
 });
