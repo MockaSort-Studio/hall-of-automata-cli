@@ -19,7 +19,7 @@ test("renderCrewStatusFooter is a compact single line with automaton counts and 
   assert.match(line, /1 queued/);
   assert.match(line, /1 complete/);
   assert.match(line, /4200 output tokens/);
-  assert.match(line, /context 12\.5% \/ 200000/);
+  assert.match(line, /context 12\.5% \/ 200k/);
 });
 
 test("renderCrewStatusFooter omits zero-count buckets to stay compact", () => {

@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { crewMonitorSnapshot, formatSessionContext } from "../../.pi/extensions/crew/lib/monitor-snapshot.mjs";
+import {
+  crewMonitorSnapshot,
+  formatSessionContext,
+  formatTokenCount,
+} from "../../.pi/extensions/crew/lib/monitor-snapshot.mjs";
 
 const roster = (overrides) => ({
   runId: "run-123456",
@@ -117,11 +121,16 @@ test("crewMonitorSnapshot handles an empty or missing roster", () => {
 });
 
 test("formatSessionContext renders 'percent / model window' from worker-metrics sessionContext", () => {
-  assert.equal(formatSessionContext({ lastPercent: 42.3, modelWindow: 200000 }), "42.3% / 200000");
+  assert.equal(formatSessionContext({ lastPercent: 42.3, modelWindow: 200000 }), "42.3% / 200k");
+});
+
+test("formatTokenCount uses compact k/M notation", () => {
+  assert.equal(formatTokenCount(1000), "1k");
+  assert.equal(formatTokenCount(1_000_000), "1M");
 });
 
 test("formatSessionContext falls back to an em-dash for unknown percent or window", () => {
-  assert.equal(formatSessionContext({ lastPercent: null, modelWindow: 200000 }), "\u2014 / 200000");
+  assert.equal(formatSessionContext({ lastPercent: null, modelWindow: 200000 }), "\u2014 / 200k");
   assert.equal(formatSessionContext({ lastPercent: 10, modelWindow: null }), "10% / \u2014");
   assert.equal(formatSessionContext(undefined), "\u2014 / \u2014");
 });
@@ -150,7 +159,7 @@ test("crewMonitorSnapshot emits a per-automaton detail row with bucket, metrics,
     toolErrors: 1,
     compactions: 2,
     providerTraffic: { uncachedInput: 10, generatedOutput: 20, cacheRead: 30, cacheWrite: 5 },
-    sessionContext: "55% / 128000",
+    sessionContext: "55% / 128k",
   });
 });
 

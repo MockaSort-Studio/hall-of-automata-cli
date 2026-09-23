@@ -187,7 +187,7 @@ test("attachRawEnvelopeObserver blocks a node when its sender reports taskStatus
   unsubscribe();
 });
 
-test("attachRawEnvelopeObserver ignores report envelopes from senders the ledger does not track or with an unknown taskStatus", () => {
+test("attachRawEnvelopeObserver ignores unknown senders and maps structured lifecycle status", () => {
   const ledger = createDependencyLedger();
   ledger.addNode("developer-alpha-00");
   const comm = new CommController();
@@ -199,10 +199,12 @@ test("attachRawEnvelopeObserver ignores report envelopes from senders the ledger
   comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
   assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", taskStatus: "BLOCKED" }));
   assert.equal(ledger.status("developer-alpha-00"), "running");
+  comm.emit("developer-alpha-00", "main", { kind: "report", status: "BLOCKED" });
+  assert.equal(ledger.status("developer-alpha-00"), "blocked");
   unsubscribe();
 });
 
-test("attachRawEnvelopeObserver ignores a report with no taskStatus field (plain progress notify)", () => {
+test("attachRawEnvelopeObserver ignores a report with no structured status field", () => {
   const ledger = createDependencyLedger();
   ledger.addNode("developer-alpha-00");
   const comm = new CommController();
@@ -210,7 +212,7 @@ test("attachRawEnvelopeObserver ignores a report with no taskStatus field (plain
   comm.registerActor("main");
   const unsubscribe = attachRawEnvelopeObserver(ledger, comm);
   comm.emit("main", "developer-alpha-00", { kind: "kickoff", task: "go" });
-  assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", status: "BLOCKED" }));
+  assert.doesNotThrow(() => comm.emit("developer-alpha-00", "main", { kind: "report", summary: "still working" }));
   assert.equal(ledger.status("developer-alpha-00"), "running");
   unsubscribe();
 });

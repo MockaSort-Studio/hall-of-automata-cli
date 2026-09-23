@@ -1,3 +1,5 @@
+import { formatTokenCount } from "./monitor-snapshot.mjs";
+
 // Pure compact status-footer renderer over a CrewMonitorSnapshot.
 // One line, no cost/money figures, no queue/inflight abbreviations: just
 // automaton counts by durable lifecycle bucket and total generated output.
@@ -25,7 +27,7 @@ export function renderCrewStatusFooter(snapshot) {
   const context = snapshot.contextSummary;
   const percent = Number.isFinite(context?.maxPercent) ? `${context.maxPercent}%` : "—";
   const windows = context?.modelWindows ?? [];
-  const window = windows.length === 1 ? `${windows[0]}` : windows.length > 1 ? "mixed" : "—";
+  const window = windows.length === 1 ? formatTokenCount(windows[0]) : windows.length > 1 ? "mixed" : "—";
   parts.push(`context ${percent} / ${window}`);
 
   return parts.join(" · ");

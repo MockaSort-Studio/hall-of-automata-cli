@@ -87,6 +87,11 @@ const TASK_STATUS_HANDLERS = Object.freeze({
   blocked: (ledger, handle) => ledger.block(handle),
 });
 
+// Reports from the worker contract use PASS/BLOCKED/FAIL, while the
+// dependency ledger uses complete/blocked/failed. Both are structured fields;
+// neither requires parsing report prose.
+const REPORT_STATUS_TO_TASK_STATUS = Object.freeze({ PASS: "complete", BLOCKED: "blocked", FAIL: "failed" });
+
 function tryApplyTaskStatus(ledger, rawHandle, taskStatus) {
   const apply = TASK_STATUS_HANDLERS[taskStatus];
   if (!apply || !rawHandle || !ledger.has(rawHandle)) return;
@@ -121,7 +126,8 @@ function handleEnvelope(ledger, envelope, namespace) {
     for (const recipient of kickoffRecipients(envelope, payload))
       tryStart(ledger, stripNamespace(recipient, namespace));
   } else if (payload.kind === "report") {
-    tryApplyTaskStatus(ledger, stripNamespace(envelope.from, namespace), payload.taskStatus);
+    const taskStatus = payload.taskStatus ?? REPORT_STATUS_TO_TASK_STATUS[payload.status];
+    tryApplyTaskStatus(ledger, stripNamespace(envelope.from, namespace), taskStatus);
   }
 }
 

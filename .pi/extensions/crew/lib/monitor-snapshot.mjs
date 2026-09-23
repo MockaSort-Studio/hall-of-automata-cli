@@ -62,12 +62,18 @@ const number = (value) => (Number.isFinite(value) ? value : 0);
 // .lastPercent and .modelWindow); this just renders the pair, or an em-dash
 // placeholder when either half is not yet known (no turns, or no configured
 // window for that model).
+export function formatTokenCount(value) {
+  if (!Number.isFinite(value)) return "—";
+  if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+  if (value >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
+  return String(value);
+}
+
 export function formatSessionContext(sessionContext) {
   const percent = sessionContext?.lastPercent;
   const window = sessionContext?.modelWindow;
   const percentLabel = Number.isFinite(percent) ? `${percent}%` : "—";
-  const windowLabel = Number.isFinite(window) ? String(window) : "—";
-  return `${percentLabel} / ${windowLabel}`;
+  return `${percentLabel} / ${formatTokenCount(window)}`;
 }
 
 // One dashboard row's worth of per-automaton detail, folding a roster
