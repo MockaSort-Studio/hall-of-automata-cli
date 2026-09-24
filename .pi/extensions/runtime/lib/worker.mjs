@@ -9,8 +9,13 @@ const startedAt = Date.now();
 const boundedError = (value) => boundedText(value, 4000);
 const log = (event) =>
   appendFileSync(config.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
+const lifecycleTools = config.comm ? ["lifecycle_update"] : [];
 const tools = [
-  ...new Set([...(config.tools ?? []), ...(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"])]),
+  ...new Set([
+    ...(config.tools ?? []),
+    ...(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"]),
+    ...lifecycleTools,
+  ]),
 ];
 const args = [
   "--mode",
