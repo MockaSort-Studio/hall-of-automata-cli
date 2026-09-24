@@ -312,6 +312,12 @@ canonical in [runtime-structure.md](runtime-structure.md).
       portable existing WebSocket/Comm channel. Coverage verifies owner
       transitions, WS snapshot/subscription, worker tool routing, and a TUI
       tracker driven by real typed lifecycle updates.
+- [x] Smoke-verified after a Pi restart with a retained one-member Crew using
+      `openai-codex/gpt-5.6-luna`: delivery moved the node to `running`, the
+      worker explicitly set `complete`, and an independent
+      `comm.state_snapshot` query returned `complete`. The worker used its
+      reported `272k` model window; no files were modified. The Crew was kept
+      alive for dashboard inspection before deliberate cleanup.
 - [ ] Remove now-unused raw-envelope observer APIs (`Runtime.observeRawComm`,
       `comm.observe_raw`, `RawObserverSockets`, and raw-envelope-to-ledger
       tests). They have no production consumer after lifecycle updates became
