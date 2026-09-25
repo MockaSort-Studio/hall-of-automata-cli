@@ -33,13 +33,10 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
     counts.set(key, ordinal + 1);
-    const runtimeTools = pi.getAllTools();
-    const assembled = assemble(member.name, member.role, member.task ?? "", { ...member, runtimeTools });
-    const missingExternalTools = assembled.tools.filter(
-      (tool) => tool.startsWith("github_") && !runtimeTools.includes(tool),
-    );
-    if (missingExternalTools.length)
-      throw new Error(`Role ${member.role} requires unavailable tools: ${missingExternalTools.join(", ")}`);
+    const assembled = assemble(member.name, member.role, member.task ?? "", {
+      ...member,
+      runtimeTools: pi.getAllTools(),
+    });
     return { ...assembled, role: member.role, handle: handle(member.role, member.name, ordinal) };
   });
   const leads = actors.filter((actor) => actor.role === "lead");
