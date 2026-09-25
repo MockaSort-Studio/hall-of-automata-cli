@@ -9,6 +9,7 @@ import {
 } from "./automaton-body/lib/index.mjs";
 import { BASE_GITHUB_TOOLS, NAMES, getAutomaton } from "./roster.mjs";
 import { resolveArmoryExtensions } from "./armory.mjs";
+import { assignmentContext } from "./assignment-context.mjs";
 
 export const SOULS = NAMES;
 export const ROLES = ROLE_NAMES;
@@ -36,9 +37,10 @@ export function assemble(name, role, task, override = {}) {
   ];
   return {
     name: `${role}-${name}`,
-    instructions: `${body.instructions}\n\n## ARMORY\n${extensions.length ? `Resolved extension tools: ${extensions.map((extension) => `${extension.name} (${extension.tools.join(", ")})`).join("; ")}.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}`,
+    instructions: `${body.instructions}\n\n## ARMORY\n${extensions.length ? `Resolved extension tools: ${extensions.map((extension) => `${extension.name} (${extension.tools.join(", ")})`).join("; ")}.` : "No domain extension is assigned."}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}${assignmentContext(override)}`,
     tools,
     commTools: body.commTools,
+    ...(body.extensionPaths ? { extensionPaths: body.extensionPaths } : {}),
     ...(body.model ? { model: body.model } : {}),
     ...(body.thinking ? { thinking: body.thinking } : {}),
   };

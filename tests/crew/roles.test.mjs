@@ -10,6 +10,7 @@ test("roles provide bounded native capabilities", () => {
     ["advisor", "read", "low"],
     ["developer", "edit", "medium"],
     ["integrator", "edit", "low"],
+    ["reviewer", "bash", "medium"],
   ]) {
     const result = roleModule({ role, override: {} });
     assert.match(result.instructions, /RESPONSIBILITIES/);
@@ -36,6 +37,14 @@ test("integrator has bounded reconciliation authority", () => {
   assert.match(result.instructions, /not a Lead/);
 });
 
+test("reviewer has review-only authority", () => {
+  const result = roleModule({ role: "reviewer", override: {} });
+  for (const tool of ["read", "grep", "find", "ls", "bash", "github_pull_request_view"])
+    assert.ok(result.tools.includes(tool));
+  for (const tool of ["edit", "write", "github_pull_request_merge"]) assert.ok(!result.tools.includes(tool));
+  assert.match(result.instructions, /REQUEST_CHANGES/);
+});
+
 test("developer has bounded implementation authority", () => {
   const result = roleModule({ role: "developer", override: {} });
   for (const tool of ["read", "edit", "write", "bash"]) assert.ok(result.tools.includes(tool));
@@ -44,7 +53,7 @@ test("developer has bounded implementation authority", () => {
 test("unknown roles fail", () => assert.throws(() => roleModule({ role: "wizard", override: {} }), /not defined/));
 
 test("only the lead role is granted the party-wide broadcast tool", () => {
-  for (const role of ["architect", "advisor", "developer", "integrator"]) {
+  for (const role of ["architect", "advisor", "developer", "integrator", "reviewer"]) {
     const result = roleModule({ role, override: {} });
     assert.ok(!result.commTools.includes("comm_notify_all"), `${role} must not have comm_notify_all`);
     assert.ok(!result.commTools.includes("comm_notify_many"), `${role} must not have comm_notify_many`);

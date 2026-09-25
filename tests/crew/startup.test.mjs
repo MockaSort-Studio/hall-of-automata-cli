@@ -80,6 +80,44 @@ test("prepareCrew preserves validated per-member task and dependsOn in the selec
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+test("prepareCrew carries reviewer GitHub capability and generic assignment context", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  const githubTools = [
+    "github_pull_request_view",
+    "github_pull_request_files",
+    "github_pull_request_checks",
+    "github_pull_request_review_threads",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+    "github_pull_request_comment",
+  ];
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => githubTools },
+      {
+        members: [
+          {
+            name: "snowball",
+            role: "reviewer",
+            task: "Review PR 7.",
+            deliverTo: "main",
+            authority: { review: "submit", merge: false },
+          },
+        ],
+      },
+      { cwd },
+      ".pi",
+    );
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.deepEqual(config.agents[0].extensionPaths, [".pi/extensions/github/index.ts"]);
+    assert.match(config.agents[0].task, /## ASSIGNMENT CONTEXT/);
+    assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), false);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("prepareCrew rejects a dependsOn reference to an unknown handle", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {

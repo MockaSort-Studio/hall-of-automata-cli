@@ -11,12 +11,19 @@ const output = (value, text = JSON.stringify(value)) => ({
   details: value,
 });
 
+const assignmentFields = {
+  inputs: Type.Optional(Type.Array(Type.Object({ kind: Type.String() }, { additionalProperties: true }))),
+  deliverTo: Type.Optional(Type.String()),
+  authority: Type.Optional(Type.Record(Type.String(), Type.Union([Type.String(), Type.Boolean()]))),
+  acceptanceCriteria: Type.Optional(Type.Array(Type.String())),
+};
 const initialMember = Type.Object({
   name: Type.String(),
   role: Type.String(),
   task: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
   dependsOn: Type.Optional(Type.Array(Type.String())),
+  ...assignmentFields,
 });
 const parameters = Type.Object({
   members: Type.Array(initialMember, { minItems: 1 }),
@@ -44,6 +51,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       task: Type.String(),
       model: Type.Optional(Type.String()),
       thinking: Type.Optional(Type.String()),
+      ...assignmentFields,
     }),
     async execute(_id, input) {
       const actor = assemble(input.name, input.role, input.task, { ...input, runtimeTools: pi.getAllTools() });

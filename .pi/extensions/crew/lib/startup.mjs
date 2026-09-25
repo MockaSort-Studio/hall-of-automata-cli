@@ -33,10 +33,13 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
     counts.set(key, ordinal + 1);
-    const assembled = assemble(member.name, member.role, member.task ?? "", {
-      ...member,
-      runtimeTools: pi.getAllTools(),
-    });
+    const runtimeTools = pi.getAllTools();
+    const assembled = assemble(member.name, member.role, member.task ?? "", { ...member, runtimeTools });
+    const missingExternalTools = assembled.tools.filter(
+      (tool) => tool.startsWith("github_") && !runtimeTools.includes(tool),
+    );
+    if (missingExternalTools.length)
+      throw new Error(`Role ${member.role} requires unavailable tools: ${missingExternalTools.join(", ")}`);
     return { ...assembled, role: member.role, handle: handle(member.role, member.name, ordinal) };
   });
   const leads = actors.filter((actor) => actor.role === "lead");
@@ -57,6 +60,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     task: workerTask(actor, runId, topic),
     tools: actor.tools,
     commTools: actor.commTools,
+    extensionPaths: actor.extensionPaths,
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
     resident: true,
@@ -73,10 +77,17 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       role: actor.role,
       handle: actor.handle,
       tools: actor.tools,
+      extensionPaths: actor.extensionPaths,
       model: actor.model,
       thinking: actor.thinking,
       task: String(input.members[index].task || "").trim(),
       dependsOn: input.members[index].dependsOn || [],
+      ...(input.members[index].inputs ? { inputs: input.members[index].inputs } : {}),
+      ...(input.members[index].deliverTo ? { deliverTo: input.members[index].deliverTo } : {}),
+      ...(input.members[index].authority ? { authority: input.members[index].authority } : {}),
+      ...(input.members[index].acceptanceCriteria
+        ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
+        : {}),
     })),
   };
   const kickoff = undefined;

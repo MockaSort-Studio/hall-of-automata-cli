@@ -13,6 +13,11 @@ for (const [name, role] of Object.entries(catalog)) {
     throw new Error(`Invalid role tools: ${name}`);
   if (!THINKING.has(role.thinking)) throw new Error(`Invalid role thinking: ${name}`);
   if (
+    role.extensionPaths !== undefined &&
+    (!Array.isArray(role.extensionPaths) || !role.extensionPaths.every((path) => typeof path === "string"))
+  )
+    throw new Error(`Invalid role extension paths: ${name}`);
+  if (
     !Array.isArray(role.commTools) ||
     new Set(role.commTools).size !== role.commTools.length ||
     !role.commTools.every((tool) => ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"].includes(tool))
@@ -38,5 +43,6 @@ export function roleModule(ctx) {
     commTools: role.commTools,
     thinking: ctx.override?.thinking ?? role.thinking,
     ...(ctx.override?.model ? { model: ctx.override.model } : {}),
+    ...(role.extensionPaths ? { extensionPaths: role.extensionPaths } : {}),
   };
 }
