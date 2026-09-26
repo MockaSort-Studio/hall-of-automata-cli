@@ -5,26 +5,38 @@
 
 set -euo pipefail
 
-INPUT=$(cat)
-read -r TOOL FILE_PATH <<< "$(printf '%s' "$INPUT" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-ti = d.get('tool_input', {})
-print(d.get('tool', ''), ti.get('file_path', ti.get('file_name', '')))")"
+python3 -c '
+import json
+import os
+import sys
 
-# Only intercept write-type tools
-case "$TOOL" in
-  Write|Edit|MultiEdit) ;;
-  *) exit 0 ;;
-esac
+try:
+    event = json.load(sys.stdin)
+except json.JSONDecodeError as error:
+    print(f"BLOCKED: invalid hook input: {error}", file=sys.stderr)
+    sys.exit(1)
 
-# Check absolute ~/.hall/ path before normalization (realpath --relative-to=. would obscure it)
-FILE_REAL=$(realpath -m "$FILE_PATH" 2>/dev/null || echo "")
-HALL_REAL=$(realpath -m "$HOME/.hall" 2>/dev/null || echo "")
-if [[ -n "$FILE_REAL" && -n "$HALL_REAL" && "$FILE_REAL" == "$HALL_REAL/"* ]]; then
-  exit 0
-fi
+if event.get("tool") not in {"Write", "Edit", "MultiEdit"}:
+    sys.exit(0)
 
-FILE_PATH="${FILE_PATH#./}"
-echo "BLOCKED: Old Major does not write to the repository. Writes are only permitted inside ~/.hall/. Attempted path: $FILE_PATH" >&2
-exit 1
+input_data = event.get("tool_input", {})
+path = input_data.get("file_path", input_data.get("file_name", ""))
+hall = os.path.realpath(os.path.expanduser("~/.hall"))
+target = os.path.realpath(os.path.expanduser(path))
+
+try:
+    allowed = os.path.commonpath([hall, target]) == hall and target != hall
+except ValueError:
+    allowed = False
+
+if allowed:
+    sys.exit(0)
+
+display_path = path[2:] if path.startswith("./") else path
+print(
+    "BLOCKED: Old Major does not write to the repository. "
+    f"Writes are only permitted inside ~/.hall/. Attempted path: {display_path}",
+    file=sys.stderr,
+)
+sys.exit(1)
+'
