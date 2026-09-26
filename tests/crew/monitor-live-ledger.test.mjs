@@ -59,7 +59,11 @@ test("ledgerFor projects typed lifecycle updates from a run's real Comm URL", as
     assert.equal(ledger.status("developer-alpha-00"), "waiting");
 
     await new Promise((resolve) => setTimeout(resolve, 200));
-    const alphaClient = await connectComm({ url, actorId: qualified("run-1", "developer-alpha-00") });
+    const alphaClient = await connectComm({
+      url,
+      actorId: qualified("run-1", "developer-alpha-00"),
+      namespace: "crew-run-1",
+    });
     await alphaClient.lifecycleUpdate("crew-run-1", "running");
     await waitFor(() => ledger.status("developer-alpha-00") === "running");
     await alphaClient.lifecycleUpdate("crew-run-1", "complete");
@@ -84,7 +88,11 @@ test("ledgerFor rebuilds and reconnects when the plan's runId changes", async ()
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const alphaClient = await connectComm({ url: second.url, actorId: qualified("run-2", "developer-alpha-00") });
+    const alphaClient = await connectComm({
+      url: second.url,
+      actorId: qualified("run-2", "developer-alpha-00"),
+      namespace: "crew-run-2",
+    });
     await alphaClient.lifecycleUpdate("crew-run-2", "running");
     await waitFor(() => b.status("developer-alpha-00") === "running");
     // The first run's ledger must not have received the second run's envelope.
@@ -120,7 +128,11 @@ test("stop() tears down the live connection: further server-side updates never r
 
     tracker.stop();
 
-    const alphaClient = await connectComm({ url, actorId: qualified("run-1", "developer-alpha-00") });
+    const alphaClient = await connectComm({
+      url,
+      actorId: qualified("run-1", "developer-alpha-00"),
+      namespace: "crew-run-1",
+    });
     await alphaClient.lifecycleUpdate("crew-run-1", "running");
     alphaClient.close();
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -143,7 +155,11 @@ test("a facade returned for an earlier run stays frozen once ledgerFor moves on 
     // (the "active roster disappeared" case a real TUI hits between polls).
     assert.equal(tracker.ledgerFor(null), undefined);
 
-    const alphaClient = await connectComm({ url: first.url, actorId: qualified("run-1", "developer-alpha-00") });
+    const alphaClient = await connectComm({
+      url: first.url,
+      actorId: qualified("run-1", "developer-alpha-00"),
+      namespace: "crew-run-1",
+    });
     await alphaClient.lifecycleUpdate("crew-run-1", "running");
     alphaClient.close();
     await new Promise((resolve) => setTimeout(resolve, 200));

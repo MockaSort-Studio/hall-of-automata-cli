@@ -62,10 +62,10 @@ export function createLiveLedgerTracker() {
     key = undefined;
   }
 
-  function connect(runId, commUrl, namespace, target) {
+  function connect(runId, commUrl, namespace, authToken, target) {
     target.connectedUrl = commUrl;
     const isCurrent = () => run === target && target.connectedUrl === commUrl;
-    connectComm({ url: commUrl, actorId: `observer-${runId}` })
+    connectComm({ url: commUrl, actorId: `observer-${namespace}`, namespace, authToken })
       .then(async (connected) => {
         if (!isCurrent()) {
           // This run was torn down (or replaced) while the socket was
@@ -97,7 +97,7 @@ export function createLiveLedgerTracker() {
     // (a fresh `run` object, so any facade already handed out for a prior
     // run stays frozen at its last known state), an unchanged run always
     // reuses the same live connection.
-    ledgerFor(selected, commUrl) {
+    ledgerFor(selected, commUrl, authToken) {
       const nextKey = selected?.runId;
       if (!nextKey) {
         teardown();
@@ -108,7 +108,7 @@ export function createLiveLedgerTracker() {
         run = { nodes: structuralNodes(selected), connectedUrl: undefined, client: undefined, unsubscribe: undefined };
         key = nextKey;
       }
-      if (commUrl && run.connectedUrl !== commUrl) connect(key, commUrl, `crew-${key}`, run);
+      if (commUrl && run.connectedUrl !== commUrl) connect(key, commUrl, `crew-${key}`, authToken, run);
       return ledgerFacadeFromRun(run);
     },
     stop: teardown,

@@ -12,6 +12,7 @@ export class CommController {
   #inboxes = new Map();
   #inflight = new Map();
   #actors = new Set(["main"]);
+  #actorNamespaces = new Map();
   #pendingReplies = new Map();
   #observation = new CommEnvelopeObservation();
   // Raw and typed observer wiring lives in a focused helper.
@@ -21,8 +22,10 @@ export class CommController {
   });
   // Staggered broadcast avoids simultaneous worker startup collisions.
   #broadcastStaggerMs;
-  constructor({ broadcastStaggerMs = 250 } = {}) {
+  #authToken;
+  constructor({ broadcastStaggerMs = 250, authToken } = {}) {
     this.#broadcastStaggerMs = broadcastStaggerMs;
+    this.#authToken = authToken;
   }
   async start(port = 0) {
     this.#server = new WebSocketServer({ port });
@@ -40,6 +43,7 @@ export class CommController {
     ]);
   }
   registerActor(actorId) {
+    if (!actorId || actorId === "main") throw new Error("Cannot register reserved actor");
     this.#actors.add(actorId);
     this.#inbox(actorId);
     this.#record("actor_registered", { actorId });
@@ -47,6 +51,7 @@ export class CommController {
   emit(from, to, payload, replyRequired = false, replyTo) {
     if (replyTo && !this.#pendingReplies.has(replyTo)) throw new Error("Unknown reply request");
     if (!this.#actors.has(to)) throw new Error(`Unknown recipient: ${to}`);
+    this.#assertPeerAccess(from, to);
     const queuedAt = Date.now();
     const message = {
       v: 1,
@@ -78,6 +83,7 @@ export class CommController {
   }
   // Deliver recipients in registration order with a fixed gap.
   async broadcast(from, namespace, payload, includeMain = false) {
+    this.#assertNamespace(from, namespace);
     const recipients = [...this.#actors].filter(
       (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
     );
@@ -127,25 +133,60 @@ export class CommController {
   injectHuman({ to, body, author, externalId }) {
     return this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   }
-  registerConnection(actorId, socket) {
+  registerConnection(actorId, socket, namespace, authToken) {
+    if (this.#authToken && authToken !== this.#authToken) throw new Error("Comm authentication required");
+    if (actorId === "main" && this.#connections.has("main")) throw new Error("Main is already connected");
+    const knownNamespace = this.#actorNamespaces.get(actorId);
+    const isObserver = actorId === `observer-${namespace}` && namespace;
+    if (!this.#actors.has(actorId) && !isObserver) throw new Error("Actor is not authorized");
+    if (knownNamespace && namespace !== knownNamespace) throw new Error("Cross-Crew namespace access is forbidden");
+    if (this.#connections.has(actorId)) throw new Error("Actor already connected");
+    if (isObserver) this.#actorNamespaces.set(actorId, namespace);
     this.#connections.set(actorId, socket);
     this.#record("worker_registered", { actorId });
     setImmediate(() => this.#flush(actorId));
   }
   observeRawOverSocket(actorId) {
-    return this.#observers.observeRawOverSocket(actorId);
+    return this.#observers.observeRawOverSocket(actorId, (envelope) => this.#canObserve(actorId, envelope));
   }
   registerPlan(namespace, members) {
-    return this.#observers.registerPlan(namespace, members);
+    const result = this.#observers.registerPlan(namespace, members);
+    for (const actorId of this.#actors)
+      if (actorId.startsWith(`${namespace}-`)) this.#actorNamespaces.set(actorId, namespace);
+    return result;
   }
   lifecycleUpdate(actorId, namespace, state) {
+    this.#assertNamespace(actorId, namespace);
     return this.#observers.lifecycleUpdate(actorId, namespace, state);
   }
-  stateSnapshot(namespace) {
+  stateSnapshot(actorId, namespace) {
+    this.#assertNamespace(actorId, namespace);
     return this.#observers.stateSnapshot(namespace);
   }
   observeStateOverSocket(actorId, namespace) {
+    this.#assertNamespace(actorId, namespace);
     return this.#observers.observeStateOverSocket(actorId, namespace);
+  }
+  #canObserve(actorId, envelope) {
+    if (actorId === "main") return true;
+    const namespace = this.#actorNamespaces.get(actorId);
+    if (namespace) return [envelope.from, envelope.to].some((id) => this.#actorNamespaces.get(id) === namespace);
+    return envelope.from === actorId || envelope.to === actorId;
+  }
+  #assertSender(actorId) {
+    if (actorId === "human:github-discussion") return;
+    if (!actorId || !this.#actors.has(actorId)) throw new Error("Registered actor identity required");
+  }
+  #assertPeerAccess(from, to) {
+    if (from === "main" || to === "main" || from === "human:github-discussion") return;
+    const fromNs = this.#actorNamespaces.get(from),
+      toNs = this.#actorNamespaces.get(to);
+    if (fromNs && toNs && fromNs !== toNs) throw new Error("Cross-Crew routing is forbidden");
+  }
+  #assertNamespace(actorId, namespace) {
+    if (actorId === "main") return;
+    if (!actorId || !namespace || this.#actorNamespaces.get(actorId) !== namespace)
+      throw new Error("Cross-Crew namespace access is forbidden");
   }
   #attach(socket) {
     const state = { actorId: undefined };

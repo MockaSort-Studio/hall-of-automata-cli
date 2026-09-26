@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-export async function connectLifecycle(url, { timeoutMs = 30_000 } = {}) {
+export async function connectLifecycle(url, { timeoutMs = 30_000, authToken } = {}) {
   const socket = new WebSocket(url);
   await new Promise((resolve, reject) => {
     socket.once("open", resolve);
@@ -36,7 +36,7 @@ export async function connectLifecycle(url, { timeoutMs = 30_000 } = {}) {
           reject(new Error(`Lifecycle RPC timed out: ${method}`));
         }, timeoutMs);
       pending.set(id, { resolve, reject, timer });
-      socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+      socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params: { ...params, authToken } }));
     });
   return {
     spawn: (params) => request("lifecycle.spawn", params),

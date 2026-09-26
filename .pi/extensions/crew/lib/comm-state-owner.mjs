@@ -22,6 +22,10 @@ export function createCommStateOwner() {
     return { registered: true };
   }
 
+  function hasPlan(namespace) {
+    return runs.has(namespace);
+  }
+
   function snapshot(namespace) {
     const run = runs.get(namespace);
     if (!run) return undefined;
@@ -44,6 +48,7 @@ export function createCommStateOwner() {
     if (!run || !handle || !run.ledger.has(handle)) return { updated: false };
     try {
       if (state === "running") run.ledger.start(handle);
+      else if (state === "waiting") run.ledger.wait(handle);
       else if (state === "complete") run.ledger.complete(handle);
       else if (state === "blocked") run.ledger.block(handle);
       else if (state === "failed") run.ledger.fail(handle);
@@ -66,5 +71,5 @@ export function createCommStateOwner() {
     runs.delete(namespace);
   }
 
-  return { registerPlan, snapshot, update, subscribe, release };
+  return { registerPlan, hasPlan, snapshot, update, subscribe, release };
 }

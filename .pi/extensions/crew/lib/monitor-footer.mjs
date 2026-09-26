@@ -5,6 +5,7 @@ import { formatTokenCount } from "./monitor-snapshot.mjs";
 // automaton counts by durable lifecycle bucket and total generated output.
 const BUCKET_LABELS = Object.freeze([
   ["running", "running"],
+  ["waiting", "waiting"],
   ["queued", "queued"],
   ["attention", "needs attention"],
   ["complete", "complete"],
@@ -23,12 +24,7 @@ export function renderCrewStatusFooter(snapshot) {
     if (count > 0) parts.push(`${count} ${label}`);
   }
   const tokens = Number.isFinite(totalGeneratedOutputTokens) ? totalGeneratedOutputTokens : 0;
-  parts.push(`${tokens} output tokens`);
-  const context = snapshot.contextSummary;
-  const percent = Number.isFinite(context?.maxPercent) ? `${context.maxPercent}%` : "—";
-  const windows = context?.modelWindows ?? [];
-  const window = windows.length === 1 ? formatTokenCount(windows[0]) : windows.length > 1 ? "mixed" : "—";
-  parts.push(`context ${percent} / ${window}`);
+  parts.push(`${formatTokenCount(tokens)} output tokens`);
 
   return parts.join(" · ");
 }

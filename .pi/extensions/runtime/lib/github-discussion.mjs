@@ -3,30 +3,40 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { closingCommentBody, contentDigest, truncateForDiscussion, withRecentDigest } from "./discussion-body.mjs";
+import { githubCommand, githubError, githubJson } from "./github-error.mjs";
 
 const exec = promisify(execFile);
 const query = (text) => ["api", "graphql", "-f", `query=${text}`];
-const json = async (args) => JSON.parse((await exec("gh", args)).stdout);
+const json = (args, operation, resource) => githubJson(exec, args, operation, resource);
 const date = (value) => new Date(value).toISOString().slice(0, 10);
 
 async function repository() {
-  const nameWithOwner = (
-    await exec("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])
-  ).stdout.trim();
+  const result = await githubCommand(
+    exec,
+    ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+    "resolve repository",
+    "current repository",
+  );
+  const nameWithOwner = result.stdout?.trim?.() ?? "";
   const [owner, repo] = nameWithOwner.split("/");
   if (!owner || !repo) throw new Error("GitHub adapter requires the current repository");
   return { owner, repo };
 }
-
 async function discussion({ owner, repo, runId, startedAt, category }) {
+  const resource = `${owner}/${repo}`;
   const categories = await json(
     query(
       "query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){id discussionCategories(first:20){nodes{id name}}}}",
     ).concat(["-f", `owner=${owner}`, "-f", `repo=${repo}`]),
+    "list discussion categories",
+    resource,
   );
-  const repository = categories.data.repository;
-  const categoryId = repository.discussionCategories.nodes.find((item) => item.name === category)?.id;
-  if (!categoryId) throw new Error(`GitHub Discussion category not found: ${category}`);
+  const repository = categories.data?.repository;
+  if (!repository)
+    throw githubError(new Error("repository is unavailable or closed"), "list discussion categories", resource);
+  const categoryId = repository.discussionCategories?.nodes?.find((item) => item.name === category)?.id;
+  if (!categoryId)
+    throw githubError(new Error(`Discussion category not found: ${category}`), "resolve discussion category", resource);
   const mutation =
     'mutation($repo:ID!,$category:ID!,$title:String!){createDiscussion(input:{repositoryId:$repo,categoryId:$category,title:$title,body:"Crew communication transcript."}){discussion{id number url}}}';
   const result = await json(
@@ -38,19 +48,16 @@ async function discussion({ owner, repo, runId, startedAt, category }) {
       "-f",
       `title=Crew - ${runId} - ${date(startedAt)}`,
     ]),
+    "create discussion",
+    resource,
   );
-  return result.data.createDiscussion.discussion;
+  const created = result.data?.createDiscussion?.discussion;
+  if (!created)
+    throw githubError(new Error("resource is unavailable, closed, or state-conflicted"), "create discussion", resource);
+  return created;
 }
-
-// Shared by both prepareCrew (which creates the adapter's config) and the
-// terminal-rollup closer (which reads the adapter's already-written state)
-// so the state file path is defined in exactly one place.
 export const discussionStateFilePath = (crewLaunchDir, runId) => join(crewLaunchDir, `${runId}-github-discussion.json`);
 
-// Idempotent: posts one closing comment for a terminal roster status and
-// marks the adapter state file so a later call (e.g. a repeated
-// runtime_cleanup) never reposts it. A no-op, not an error, when this run
-// never had a Discussion (adapter disabled or state file not yet created).
 export async function postDiscussionClosingComment(stateFilePath, { status }) {
   let state;
   try {
@@ -69,29 +76,61 @@ export async function postDiscussionClosingComment(stateFilePath, { status }) {
 async function post(discussionId, body) {
   const mutation =
     "mutation($id:ID!,$body:String!){addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}}";
-  const result = await json(query(mutation).concat(["-f", `id=${discussionId}`, "-f", `body=${body}`]));
-  return result.data.addDiscussionComment.comment;
+  const result = await json(
+    query(mutation).concat(["-f", `id=${discussionId}`, "-f", `body=${body}`]),
+    "add discussion comment",
+    `discussion ${discussionId}`,
+  );
+  const comment = result.data?.addDiscussionComment?.comment;
+  if (!comment)
+    throw githubError(
+      new Error("resource is unavailable or closed"),
+      "add discussion comment",
+      `discussion ${discussionId}`,
+    );
+  return comment;
 }
-
 async function reply(discussionId, parentId, body) {
   const mutation =
     "mutation($discussion:ID!,$parent:ID!,$body:String!){addDiscussionComment(input:{discussionId:$discussion,replyToId:$parent,body:$body}){comment{id url}}}";
   const result = await json(
     query(mutation).concat(["-f", `discussion=${discussionId}`, "-f", `parent=${parentId}`, "-f", `body=${body}`]),
+    "reply to discussion comment",
+    `discussion ${discussionId}`,
   );
-  return result.data.addDiscussionComment.comment;
+  const comment = result.data?.addDiscussionComment?.comment;
+  if (!comment)
+    throw githubError(
+      new Error("resource is unavailable, closed, or state-conflicted"),
+      "reply to discussion comment",
+      `discussion ${discussionId}`,
+    );
+  return comment;
 }
-
 async function comments(owner, repo, number) {
   const source =
-    "query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){discussion(number:$number){comments(first:100){nodes{id body author{login} replies(first:100){nodes{id body author{login}}}}}}}}";
-  const result = await json(
-    query(source).concat(["-f", `owner=${owner}`, "-f", `repo=${repo}`, "-F", `number=${number}`]),
-  );
-  return result.data.repository.discussion.comments.nodes.flatMap((comment) => [
-    comment,
-    ...(comment.replies.nodes || []),
-  ]);
+    "query($owner:String!,$repo:String!,$number:Int!,$after:String){repository(owner:$owner,name:$repo){discussion(number:$number){comments(first:100,after:$after){nodes{id body author{login} replies(first:100){nodes{id body author{login}}}} pageInfo{hasNextPage endCursor}}}}}}";
+  const resource = `${owner}/${repo}#${number}`;
+  const all = [];
+  let after;
+  do {
+    const args = query(source).concat(
+      ["-f", `owner=${owner}`, "-f", `repo=${repo}`, "-F", `number=${number}`],
+      after ? ["-f", `after=${after}`] : [],
+    );
+    const result = await json(args, "poll discussion comments", resource);
+    const discussion = result.data?.repository?.discussion;
+    if (!discussion)
+      throw githubError(
+        new Error("resource is unavailable, closed, or state-conflicted"),
+        "poll discussion comments",
+        resource,
+      );
+    all.push(...discussion.comments.nodes.flatMap((comment) => [comment, ...(comment.replies.nodes || [])]));
+    const pageInfo = discussion.comments.pageInfo;
+    after = pageInfo?.hasNextPage ? pageInfo.endCursor : undefined;
+  } while (after);
+  return all;
 }
 
 function render(message, handle) {
@@ -118,10 +157,6 @@ export async function startGithubDiscussionAdapter(controller, config) {
   const unsubscribe = controller.subscribe((message) => {
     writes = writes.then(async () => {
       if (message.from === "human:github-discussion") return;
-      // A reply always threads under its own request and is never itself a
-      // repost of prior content; only dedupe top-level notify/request posts,
-      // which is where a specialist resending an identical finished report
-      // has been observed to repeat the exact same content.
       if (!message.replyTo) {
         const digest = contentDigest(message.to, message.message);
         if (recentDigests.includes(digest)) return;
@@ -149,7 +184,9 @@ export async function startGithubDiscussionAdapter(controller, config) {
     state.seen = [...seen].slice(-500);
     await writeFile(config.stateFile, JSON.stringify(state, null, 2));
   };
-  await poll();
+  await poll().catch((error) => {
+    if (!error.transient) throw error;
+  });
   const timer = setInterval(() => poll().catch(() => {}), config.pollIntervalMs ?? 5000);
   return {
     stop: async () => {

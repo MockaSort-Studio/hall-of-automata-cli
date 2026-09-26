@@ -18,8 +18,13 @@ test("renderCrewStatusFooter is a compact single line with automaton counts and 
   assert.match(line, /2 running/);
   assert.match(line, /1 queued/);
   assert.match(line, /1 complete/);
-  assert.match(line, /4200 output tokens/);
-  assert.match(line, /context 12\.5% \/ 200k/);
+  assert.match(line, /4\.2k output tokens/);
+});
+
+test("renderCrewStatusFooter contains no context telemetry segment", () => {
+  const line = renderCrewStatusFooter(snapshot());
+  assert.equal(line.includes("context"), false);
+  assert.equal(line.includes("maxPercent"), false);
 });
 
 test("renderCrewStatusFooter omits zero-count buckets to stay compact", () => {
@@ -32,6 +37,13 @@ test("renderCrewStatusFooter omits zero-count buckets to stay compact", () => {
 test("renderCrewStatusFooter never mentions cost, money, queue depth, or inflight abbreviations", () => {
   const line = renderCrewStatusFooter(snapshot({ counts: { ...snapshot().counts, blocked: 1, failed: 1 } }));
   assert.equal(/\$|cost|inflight|qty/i.test(line), false);
+});
+
+test("renderCrewStatusFooter formats large output token counts with compact k/M notation", () => {
+  const line = renderCrewStatusFooter(snapshot({ totalGeneratedOutputTokens: 1_234_567 }));
+  assert.match(line, /1\.2M output tokens/);
+  const line2 = renderCrewStatusFooter(snapshot({ totalGeneratedOutputTokens: 999 }));
+  assert.match(line2, /999 output tokens/);
 });
 
 test("renderCrewStatusFooter handles a null snapshot as an empty string", () => {
@@ -47,4 +59,5 @@ test("renderCrewStatusFooter handles an all-zero snapshot", () => {
   );
   assert.match(line, /0 automata/);
   assert.match(line, /0 output tokens/);
+  assert.equal(line.includes("context"), false);
 });

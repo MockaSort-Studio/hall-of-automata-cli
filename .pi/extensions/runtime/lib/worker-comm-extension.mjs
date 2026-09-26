@@ -69,9 +69,16 @@ export default function workerCommExtension(pi) {
   pi.registerTool({
     name: "lifecycle_update",
     label: "Lifecycle: update current work state",
-    description: "Set your current assigned work state. Required at terminal completion, block, or failure.",
+    description:
+      "Set your typed work state. Use waiting only while pausing active work; terminal states are required at completion, block, or failure.",
     parameters: Type.Object({
-      state: Type.Union([Type.Literal("complete"), Type.Literal("blocked"), Type.Literal("failed")]),
+      state: Type.Union([
+        Type.Literal("running"),
+        Type.Literal("waiting"),
+        Type.Literal("complete"),
+        Type.Literal("blocked"),
+        Type.Literal("failed"),
+      ]),
     }),
     execute: (_id, input) => result(requireComm().lifecycleUpdate(config.comm.namespace, input.state)),
   });

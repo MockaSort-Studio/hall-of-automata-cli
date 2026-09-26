@@ -1,11 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { startAdapters } from "./adapter-host.mjs";
 import { CommController } from "./comm-controller.mjs";
 
 const config = JSON.parse(process.argv[2] ?? "{}");
-const controller = new CommController();
+const authToken = randomUUID();
+const controller = new CommController({ authToken });
 const port = await controller.start();
 const stopAdapters = await startAdapters(controller, config.adapters);
-process.stdout.write(`${JSON.stringify({ port })}\n`);
+process.stdout.write(`${JSON.stringify({ port, authToken })}\n`);
 process.once("SIGTERM", async () => {
   await stopAdapters();
   await controller.stop();

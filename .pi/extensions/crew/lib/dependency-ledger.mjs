@@ -10,9 +10,9 @@ export const NODE_STATES = Object.freeze(["waiting", "ready", "running", "comple
 const TERMINAL_STATES = new Set(["complete", "blocked", "failed"]);
 
 const TRANSITIONS = Object.freeze({
-  waiting: Object.freeze(["ready", "blocked"]),
+  waiting: Object.freeze(["ready", "running", "blocked"]),
   ready: Object.freeze(["running", "blocked"]),
-  running: Object.freeze(["complete", "failed", "blocked"]),
+  running: Object.freeze(["waiting", "complete", "failed", "blocked"]),
   complete: Object.freeze([]),
   blocked: Object.freeze([]),
   failed: Object.freeze([]),
@@ -114,6 +114,11 @@ export function createDependencyLedger() {
     return moveTo(handle, "running");
   }
 
+  function wait(rawHandle) {
+    const handle = canonicalHandle(rawHandle);
+    return moveTo(handle, "waiting");
+  }
+
   function complete(rawHandle) {
     const handle = canonicalHandle(rawHandle);
     const to = moveTo(handle, "complete");
@@ -151,6 +156,7 @@ export function createDependencyLedger() {
     addDependency,
     has,
     start,
+    wait,
     complete,
     fail,
     block,

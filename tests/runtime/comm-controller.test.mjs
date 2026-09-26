@@ -15,6 +15,64 @@ const connect = async (port, actorId) => {
   return socket;
 };
 
+test("rejects forged actor registration and missing sender identity", async () => {
+  const comm = new CommController();
+  const port = await comm.start();
+  const socket = new WebSocket(`ws://127.0.0.1:${port}`);
+  await new Promise((resolve) => socket.once("open", resolve));
+  socket.send(JSON.stringify({ jsonrpc: "2.0", id: "forged", method: "comm.register", params: { actorId: "forged" } }));
+  assert.match((await receive(socket)).error.message, /authorized|registered/i);
+  socket.send(
+    JSON.stringify({ jsonrpc: "2.0", id: "register", method: "comm.register_actor", params: { actorId: "x" } }),
+  );
+  assert.match((await receive(socket)).error.message, /registered actor|main/i);
+  socket.close();
+  await comm.stop();
+});
+
+test("rejects forged Main and observer registrations", async () => {
+  const comm = new CommController({ authToken: "secret" });
+  const port = await comm.start();
+  const forgedMain = new WebSocket(`ws://127.0.0.1:${port}`);
+  await new Promise((resolve) => forgedMain.once("open", resolve));
+  forgedMain.send(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "main",
+      method: "comm.register",
+      params: { actorId: "main", authToken: "wrong" },
+    }),
+  );
+  assert.match((await receive(forgedMain)).error.message, /authentication|authorized|main/i);
+  const forgedObserver = new WebSocket(`ws://127.0.0.1:${port}`);
+  await new Promise((resolve) => forgedObserver.once("open", resolve));
+  forgedObserver.send(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "observer",
+      method: "comm.register",
+      params: { actorId: "observer-secret", namespace: "secret", authToken: "wrong" },
+    }),
+  );
+  assert.match((await receive(forgedObserver)).error.message, /authentication|authorized|namespace|plan/i);
+  forgedMain.terminate();
+  forgedObserver.terminate();
+  await comm.stop();
+});
+
+test("rejects cross-Crew routing and state mutation from a worker", async () => {
+  const comm = new CommController();
+  comm.registerActor("crew-a-developer-alpha-00");
+  comm.registerActor("crew-b-developer-alpha-00");
+  comm.registerPlan("crew-a", [{ handle: "developer-alpha-00", dependsOn: [] }]);
+  comm.registerPlan("crew-b", [{ handle: "developer-alpha-00", dependsOn: [] }]);
+  assert.throws(() => comm.emit("crew-a-developer-alpha-00", "crew-b-developer-alpha-00", {}), /Cross-Crew/);
+  await assert.rejects(() => comm.broadcast("crew-a-developer-alpha-00", "crew-b", {}), /Cross-Crew/);
+  assert.throws(() => comm.lifecycleUpdate("crew-a-developer-alpha-00", "crew-b", "running"), /Cross-Crew/);
+  assert.throws(() => comm.stateSnapshot("crew-a-developer-alpha-00", "crew-b"), /Cross-Crew/);
+  assert.throws(() => comm.registerConnection("crew-a-developer-alpha-00", {}, "crew-b"), /Cross-Crew/);
+});
+
 test("routes an atomic payload through a per-controller mailbox", async () => {
   const comm = new CommController();
   comm.registerActor("a");
@@ -204,7 +262,7 @@ test("comm.observe_state pushes lifecycle updates, not free-form Comm envelopes"
   const port = await comm.start();
   const url = `ws://127.0.0.1:${port}`;
   const main = await connectComm({ url, actorId: "main" });
-  const observer = await connectComm({ url, actorId: "observer" });
+  const observer = await connectComm({ url, actorId: "observer-crew-run-1", namespace: "crew-run-1" });
   const worker = await connectComm({ url, actorId });
   try {
     await main.registerPlan("crew-run-1", [{ handle: "developer-alpha-00", dependsOn: [], task: "x" }]);
@@ -249,6 +307,35 @@ test("Runtime.observeRawComm streams raw envelopes over Main's own Comm connecti
   unsubscribe();
   await runtime.stop();
 });
+test("Runtime wires typed terminal state to one Main follow-up", async () => {
+  const runtime = new Runtime(process.cwd());
+  const sent = [];
+  runtime.attachTerminalNotifier((message, options) => sent.push({ message, options }));
+  const namespace = `terminal-${randomUUID()}`;
+  try {
+    const handle = "developer-worker-00";
+    const comm = await runtime.startComm([`${namespace}-${handle}`], [], {
+      namespace,
+      members: [{ handle, dependsOn: [], task: "finish" }],
+    });
+    const worker = await connectComm({
+      url: comm.url,
+      actorId: `${namespace}-${handle}`,
+      namespace,
+      authToken: comm.authToken,
+    });
+    await worker.lifecycleUpdate(namespace, "running");
+    await worker.lifecycleUpdate(namespace, "complete");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].message.customType, "crew-terminal");
+    assert.deepEqual(sent[0].options, { triggerTurn: true, deliverAs: "followUp" });
+    worker.close();
+  } finally {
+    await runtime.stop();
+  }
+});
+
 test("Runtime.observeRawComm is a no-op unsubscribe before Comm has started", () => {
   const runtime = new Runtime(process.cwd());
   const unsubscribe = runtime.observeRawComm(() => {});
@@ -273,7 +360,13 @@ test("launchCrew registers the plan it is given, so the Comm server owns that ru
         ],
       },
     );
-    const client = await connectComm({ url: (await runtime.startComm()).url, actorId: `observer-${prefix}` });
+    const comm = await runtime.startComm();
+    const client = await connectComm({
+      url: comm.url,
+      actorId: `observer-${prefix}`,
+      namespace: prefix,
+      authToken: comm.authToken,
+    });
     const snapshot = await client.getStateSnapshot(prefix);
     assert.deepEqual(
       snapshot.nodes.map((node) => [node.handle, node.status]),
@@ -293,7 +386,13 @@ test("launchCrew without a plan registers nothing (plan is optional)", async () 
     prefix = `noplan-${randomUUID()}`;
   try {
     await runtime.launchCrew([{ name: "developer-a-00", actorId: `${prefix}-a`, task: "Reply done." }]);
-    const client = await connectComm({ url: (await runtime.startComm()).url, actorId: `observer-${prefix}` });
+    const comm = await runtime.startComm();
+    const client = await connectComm({
+      url: comm.url,
+      actorId: `observer-${prefix}`,
+      namespace: prefix,
+      authToken: comm.authToken,
+    });
     assert.equal(await client.getStateSnapshot(prefix), undefined);
     client.close();
   } finally {

@@ -5,6 +5,7 @@ import { resolveBundles } from "./tool-bundles.mjs";
 import { connectComm } from "./comm-client.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
 import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
+import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const stopProcess = async (child) => {
@@ -25,9 +26,13 @@ export class Runtime {
   #comm;
   #commUrl;
   #commProcess;
+  #commAuthToken;
   #mainDeliveries = [];
   #lifecycle;
   #lifecycleProcess;
+  #lifecycleAuthToken;
+  #terminalNotifier;
+  #stateUnsubscribers = new Map();
 
   constructor(cwd) {
     this.cwd = cwd;
@@ -38,7 +43,12 @@ export class Runtime {
     // Best-effort: reap Lifecycle servers left behind by a dead Main
     // session before starting a new one. Never blocks startup on failure.
     await reapOrphans(this.cwd).catch(() => {});
-    const config = JSON.stringify({ cwd: this.cwd, workerModule: join(import.meta.dirname, "worker.mjs") });
+    this.#lifecycleAuthToken = randomUUID();
+    const config = JSON.stringify({
+      cwd: this.cwd,
+      workerModule: join(import.meta.dirname, "worker.mjs"),
+      authToken: this.#lifecycleAuthToken,
+    });
     this.#lifecycleProcess = spawn(process.execPath, [join(import.meta.dirname, "lifecycle-server.mjs"), config], {
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -48,7 +58,7 @@ export class Runtime {
     });
     const { port } = JSON.parse(line);
     await recordOwner(this.cwd, { pid: this.#lifecycleProcess.pid, hostPid: process.pid, port }).catch(() => {});
-    this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`);
+    this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`, { authToken: this.#lifecycleAuthToken });
   }
 
   // `plan` ({ namespace, members: [{handle, dependsOn, task}] }) is
@@ -56,6 +66,25 @@ export class Runtime {
   // becomes the live owner of that run's dependency-ledger status (see
   // comm-state-owner.mjs) -- callers never need to reconstruct that DAG
   // themselves from raw envelopes.
+  attachTerminalNotifier(sendMessage) {
+    this.#terminalNotifier = createCrewTerminalNotifier(sendMessage);
+    return () => {
+      this.#terminalNotifier = undefined;
+      for (const unsubscribe of this.#stateUnsubscribers.values()) unsubscribe();
+      this.#stateUnsubscribers.clear();
+    };
+  }
+
+  async #observeTerminalState(namespace) {
+    if (!this.#terminalNotifier || !this.#comm || this.#stateUnsubscribers.has(namespace)) return;
+    const unsubscribe = this.#comm.observeState(namespace, (nodes, observedNamespace) =>
+      this.#terminalNotifier?.observe({ namespace: observedNamespace, nodes }),
+    );
+    this.#stateUnsubscribers.set(namespace, unsubscribe);
+    const initial = await this.#comm.getStateSnapshot(namespace);
+    if (initial) this.#terminalNotifier.observe(initial);
+  }
+
   async startComm(actorIds = [], adapters = [], plan) {
     if (!this.#comm) {
       this.#commProcess = spawn(
@@ -69,14 +98,18 @@ export class Runtime {
         this.#commProcess.stdout.once("data", (data) => resolve(String(data)));
         this.#commProcess.once("error", reject);
       });
-      const { port } = JSON.parse(line);
+      const { port, authToken } = JSON.parse(line);
+      this.#commAuthToken = authToken;
       this.#commUrl = `ws://127.0.0.1:${port}`;
-      this.#comm = await connectComm({ url: this.#commUrl, actorId: "main" });
+      this.#comm = await connectComm({ url: this.#commUrl, actorId: "main", authToken });
       this.#comm.onDelivery((message) => this.#mainDeliveries.push(message));
     }
     await Promise.all(actorIds.map((actorId) => this.#comm.registerActor(actorId)));
-    if (plan?.namespace) await this.#comm.registerPlan(plan.namespace, plan.members ?? []);
-    return { url: this.#commUrl };
+    if (plan?.namespace) {
+      await this.#comm.registerPlan(plan.namespace, plan.members ?? []);
+      await this.#observeTerminalState(plan.namespace);
+    }
+    return { url: this.#commUrl, authToken: this.#commAuthToken };
   }
 
   async send(to, payload) {
@@ -161,7 +194,8 @@ export class Runtime {
     extensionPaths = [...new Set([...extensionPaths, ...bundle.extensionPaths])];
     const id = actorId ?? randomUUID();
     if (this.#comm) await this.#comm.registerActor(id);
-    const delivery = this.#comm ? await this.#comm.claim(id) : undefined;
+    // The worker claims its own mailbox after its authenticated Comm socket
+    // connects. Main must not claim a worker mailbox on its behalf.
     return this.#lifecycle.spawn({
       name,
       task,
@@ -171,8 +205,11 @@ export class Runtime {
       tools,
       commTools,
       extensionPaths,
-      comm: comm ?? (this.#commUrl && id ? { url: this.#commUrl, actorId: id, namespace } : undefined),
-      delivery,
+      comm:
+        comm ??
+        (this.#commUrl && id
+          ? { url: this.#commUrl, actorId: id, namespace, authToken: this.#commAuthToken }
+          : undefined),
       resident,
       initialTurn,
       crewMembers,
@@ -208,7 +245,10 @@ export class Runtime {
     this.#lifecycleProcess = undefined;
     this.#commProcess = undefined;
     this.#commUrl = undefined;
+    this.#commAuthToken = undefined;
     this.#mainDeliveries = [];
+    for (const unsubscribe of this.#stateUnsubscribers.values()) unsubscribe();
+    this.#stateUnsubscribers.clear();
     return {
       removals: removals.map((result) =>
         result.status === "fulfilled" ? result.value : { removed: false, error: String(result.reason) },

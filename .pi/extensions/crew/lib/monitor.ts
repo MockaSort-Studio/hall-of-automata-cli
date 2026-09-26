@@ -51,7 +51,9 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   const liveLedgerFor = (roster) => {
     if (!ctx) return undefined;
     const selected = selectedCrewFor(readJson, ctx.cwd, roster);
-    return selected ? ensureLiveLedgerTracker().ledgerFor(selected, roster?.comm?.url) : undefined;
+    return selected
+      ? ensureLiveLedgerTracker().ledgerFor(selected, roster?.comm?.url, roster?.comm?.authToken)
+      : undefined;
   };
 
   const root = () => (ctx ? join(ctx.cwd, CONFIG_DIR_NAME, "runtime", "crew-launch") : undefined);

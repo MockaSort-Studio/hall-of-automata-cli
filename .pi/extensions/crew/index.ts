@@ -5,6 +5,11 @@ import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
 import { registerCrewMonitor } from "./lib/monitor.ts";
 import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { registerCrewObservability } from "./lib/observability.mjs";
+import { registerCommunicationTools } from "./lib/communication-tools.ts";
+import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
+import { registerRosterTools } from "./lib/roster-tools.ts";
+import { runtimeFor } from "../runtime/lib/shared-runtime.mjs";
+import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -38,7 +43,11 @@ const parameters = Type.Object({
 });
 
 export default function crewExtension(pi: ExtensionAPI) {
+  const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
   registerCrewObservability(pi, CONFIG_DIR_NAME);
+  registerCommunicationTools(pi);
+  registerHumanInboxTools(pi);
+  registerRosterTools(pi);
   const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({
@@ -80,6 +89,8 @@ export default function crewExtension(pi: ExtensionAPI) {
       );
     },
     async execute(_id, input, signal, _update, ctx) {
+      // Bind against this tool's actual Runtime before it launches a Crew.
+      attachTerminalNotifier(ctx);
       const THINKING_UNSUPPORTED = ["mistral-small", "mistral-medium", "mistral-tiny"];
       if (input.model) {
         const m = input.model.toLowerCase();

@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-export async function connectComm({ url, actorId }) {
+export async function connectComm({ url, actorId, namespace, authToken }) {
   const socket = new WebSocket(url);
   await new Promise((resolve, reject) => {
     socket.once("open", resolve);
@@ -23,14 +23,16 @@ export async function connectComm({ url, actorId }) {
   const rawListeners = new Set();
   const stateListeners = new Set();
   let observing;
-  let observingState;
   socket.on("message", (raw) => {
     const message = JSON.parse(String(raw));
     if (message.method === "comm.deliver") listeners.forEach((listener) => listener(message.params));
     if (message.method === "comm.raw_envelope") rawListeners.forEach((listener) => listener(message.params));
-    if (message.method === "comm.state_update") stateListeners.forEach((listener) => listener(message.params.nodes));
+    if (message.method === "comm.state_update")
+      stateListeners.forEach(({ namespace, listener }) => {
+        if (namespace === message.params.namespace) listener(message.params.nodes, message.params.namespace);
+      });
   });
-  await request("comm.register", { actorId });
+  await request("comm.register", { actorId, namespace, authToken });
   return {
     emit: (params) => request("comm.emit", params),
     broadcast: (params) => request("comm.broadcast", params),
@@ -58,10 +60,10 @@ export async function connectComm({ url, actorId }) {
     lifecycleUpdate: (namespace, state) => request("comm.lifecycle_update", { namespace, state }),
     getStateSnapshot: (namespace) => request("comm.state_snapshot", { namespace }),
     observeState: (namespace, listener) => {
-      stateListeners.add(listener);
-      observingState ??= request("comm.observe_state", { namespace });
-      observingState.catch(() => {});
-      return () => stateListeners.delete(listener);
+      const entry = { namespace, listener };
+      stateListeners.add(entry);
+      request("comm.observe_state", { namespace }).catch(() => {});
+      return () => stateListeners.delete(entry);
     },
     // terminate(), not close(): a graceful close() waits for the server's
     // own close-frame response, which may never come (server already gone,

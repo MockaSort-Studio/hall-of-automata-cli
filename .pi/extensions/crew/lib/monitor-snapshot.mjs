@@ -6,6 +6,7 @@ import { STATES, TERMINAL_OUTCOMES, isTerminal } from "./lifecycle-state.mjs";
 
 const BUCKET_FOR_STATE = Object.freeze({
   queued: "queued",
+  waiting: "waiting",
   running: "running",
   attention: "attention",
   PASS: "complete",
@@ -108,7 +109,7 @@ export function crewMonitorSnapshot(
   if (!roster) return null;
   const members = Array.isArray(roster.members) ? roster.members : [];
 
-  const counts = { queued: 0, running: 0, attention: 0, complete: 0, blocked: 0, failed: 0, total: 0 };
+  const counts = { queued: 0, waiting: 0, running: 0, attention: 0, complete: 0, blocked: 0, failed: 0, total: 0 };
   let totalGeneratedOutputTokens = 0;
   let maxContextPercent = null;
   const contextWindows = new Set();

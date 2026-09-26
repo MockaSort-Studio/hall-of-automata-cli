@@ -6,14 +6,12 @@
 export class StateObserverSockets {
   #subscriptions = new Map();
 
-  // Idempotent per actorId: a second "comm.observe_state" call for the same
-  // socket is a no-op. `subscribe` is CommStateOwner#subscribe bound to a
-  // namespace; `push(actorId, update)` delivers one compact status update
-  // over that actor's own socket.
+  // Idempotent per actor/namespace, allowing Main to observe concurrent runs.
   subscribe(actorId, namespace, subscribeToState, push) {
-    if (!this.#subscriptions.has(actorId)) {
+    const key = `${actorId}:${namespace}`;
+    if (!this.#subscriptions.has(key)) {
       this.#subscriptions.set(
-        actorId,
+        key,
         subscribeToState(namespace, (update) => push(actorId, namespace, update)),
       );
     }
@@ -21,7 +19,11 @@ export class StateObserverSockets {
   }
 
   release(actorId) {
-    this.#subscriptions.get(actorId)?.();
-    this.#subscriptions.delete(actorId);
+    for (const [key, unsubscribe] of this.#subscriptions) {
+      if (key.startsWith(`${actorId}:`)) {
+        unsubscribe();
+        this.#subscriptions.delete(key);
+      }
+    }
   }
 }

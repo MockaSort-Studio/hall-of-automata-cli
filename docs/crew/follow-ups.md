@@ -360,3 +360,23 @@ canonical in [runtime-structure.md](runtime-structure.md).
       without falsely accepting work.
 - [x] Implement the optional GitHub Discussion CommAdapter; base worker capabilities
       remain Comm-only.
+
+## Lifecycle state-management follow-up
+
+- [ ] Make lifecycle disposition mechanically disciplined: require a structured escalation
+      reason for terminal `blocked`, reject ordinary implementation/test friction as
+      `blocked`, and use resumable `waiting` for expected dependencies or input. Ensure an
+      active worker cannot keep executing after a terminal update without an explicit Main
+      intervention, and record the reason in the typed snapshot for auditability.
+- [ ] Add workload-aware Crew model selection. Select model and thinking from task risk,
+      boundedness, required edits, and test/integration scope; cap/reassign agents whose
+      turn or error budget signals a retry loop. Record the selection rationale and outcome
+      so future dispatches can tune the policy instead of treating model choice as static.
+- [ ] Replace the shared Comm credential with launch-scoped, actor- and namespace-bound
+      capabilities; Main retains an admin credential and observers get read-only run-scoped
+      credentials. Reject replay, impersonation, and absent server-owned namespace binding.
+- [ ] Paginate GitHub Discussion replies independently of top-level comments and add a
+      deterministic second-page reply fixture, preserving bounded transcript behavior.
+- [ ] Make the broad Node test command deterministic and bounded: identify lingering
+      sockets/processes or excessive serial work so a complete suite can finish within the
+      CI timeout while preserving its real integration coverage.

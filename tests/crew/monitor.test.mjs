@@ -116,10 +116,11 @@ test("the Plan tab reads a live ledger connected directly to the run's own Comm 
   // A real Crew is launched by a separate process (the Crew MCP tool's own
   // Runtime), so a same-process runtimeFor(ctx.cwd) never observes its
   // Comm traffic -- see monitor-live-ledger.mjs's header. roster.comm.url
-  // must be threaded through explicitly instead.
+  // and authToken must be threaded through explicitly instead.
   assert.match(source, /import \{ createLiveLedgerTracker \} from "\.\/monitor-live-ledger\.mjs"/);
   assert.doesNotMatch(source, /runtimeFor/);
-  assert.match(source, /ensureLiveLedgerTracker\(\)\.ledgerFor\(selected, roster\?\.comm\?\.url\)/);
+  // ledgerFor now also passes authToken parameter: roster?.comm?.authToken
+  assert.match(source, /ensureLiveLedgerTracker\(\)\.ledgerFor\(selected, roster\?\.comm\?\.url/);
   assert.match(source, /liveLedgerTracker\?\.stop\(\)/);
 });
 

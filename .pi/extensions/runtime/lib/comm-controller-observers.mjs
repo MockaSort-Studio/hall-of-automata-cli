@@ -19,12 +19,13 @@ export function createCommObservers({ observeRaw, getSocket }) {
     if (socket?.readyState === 1) socket.send(JSON.stringify(message));
   };
   return {
-    observeRawOverSocket(actorId) {
+    observeRawOverSocket(actorId, canObserve) {
       if (!actorId) throw new Error("comm.observe_raw requires a registered actorId");
-      return rawSockets.subscribe(actorId, observeRaw, (id, envelope) =>
-        send(id, { jsonrpc: "2.0", method: "comm.raw_envelope", params: envelope }),
-      );
+      return rawSockets.subscribe(actorId, observeRaw, (id, envelope) => {
+        if (canObserve(envelope)) send(id, { jsonrpc: "2.0", method: "comm.raw_envelope", params: envelope });
+      });
     },
+    hasPlan: (namespace) => stateOwner.hasPlan(namespace),
     registerPlan: (namespace, members) => stateOwner.registerPlan(namespace, members),
     lifecycleUpdate: (actorId, namespace, state) => stateOwner.update(namespace, actorId, state),
     stateSnapshot: (namespace) => stateOwner.snapshot(namespace),

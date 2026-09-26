@@ -26,8 +26,19 @@ test("canTransition allows only the documented legal edges", () => {
   assert.equal(canTransition("ready", "running"), true);
   assert.equal(canTransition("running", "complete"), true);
   assert.equal(canTransition("running", "failed"), true);
-  assert.equal(canTransition("waiting", "running"), false);
+  assert.equal(canTransition("running", "waiting"), true);
+  assert.equal(canTransition("waiting", "running"), true);
   assert.equal(canTransition("complete", "ready"), false);
+});
+
+test("running may wait and resume, while blocked remains terminal", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-alpha-01");
+  ledger.start("developer-alpha-01");
+  assert.equal(ledger.wait("developer-alpha-01"), "waiting");
+  assert.equal(ledger.start("developer-alpha-01"), "running");
+  assert.equal(ledger.block("developer-alpha-01"), "blocked");
+  assert.throws(() => ledger.start("developer-alpha-01"), /Illegal dependency ledger transition/);
 });
 
 test("addNode rejects handles that are not canonical role-persona names", () => {

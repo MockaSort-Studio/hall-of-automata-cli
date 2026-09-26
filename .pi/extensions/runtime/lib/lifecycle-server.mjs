@@ -1,6 +1,8 @@
 import { WebSocketServer } from "ws";
 import { LifecycleController } from "./lifecycle-controller.mjs";
-const controller = new LifecycleController(JSON.parse(process.argv[2]));
+const config = JSON.parse(process.argv[2]);
+const controller = new LifecycleController(config);
+const authToken = config.authToken;
 const server = new WebSocketServer({ port: 0 });
 await new Promise((resolve) => server.once("listening", resolve));
 const methods = {
@@ -16,9 +18,11 @@ server.on("connection", (socket) =>
     try {
       request = JSON.parse(String(raw));
       if (!request || typeof request.method !== "string") throw Error("Invalid request");
+      if (authToken && request.params?.authToken !== authToken) throw Error("Lifecycle authentication required");
       const fn = methods[request.method];
       if (!fn) throw Error(`Unknown Lifecycle method: ${request.method}`);
-      const result = await fn(request.params ?? {});
+      const { authToken: _authToken, ...params } = request.params ?? {};
+      const result = await fn(params);
       if (request.id !== undefined && socket.readyState === socket.OPEN)
         socket.send(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }));
     } catch (error) {

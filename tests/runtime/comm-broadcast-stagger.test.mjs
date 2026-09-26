@@ -12,11 +12,13 @@ import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller
 
 test("broadcast emits to every recipient in the same tick when staggering is disabled", async () => {
   const comm = new CommController({ broadcastStaggerMs: 0 });
+  comm.registerActor("ns-lead");
   comm.registerActor("ns-a");
   comm.registerActor("ns-b");
   comm.registerActor("ns-c");
+  comm.registerPlan("ns", []);
   const start = Date.now();
-  const result = await comm.broadcast("lead", "ns", { kind: "kickoff" });
+  const result = await comm.broadcast("ns-lead", "ns", { kind: "kickoff" });
   assert.equal(result.recipients.length, 3);
   assert.ok(Date.now() - start < 20);
 });
@@ -24,10 +26,12 @@ test("broadcast emits to every recipient in the same tick when staggering is dis
 test("broadcast spaces recipient delivery out by the configured interval", async () => {
   const stagger = 30;
   const comm = new CommController({ broadcastStaggerMs: stagger });
+  comm.registerActor("ns-lead");
   comm.registerActor("ns-a");
   comm.registerActor("ns-b");
   comm.registerActor("ns-c");
-  await comm.broadcast("lead", "ns", { kind: "kickoff" });
+  comm.registerPlan("ns", []);
+  await comm.broadcast("ns-lead", "ns", { kind: "kickoff" });
   const emitted = comm
     .events()
     .filter((event) => event.type === "message_emitted")
@@ -39,10 +43,12 @@ test("broadcast spaces recipient delivery out by the configured interval", async
 
 test("broadcast delivers recipients in stable registration order, not randomized", async () => {
   const comm = new CommController({ broadcastStaggerMs: 5 });
+  comm.registerActor("ns-lead");
   comm.registerActor("ns-first");
   comm.registerActor("ns-second");
   comm.registerActor("ns-third");
-  const result = await comm.broadcast("lead", "ns", { kind: "kickoff" });
+  comm.registerPlan("ns", []);
+  const result = await comm.broadcast("ns-lead", "ns", { kind: "kickoff" });
   const order = comm
     .events()
     .filter((event) => event.type === "message_emitted")
@@ -53,9 +59,11 @@ test("broadcast delivers recipients in stable registration order, not randomized
 
 test("a broadcast with zero or one recipient never waits", async () => {
   const comm = new CommController({ broadcastStaggerMs: 500 });
+  comm.registerActor("ns-lead");
   comm.registerActor("ns-only");
+  comm.registerPlan("ns", []);
   const start = Date.now();
-  const result = await comm.broadcast("lead", "ns", { kind: "kickoff" });
+  const result = await comm.broadcast("ns-lead", "ns", { kind: "kickoff" });
   assert.equal(result.recipients.length, 1);
   assert.ok(Date.now() - start < 20);
 });

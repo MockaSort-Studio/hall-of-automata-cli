@@ -27,6 +27,8 @@ test("only typed lifecycle updates advance state and notify subscribers", () => 
   const updates = [];
   owner.subscribe(namespace, (update) => updates.push(update));
   assert.deepEqual(owner.update(namespace, actor, "running"), { updated: true });
+  assert.deepEqual(owner.update(namespace, actor, "waiting"), { updated: true });
+  assert.deepEqual(owner.update(namespace, actor, "running"), { updated: true });
   assert.deepEqual(owner.update(namespace, actor, "complete"), { updated: true });
   const last = updates.at(-1);
   assert.equal(last.find((node) => node.handle === "developer-alpha-00").status, "complete");

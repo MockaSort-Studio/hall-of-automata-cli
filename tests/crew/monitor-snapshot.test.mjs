@@ -25,6 +25,7 @@ test("crewMonitorSnapshot buckets automata by durable lifecycle state", () => {
   assert.equal(snapshot.runId, "run-123456");
   assert.deepEqual(snapshot.counts, {
     queued: 0,
+    waiting: 0,
     running: 1,
     attention: 0,
     complete: 1,
@@ -51,6 +52,7 @@ test("crewMonitorSnapshot buckets an actor with live worker-metrics evidence as 
   });
   assert.deepEqual(snapshot.counts, {
     queued: 1,
+    waiting: 0,
     running: 2,
     attention: 0,
     complete: 0,
