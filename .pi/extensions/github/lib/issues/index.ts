@@ -1,15 +1,15 @@
 import { gh, ghJson } from "../core/gh.ts";
 
 // Original issues.ts functions
-export function createIssue(repo, { title, bodyFile, labels = [], milestone }) {
+export async function createIssue(repo, { title, bodyFile, labels = [], milestone }) {
   const args = ["issue", "create", "-R", repo, "--title", title, "--body-file", bodyFile];
   for (const label of labels) args.push("--label", label);
   if (milestone) args.push("--milestone", milestone);
-  const url = gh(args);
+  const url = await gh(args);
   return { url, number: Number(url.split("/").pop()) };
 }
 
-export function viewIssue(repo, number) {
+export async function viewIssue(repo, number) {
   return ghJson([
     "issue",
     "view",
@@ -22,8 +22,8 @@ export function viewIssue(repo, number) {
 }
 
 // Merged from subissues.ts
-export function addSubIssue(repo, parentNumber, childNumber) {
-  const subIssueId = issueDbId(repo, childNumber);
+export async function addSubIssue(repo, parentNumber, childNumber) {
+  const subIssueId = await issueDbId(repo, childNumber);
   return gh([
     "api",
     `repos/${repo}/issues/${parentNumber}/sub_issues`,
@@ -36,13 +36,13 @@ export function addSubIssue(repo, parentNumber, childNumber) {
   ]);
 }
 
-export function listSubIssues(repo, parentNumber) {
+export async function listSubIssues(repo, parentNumber) {
   return gh(["api", `repos/${repo}/issues/${parentNumber}/sub_issues`, "--jq", ".[] | {number, title}"]);
 }
 
 // Merged from dependencies.ts
-export function addBlockedBy(repo, issueNumber, blockingNumber) {
-  const issueId = issueDbId(repo, blockingNumber);
+export async function addBlockedBy(repo, issueNumber, blockingNumber) {
+  const issueId = await issueDbId(repo, blockingNumber);
   return gh([
     "api",
     `repos/${repo}/issues/${issueNumber}/dependencies/blocked_by`,
@@ -55,7 +55,7 @@ export function addBlockedBy(repo, issueNumber, blockingNumber) {
   ]);
 }
 
-export function listIssues(repo: string, state = "open", labels?: string[], milestone?: string, limit = 30) {
+export async function listIssues(repo: string, state = "open", labels?: string[], milestone?: string, limit = 30) {
   const args = [
     "issue",
     "list",
@@ -70,20 +70,20 @@ export function listIssues(repo: string, state = "open", labels?: string[], mile
   ];
   if (labels?.length) args.push("--label", labels.join(","));
   if (milestone) args.push("--milestone", milestone);
-  return ghJson(args) ?? [];
+  return (await ghJson(args)) ?? [];
 }
 
-export function listDependencies(repo: string, issueNumber: number) {
-  return ghJson(["api", `repos/${repo}/issues/${issueNumber}/dependencies/blocked_by`]) ?? [];
+export async function listDependencies(repo: string, issueNumber: number) {
+  return (await ghJson(["api", `repos/${repo}/issues/${issueNumber}/dependencies/blocked_by`])) ?? [];
 }
 
-export function commentOnIssue(repo: string, issueNumber: number, body: string) {
+export async function commentOnIssue(repo: string, issueNumber: number, body: string) {
   const args = ["issue", "comment", String(issueNumber), "-R", repo, "--body", body];
-  gh(args);
+  await gh(args);
   return { repo, issueNumber, commented: true };
 }
 
-export function updateIssue(
+export async function updateIssue(
   repo: string,
   issueNumber: number,
   { title, body, milestone, state }: { title?: string; body?: string; milestone?: string; state?: string },
@@ -94,11 +94,11 @@ export function updateIssue(
   if (milestone) args.push("--milestone", milestone);
   if (state === "closed") args.push("--state", "closed");
   if (state === "open") args.push("--state", "open");
-  gh(args);
+  await gh(args);
   return ghJson(["issue", "view", String(issueNumber), "-R", repo, "--json", "number,title,state,milestone,url"]);
 }
 
 // Shared helper function (from dependencies.ts and subissues.ts)
-function issueDbId(repo, number) {
-  return Number(gh(["api", `repos/${repo}/issues/${number}`, "--jq", ".id"]));
+async function issueDbId(repo, number) {
+  return Number(await gh(["api", `repos/${repo}/issues/${number}`, "--jq", ".id"]));
 }

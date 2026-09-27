@@ -10,6 +10,7 @@ import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
 import { registerRosterTools } from "./lib/roster-tools.ts";
 import { runtimeFor } from "../runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
+import { installCrewDispatchArming } from "./lib/dispatch-arming.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -40,10 +41,16 @@ const parameters = Type.Object({
   resultSummaryMaxBytes: Type.Optional(Type.Integer({ minimum: 512, maximum: 50000 })),
   githubDiscussion: Type.Optional(Type.Boolean()),
   discussionCategory: Type.Optional(Type.String()),
+  environment: Type.Optional(
+    Type.Object({
+      microvm: Type.Union([Type.Literal("auto"), Type.Literal("gondolin"), Type.Literal("none")]),
+    }),
+  ),
 });
 
 export default function crewExtension(pi: ExtensionAPI) {
   const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
+  installCrewDispatchArming(pi);
   registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerCommunicationTools(pi);
   registerHumanInboxTools(pi);

@@ -9,8 +9,10 @@ import { closeTerminalRosterDiscussions } from "./roster-discussion-close.mjs";
 // to "removed" regardless, so the pre-removal snapshot is the only place
 // that natural outcome is still observable. Only "removed" reflects a
 // genuinely intentional stop.
-const workerStatusForRoster = (before: any, removalStatus: string) =>
-  before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus;
+export const workerStatusForRoster = (before: any, removalStatus: string) => {
+  const typed = { complete: "completed", blocked: "removed", failed: "failed" }[before?.lifecycleStatus];
+  return typed ?? (before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus);
+};
 
 const closeDiscussionsFor = (crewLaunch: string, rosterLifecycleUpdates: any[], terminalizedRosters: string[]) =>
   closeTerminalRosterDiscussions(crewLaunch, [
@@ -30,7 +32,8 @@ export function registerCleanupTools(pi: any, runtime: any, crewLaunchDir: (cwd:
     description: "Remove every SDK worker and worktree owned by this Runtime session.",
     parameters: Type.Object({}),
     async execute() {
-      const beforeList = await runtime.list();
+      const processList = await runtime.list();
+      const beforeList = await Promise.all(processList.map((agent: any) => runtime.inspect(agent.id)));
       const result = await runtime.stop();
       const removedIds = result.removals.filter((item: any) => item.removed && item.id).map((item: any) => item.id);
       const rosterLifecycleUpdates = removedIds.flatMap((id: string) => {

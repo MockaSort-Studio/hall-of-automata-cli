@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
+import { preflightWorkerSandbox } from "./sandbox-preflight.mjs";
 
 const exec = promisify(execFile);
 const GIT_TIMEOUT = 30_000;
@@ -32,11 +33,13 @@ export class LifecycleController {
   // deleted, this is the only place its final telemetry, including session
   // context percent, is still readable from.
   #retainedMetrics = new Map();
-  constructor({ cwd, workerModule }) {
+  constructor({ cwd, workerModule, preflight = preflightWorkerSandbox }) {
     this.cwd = cwd;
     this.workerModule = workerModule;
+    this.preflight = preflight;
   }
   async spawn(config) {
+    await this.preflight(config);
     const id = config.actorId ?? randomUUID();
     if (this.#agents.has(id)) throw new Error(`SDK actor already exists: ${id}`);
     const root = join(this.cwd, ".pi", "runtime", "runs", id),
@@ -80,6 +83,8 @@ export class LifecycleController {
           initialTurn: config.initialTurn,
           crewMembers: config.crewMembers,
           crewLead: config.crewLead,
+          namespace: config.namespace,
+          sandbox: config.sandbox,
           logFile,
         }),
       );
@@ -100,7 +105,15 @@ export class LifecycleController {
         child.once("error", reject);
       });
       child.unref();
-      const agent = { id, name: config.name, pid: child.pid, worktree, status: "running", model: config.model };
+      const agent = {
+        id,
+        name: config.name,
+        pid: child.pid,
+        worktree,
+        status: "running",
+        model: config.model,
+        namespace: config.namespace,
+      };
       Object.defineProperty(agent, "child", { value: child });
       this.#agents.set(id, agent);
       child.once("exit", (code, signal) => {

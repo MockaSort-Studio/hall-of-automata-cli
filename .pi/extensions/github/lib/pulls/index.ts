@@ -1,9 +1,9 @@
 import { gh, ghJson } from "../core/gh.ts";
 import * as labels from "../labels/index.ts";
 
-export function listPullRequests(repo: string, state = "open", limit = 30) {
+export async function listPullRequests(repo: string, state = "open", limit = 30) {
   return (
-    ghJson([
+    (await ghJson([
       "pr",
       "list",
       "-R",
@@ -14,11 +14,11 @@ export function listPullRequests(repo: string, state = "open", limit = 30) {
       String(limit),
       "--json",
       "number,title,state,isDraft,author,headRefName,baseRefName,url",
-    ]) ?? []
+    ])) ?? []
   );
 }
 
-export function viewPullRequest(repo: string, number: number) {
+export async function viewPullRequest(repo: string, number: number) {
   return ghJson([
     "pr",
     "view",
@@ -57,10 +57,10 @@ export function reviewThreadComments(data: any, includeResolved = false) {
     );
 }
 
-export function listPullRequestReviewThreads(repo: string, number: number, includeResolved = false) {
+export async function listPullRequestReviewThreads(repo: string, number: number, includeResolved = false) {
   const [owner, name] = repo.split("/");
   if (!owner || !name || repo.split("/").length !== 2) throw new Error(`Invalid repository: ${repo}`);
-  const data = ghJson([
+  const data = await ghJson([
     "api",
     "graphql",
     "-f",
@@ -75,12 +75,12 @@ export function listPullRequestReviewThreads(repo: string, number: number, inclu
   return reviewThreadComments(data, includeResolved);
 }
 
-export function commentOnPullRequest(repo: string, number: number, body: string) {
-  gh(["pr", "comment", String(number), "-R", repo, "--body", body]);
+export async function commentOnPullRequest(repo: string, number: number, body: string) {
+  await gh(["pr", "comment", String(number), "-R", repo, "--body", body]);
   return { repo, pullNumber: number, commented: true };
 }
 
-export function updatePullRequest(
+export async function updatePullRequest(
   repo: string,
   number: number,
   { title, body, base, state }: { title?: string; body?: string; base?: string; state?: string },
@@ -89,21 +89,26 @@ export function updatePullRequest(
   if (title) args.push("--title", title);
   if (body) args.push("--body", body);
   if (base) args.push("--base", base);
-  gh(args);
-  if (state === "closed") gh(["pr", "close", String(number), "-R", repo]);
-  if (state === "open") gh(["pr", "reopen", String(number), "-R", repo]);
+  await gh(args);
+  if (state === "closed") await gh(["pr", "close", String(number), "-R", repo]);
+  if (state === "open") await gh(["pr", "reopen", String(number), "-R", repo]);
   return viewPullRequest(repo, number);
 }
 
-export function reviewPullRequest(repo: string, number: number, event: "approve" | "request-changes", body?: string) {
+export async function reviewPullRequest(
+  repo: string,
+  number: number,
+  event: "approve" | "request-changes",
+  body?: string,
+) {
   const args = ["pr", "review", String(number), "-R", repo, event === "approve" ? "--approve" : "--request-changes"];
   if (body) args.push("--body", body);
-  gh(args);
+  await gh(args);
   return { repo, pullNumber: number, review: event, reviewed: true };
 }
 
-export function mergePullRequest(repo: string, number: number, method = "squash") {
-  gh(["pr", "merge", String(number), "-R", repo, `--${method}`, "--delete-branch"]);
+export async function mergePullRequest(repo: string, number: number, method = "squash") {
+  await gh(["pr", "merge", String(number), "-R", repo, `--${method}`, "--delete-branch"]);
   return viewPullRequest(repo, number);
 }
 

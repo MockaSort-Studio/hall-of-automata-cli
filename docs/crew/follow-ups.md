@@ -1,6 +1,6 @@
 # Crew Operational Follow-ups
 
-Updated: 2026-09-19. This is the current backlog; the SDK runtime structure is
+Updated: 2026-09-27. This is the current backlog; the SDK runtime structure is
 canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Completed — SDK runtime migration
@@ -30,6 +30,65 @@ canonical in [runtime-structure.md](runtime-structure.md).
 - [x] Add lifecycle failure-injection and RPC protocol tests.
 - [x] Run a concurrent two-Crew cleanup probe; verify no worker, worktree, owner record,
       launcher, or RPC process remains after the idle window.
+- [ ] Harden partial Crew launch failure: bound Comm/Lifecycle startup and RPC calls; on
+      lifecycle-auth mismatch invalidate stale Runtime clients and clean partial processes;
+      terminalize the roster and remove the monitor footer on every error/cancellation.
+      Add a regression test for this exact zero-worker `launching` failure.
+- [ ] Make the GitHub Discussion adapter strictly on-demand. `start_crew` must not create
+      or attach it by default; attach a view adapter only after explicit user request and
+      only after workers have registered.
+- [ ] Add no-lead dependency release. Start independent roots, retain dependent members in
+      resumable `waiting`, and have Runtime release them by a typed lifecycle snapshot only
+      when every declared dependency is `complete`; terminal dependency failure/block must
+      escalate the dependent terminally. `dependsOn` is currently ledger/visibility data,
+      not a scheduler.
+- [ ] Expose a Main-side correlated Comm reply tool. Workers can issue `comm_request` and
+      `runtime_receive_message` returns the request ID, but `runtime_send_message` cannot
+      set `replyTo`; Main currently cannot satisfy such requests through the typed Runtime
+      tool surface.
+- [ ] Add a blocked-work retry protocol. `blocked` is terminal and cannot be resumed: export
+      the worker patch and evidence, remove the terminal worker, then dispatch a fresh actor
+      with the newly granted authority/configuration and an explicit retry link.
+- [x] Make Gondolin preflight verify the selected backend executable and guest assets, not
+      merely that the Node package imports. `sandbox-preflight.mjs` now checks the real
+      QEMU binary for the host architecture and downloads/verifies guest assets into the Pi
+      cache (`~/.pi/agent/cache`) before any worker/worktree is created; an unusable backend
+      fails before Runtime touches disk.
+- [x] Minimal Gondolin worker boundary, proven end-to-end through the real `start_crew`
+      path (not only standalone harnesses): the `environment.microvm` selector
+      (`auto`/`gondolin`/`none`) resolves per-launch and threads a concrete `sandbox` into
+      worker config only when Gondolin is usable, and a live canary confirmed the whole chain -- real QEMU
+      boot (command line captured), 3x `bash` + 1x `read` routed into the guest, `.env`/
+      `.npmrc` correctly hidden, a guest write visible to the host read, and clean VM/
+      process teardown on completion. See `docs/crew/microvm-armory-design.md` for the
+      shared-backing-disk model and measured boot/concurrency numbers.
+- [x] Fixed two platform bugs discovered while proving the above, both affecting **every**
+      ordinary (non-lead) Crew worker, not only sandboxed ones. Root cause: every resident
+      worker with `initialTurn: "first-delivery"` unconditionally sends a `new_session` RPC
+      command right after spawn (`worker.mjs`), which fires `session_shutdown` -> reload ->
+      `session_start` again in the same process, before the first `session_start`'s work has
+      settled. 1. `worker-comm-extension.mjs`'s `session_start` handler called `connectComm()` with no
+      guard, so the reload raced a second `comm.register` for the same actorId against
+      the first; the server correctly rejected one with `"Actor already connected"`,
+      which silently broke delivery for that worker's entire lifetime. Fixed by making
+      the whole connect+subscribe sequence idempotent (`commReady`) for the process's
+      lifetime, and only closing the socket on a genuine `event.reason === "quit"`
+      shutdown -- a reload-driven shutdown must never tear down the one live connection
+      this process is allowed to hold. 2. Even after fixing (1), the one-time-registered delivery listener still closed over
+      the _first_ `pi` instance. Pi's own documented contract is that a captured `pi`/ctx
+      is stale after `ctx.reload()`/`new_session` and must not be used afterward --
+      confirmed by the framework's own thrown error ("This extension ctx is stale after
+      session replacement or reload"). Fixed by hoisting the turn-tracking state
+      (`sawTurnEnd`/`lastTurnUsage`/`lastTurnToolCalls`/`staticContextReported`) and an
+      `activePi` pointer to module scope, updated at the top of every
+      `workerCommExtension(pi)` invocation, so the once-registered delivery listener
+      always calls through the current, live `pi` instead of whichever one happened to be
+      current when it was first registered.
+      Applied the same reload-survival guard to `worker-gondolin-extension.mjs`'s VM: only a
+      real `quit` shutdown closes it, so a same-process reload no longer pays the boot cost
+      twice for one worker. Regression coverage: `tests/runtime/worker-comm-extension.test.mjs`
+      reproduces both races with two distinct fake `pi` instances (not one, which would have
+      masked bug 2) and asserts the stale instance is never called.
 
 ## Issues found in the RPC Crew validation — resolved
 

@@ -26,6 +26,11 @@ const args = [
   "--extension",
   resolve(import.meta.dirname, "worker-comm-extension.mjs"),
 ];
+if (config.sandbox?.kind === "gondolin")
+  args.push(
+    "--extension",
+    resolve(config.extensionCwd, ".pi", "extensions", "runtime", "lib", "worker-gondolin-extension.mjs"),
+  );
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));
 if (config.model) args.push("--model", config.model);
 if (config.thinking) args.push("--thinking", config.thinking);
@@ -35,7 +40,17 @@ const child = spawn("pi", args, {
   env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath },
 });
 let buffer = "";
+let startupSent = false;
 const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
+const startsPrompt = !config.resident || config.delivery || config.initialTurn === "startup";
+const sendStartupPrompt = () => {
+  if (!startsPrompt || startupSent) return;
+  startupSent = true;
+  const delivery = config.delivery
+    ? `\n\nCommunication delivery: ${JSON.stringify({ from: config.delivery.from, payload: config.delivery.payload, replyRequired: Boolean(config.delivery.replyRequired) })}`
+    : "";
+  send({ id: "initial", type: "prompt", message: `${config.task}${delivery}` });
+};
 child.stdout.on("data", (chunk) => {
   buffer += String(chunk);
   let newline;
@@ -43,7 +58,12 @@ child.stdout.on("data", (chunk) => {
     const line = buffer.slice(0, newline).replace(/\r$/, "");
     buffer = buffer.slice(newline + 1);
     try {
-      const entry = mapWorkerEvent(JSON.parse(line));
+      const message = JSON.parse(line);
+      if (message.type === "response" && message.id === "worker-session") {
+        log({ type: "worker_session", success: message.success });
+        if (message.success) sendStartupPrompt();
+      }
+      const entry = mapWorkerEvent(message);
       if (entry) log(entry);
     } catch {}
   }
@@ -54,11 +74,10 @@ child.once("exit", (code, signal) => {
   log({ type: code === 0 ? "agent_end" : "agent_error", elapsedMs: Date.now() - startedAt, code, signal });
   process.exitCode = code ?? 1;
 });
-if (!config.resident || config.delivery || config.initialTurn === "startup") {
-  const delivery = config.delivery
-    ? `\n\nCommunication delivery: ${JSON.stringify({ from: config.delivery.from, payload: config.delivery.payload, replyRequired: Boolean(config.delivery.replyRequired) })}`
-    : "";
-  send({ id: "initial", type: "prompt", message: `${config.task}${delivery}` });
-}
-if (config.resident && config.initialTurn === "first-delivery") send({ type: "new_session" });
+// Pi RPC installs its stdin reader asynchronously; writing immediately after
+// spawn can lose this first command. Match the SDK client's startup guard.
+setTimeout(() => {
+  if (config.resident) send({ id: "worker-session", type: "new_session" });
+  else sendStartupPrompt();
+}, 100);
 process.once("SIGTERM", () => child.kill("SIGTERM"));

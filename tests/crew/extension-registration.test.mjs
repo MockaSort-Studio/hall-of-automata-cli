@@ -11,6 +11,11 @@ test("crew extension imports all tool registration functions", () => {
   assert.match(source, /import.*registerRosterTools.*from.*roster-tools/);
 });
 
+test("start_crew schema exposes the bounded microVM environment contract", () => {
+  assert.match(source, /environment: Type\.Optional\(\s*Type\.Object\(/);
+  for (const value of ["auto", "gondolin", "none"]) assert.match(source, new RegExp(`Type\\.Literal\\("${value}"\\)`));
+});
+
 test("crew extension wires terminal notifications through Main session flow", () => {
   assert.match(source, /attachTerminalNotifier/);
   assert.match(source, /attachTerminalNotifier\(ctx\)/);

@@ -41,6 +41,15 @@ async function setup(t, commTools, actorId = "ns-worker") {
   const comm = new CommController();
   comm.registerActor("lead");
   comm.registerActor(actorId);
+  // Mirrors what Runtime.launchCrew always does in production immediately
+  // after registering actors: without this, CommController's namespace map
+  // stays empty and every lifecycleUpdate call (the onDelivery path every
+  // real delivery goes through) throws "Cross-Crew namespace access is
+  // forbidden" -- not a scenario this suite intends to exercise here.
+  // registerPlan's members list is validated as role-persona handles
+  // ("role-name-NN"), independent of the actorId under test -- a fixed
+  // placeholder is enough to populate the namespace map.
+  comm.registerPlan("ns", [{ handle: "developer-worker-00", dependsOn: [], task: "" }]);
   const port = await comm.start();
   const extension = await loadExtension({
     comm: { url: `ws://127.0.0.1:${port}`, actorId, namespace: "ns" },
@@ -52,17 +61,16 @@ async function setup(t, commTools, actorId = "ns-worker") {
   extension(pi);
   await pi.handlers.get("session_start")();
   t.after(async () => {
-    await pi.handlers.get("session_shutdown")();
+    await pi.handlers.get("session_shutdown")({ reason: "quit" });
     await comm.stop();
   });
   return { comm, pi };
 }
 test("lifecycle_update changes only this worker's typed state", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
-  comm.registerPlan("ns", [{ handle: "developer-worker-00", dependsOn: [], task: "x" }]);
   const update = await pi.tools.get("lifecycle_update").execute("call", { state: "running" });
   assert.match(JSON.stringify(update), /updated/);
-  assert.equal(comm.stateSnapshot("ns").nodes[0].status, "running");
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "running");
 });
 
 test("comm_notify to main reaches main directly, unprefixed", async (t) => {
@@ -168,6 +176,55 @@ test("reports BLOCKED to main and still acknowledges after two consecutive degen
   assert.equal(report?.from, "ns-worker");
   assert.equal(report?.payload?.status, "BLOCKED");
   assert.equal(report?.payload?.reason, "empty-turn");
+});
+test("a same-process reload (new_session) never races a second Comm registration, and never calls a stale pi", async (t) => {
+  const comm = new CommController();
+  comm.registerActor("lead");
+  comm.registerActor("ns-worker");
+  comm.registerPlan("ns", [{ handle: "developer-worker-00", dependsOn: [], task: "" }]);
+  const port = await comm.start();
+  const extension = await loadExtension({
+    comm: { url: `ws://127.0.0.1:${port}`, actorId: "ns-worker", namespace: "ns" },
+    initialTurn: "first-delivery",
+    resident: true,
+    task: "",
+  });
+  // Reproduces worker.mjs's new_session flow verbatim, including the part a
+  // same-`pi`-object test would mask: pi's reload contract replaces `pi`
+  // with a genuinely new instance and calling the old one afterward is
+  // documented as invalid ("ctx is stale after session replacement or
+  // reload"), which is exactly what crashed the real worker process before
+  // this fix. session_start on pi1 fires, and before its connectComm() has
+  // resolved, a same-process reload fires session_shutdown on pi1 then
+  // rebinds the whole extension against a fresh pi2.
+  const pi1 = makeFakePi();
+  extension(pi1);
+  const first = pi1.handlers.get("session_start")();
+  const shutdown = pi1.handlers.get("session_shutdown")({ reason: "new" });
+  const pi2 = makeFakePi();
+  extension(pi2);
+  const second = pi2.handlers.get("session_start")();
+  await Promise.all([first, shutdown, second]);
+
+  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  await waitFor(() => pi1.deliveries.length + pi2.deliveries.length === 1);
+  assert.equal(pi1.deliveries.length, 0, "the stale pre-reload pi is never called");
+  assert.equal(pi2.deliveries.length, 1, "the delivery reaches the current, post-reload pi exactly once");
+  fireTurn(pi2, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+
+  t.after(async () => {
+    await pi2.handlers.get("session_shutdown")({ reason: "quit" });
+    await comm.stop();
+  });
+});
+test("a non-quit shutdown (reload/new) never closes the live Comm connection", async (t) => {
+  const { comm, pi } = await setup(t);
+  await pi.handlers.get("session_shutdown")({ reason: "new" });
+  comm.emit("lead", "ns-worker", { ask: "still alive" }, true);
+  await waitFor(() => pi.deliveries.length === 1);
+  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
 });
 test("agent_start records content-free static-context token counts exactly once", async () => {
   const extension = await loadExtension({ initialTurn: "resident", task: "" });

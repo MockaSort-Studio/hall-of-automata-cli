@@ -2,8 +2,9 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { discussionStateFilePath } from "../../runtime/lib/github-discussion.mjs";
 import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
+import { crewEnvironment, resolveCrewEnvironment } from "../../runtime/lib/crew-environment.mjs";
 import { assemble } from "./assembly.mjs";
-
+import { kickoffPayload } from "./kickoff-payload.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -16,13 +17,13 @@ const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padSt
 const runtimeIdentity = (name) => `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.`;
 const workerTask = (actor, runId, topic) =>
   `${actor.instructions}\n\n${runtimeIdentity(actor.handle)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
-
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched on the SDK runtime.`;
 }
 export async function prepareCrew(pi, input, ctx, configDir) {
   if (input.completionMode === "human-gated")
     throw new Error("SDK Crew does not yet support scheduled human-gated mode");
+  const environment = crewEnvironment(input.environment);
   const runId = crypto.randomUUID();
   const namespace = `crew-${runId}`;
   const topic = `crew.${runId}`;
@@ -69,6 +70,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const selected = {
     runId,
     topic,
+    environment,
     members: actors.map((actor, index) => ({
       name: actor.name,
       role: actor.role,
@@ -87,13 +89,14 @@ export async function prepareCrew(pi, input, ctx, configDir) {
         : {}),
     })),
   };
-  const kickoff = undefined;
+  const kickoff = kickoffPayload(runId, topic, selected.members);
+  agents.forEach((agent) => (agent.delivery = { from: "main", payload: kickoff, replyRequired: false }));
   try {
     writeFileSync(join(ctx.cwd, paths.selected), JSON.stringify(selected, null, 2));
     writeFileSync(
       join(ctx.cwd, paths.roster),
       JSON.stringify(
-        { runId, topic, runtime: "sdk", status: "queued", members: [], selectedCrew: paths.selected },
+        { runId, topic, runtime: "sdk", status: "queued", environment, members: [], selectedCrew: paths.selected },
         null,
         2,
       ),
@@ -104,6 +107,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
         {
           runId,
           topic,
+          environment,
           rosterFile: paths.roster,
           agents,
           // Static plan shape (handle/dependsOn/task), threaded through to
@@ -139,15 +143,25 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   }
   return { runId, topic, rosterFile: paths.roster, configFile: paths.config, selectedCrewFile: paths.selected, agents };
 }
-export async function launchPreparedCrew(cwd, prepared) {
-  const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
+  const configPath = join(cwd, prepared.configFile);
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
   const rosterPath = join(cwd, prepared.rosterFile);
   let roster = JSON.parse(readFileSync(rosterPath, "utf8"));
   if (roster.status !== "queued") return { runId: roster.runId, topic: roster.topic, status: roster.status };
   roster.status = "launching";
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
-    const runtime = runtimeFor(cwd);
+    const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
+    config.environmentResolution = resolution;
+    config.agents = config.agents.map((agent) => ({
+      ...agent,
+      ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
+    }));
+    roster.environmentResolution = resolution;
+    writeFileSync(configPath, JSON.stringify(config, null, 2));
+    writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
+    const runtime = (dependencies.runtimeFor ?? runtimeFor)(cwd);
     const namespace = config.agents[0]?.namespace;
     const launched = await runtime.launchCrew(config.agents, config.adapters, {
       namespace,

@@ -4,9 +4,37 @@ import { connectComm } from "./comm-client.mjs";
 import { staticContextTokens } from "../../crew/lib/observability-ledger.mjs";
 import { isDegenerateTurn } from "./degenerate-turn.mjs";
 import { RESOLVED_MODEL_MARKER, STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
-
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
 let comm;
+// A resident worker's own startup sends a `new_session` RPC command right
+// after spawn (see worker.mjs), which fires session_shutdown -> reload ->
+// session_start again in this same process, before this handler's first
+// connectComm() call has even resolved. Without this guard, the second
+// session_start would race a second `comm.register` for the same actorId
+// against the first, and the server correctly rejects one of them with
+// "Actor already connected". commReady makes the whole connect+subscribe
+// sequence idempotent for the lifetime of this process, no matter how many
+// times session_start fires.
+let commReady;
+// A resident worker's own new_session call also replaces `pi`/ctx with a
+// fresh instance on every reload (pi's documented contract: a captured pi
+// from before ctx.reload()/new_session is stale and must not be used
+// afterward). The onDelivery listener below is registered exactly once, so
+// it must always call through this module-level pointer -- updated at the
+// top of every workerCommExtension(pi) invocation -- rather than close over
+// whichever `pi` happened to be current the one time it was registered.
+let activePi;
+// Shared across every reload for the same reason: turn_end fires against
+// whichever `pi` is currently active, but the once-registered onDelivery
+// listener below is the only reader, so both sides must agree on one
+// instance of this state instead of each reload getting its own.
+let staticContextReported = false;
+// sawTurnEnd distinguishes "a turn_end fired and it was empty" (degenerate,
+// worth retrying) from "no turn_end fired at all before settling" (a
+// legitimate completion path, e.g. reply-driven -- must NOT be treated as
+// degenerate, or every such delivery would trigger a retry that awaits a
+// settle event that may never come again).
+let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
 let replyContext;
 let firstDelivery = true;
 let deliveries = Promise.resolve();
@@ -20,27 +48,13 @@ const qualify = (id) =>
     : id;
 const result = async (operation) => ({ content: [{ type: "text", text: JSON.stringify(await operation) }] });
 const deliveryPrompt = (message) => {
-  const delivery = `Communication delivery: ${JSON.stringify({
-    from: message.from,
-    payload: message.payload,
-    replyRequired: Boolean(message.replyRequired),
-  })}`;
+  const delivery = `Communication delivery: ${JSON.stringify({ from: message.from, payload: message.payload, replyRequired: Boolean(message.replyRequired) })}`;
   return firstDelivery && config.initialTurn === "first-delivery" ? `${config.task}\n\n${delivery}` : delivery;
 };
-const requireComm = () => {
-  if (!comm) throw new Error("Crew communication is not ready");
-  return comm;
-};
+const requireComm = () => comm ?? (() => { throw new Error("Crew communication is not ready"); })();
 const granted = new Set(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"]);
-
 export default function workerCommExtension(pi) {
-  let staticContextReported = false;
-  // sawTurnEnd distinguishes "a turn_end fired and it was empty" (degenerate,
-  // worth retrying) from "no turn_end fired at all before settling" (a
-  // legitimate completion path, e.g. reply-driven -- must NOT be treated as
-  // degenerate, or every such delivery would trigger a retry that awaits a
-  // settle event that may never come again).
-  let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
+  activePi = pi;
   pi.on("turn_end", (event) => {
     sawTurnEnd = true;
     lastTurnUsage = event.message?.usage;
@@ -66,6 +80,56 @@ export default function workerCommExtension(pi) {
     if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");
   });
   if (!config.comm) return;
+  const ensureCommConnected = () => {
+    commReady ??= (async () => {
+      comm = await connectComm(config.comm);
+      // worker.mjs owns a configured first delivery through its RPC prompt;
+      // establish its typed lifecycle before that task can terminalize.
+      if (config.delivery) await comm.lifecycleUpdate(config.comm.namespace, "running");
+      comm.onDelivery((message) => {
+        // The initial kickoff is already delivered by worker.mjs as the
+        // first RPC prompt. Keep its canonical Comm envelope observable and
+        // acknowledge it without creating a duplicate first turn.
+        if (config.delivery?.payload?.kind === "kickoff" && message.payload?.kind === "kickoff") {
+          comm.acknowledge(message.id);
+          firstDelivery = false;
+          return;
+        }
+        deliveries = deliveries.then(async () => {
+          replyContext = message;
+          await comm.lifecycleUpdate(config.comm.namespace, "running");
+          const prompt = deliveryPrompt(message);
+          let settled = nextSettled();
+          sawTurnEnd = false;
+          await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
+          await settled;
+          if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+            settled = nextSettled();
+            sawTurnEnd = false;
+            await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
+            await settled;
+            if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+              try {
+                await comm.emit({
+                  to: "main",
+                  payload: {
+                    kind: "report",
+                    status: "BLOCKED",
+                    reason: "empty-turn",
+                    detail: "Two consecutive empty provider turns (no tokens, no tool call) for this delivery.",
+                  },
+                });
+              } catch {}
+            }
+          }
+          await comm.acknowledge(message.id);
+          replyContext = undefined;
+          firstDelivery = false;
+        });
+      });
+    })();
+    return commReady;
+  };
   pi.registerTool({
     name: "lifecycle_update",
     label: "Lifecycle: update current work state",
@@ -120,46 +184,16 @@ export default function workerCommExtension(pi) {
           requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload, includeMain: true }),
         ),
     });
-  pi.on("agent_settled", () => {
-    settledWaiters.splice(0).forEach((resolve) => resolve());
-  });
-  pi.on("session_start", async () => {
-    comm = await connectComm(config.comm);
-    comm.onDelivery((message) => {
-      deliveries = deliveries.then(async () => {
-        replyContext = message;
-        await comm.lifecycleUpdate(config.comm.namespace, "running");
-        const prompt = deliveryPrompt(message);
-        let settled = nextSettled();
-        sawTurnEnd = false;
-        await pi.sendUserMessage(prompt, { deliverAs: "followUp" });
-        await settled;
-        if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
-          settled = nextSettled();
-          sawTurnEnd = false;
-          await pi.sendUserMessage(prompt, { deliverAs: "followUp" });
-          await settled;
-          if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
-            try {
-              await comm.emit({
-                to: "main",
-                payload: {
-                  kind: "report",
-                  status: "BLOCKED",
-                  reason: "empty-turn",
-                  detail: "Two consecutive empty provider turns (no tokens, no tool call) for this delivery.",
-                },
-              });
-            } catch {}
-          }
-        }
-        await comm.acknowledge(message.id);
-        replyContext = undefined;
-        firstDelivery = false;
-      });
-    });
-  });
-  pi.on("session_shutdown", async () => {
+  pi.on("agent_settled", () => settledWaiters.splice(0).forEach((resolve) => resolve()));
+  pi.on("session_start", () => ensureCommConnected());
+  // Only a real process-ending shutdown ever closes the Comm socket. A
+  // same-process reload ("new" or "reload", from the new_session call above)
+  // must leave the live connection and its onDelivery subscription intact --
+  // closing here would both orphan the one live registration this process is
+  // allowed to hold, and would fail every delivery for the rest of this
+  // worker's life.
+  pi.on("session_shutdown", async (event) => {
+    if (event.reason !== "quit") return;
     await deliveries;
     comm?.close();
   });

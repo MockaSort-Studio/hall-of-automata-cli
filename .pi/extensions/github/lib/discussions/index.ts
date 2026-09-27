@@ -1,6 +1,6 @@
 import { gh, ghJson } from "../core/gh.ts";
 
-function repositoryId(owner, repo) {
+async function repositoryId(owner, repo) {
   const query = "query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){id}}";
   return gh([
     "api",
@@ -16,10 +16,10 @@ function repositoryId(owner, repo) {
   ]);
 }
 
-function categoryId(owner, repo, categoryName) {
+async function categoryId(owner, repo, categoryName) {
   const query =
     "query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){discussionCategories(first:20){nodes{id name}}}}";
-  const categories = ghJson([
+  const categories = await ghJson([
     "api",
     "graphql",
     "-f",
@@ -36,7 +36,7 @@ function categoryId(owner, repo, categoryName) {
   return match.id;
 }
 
-function discussionNodeId(owner, repo, number) {
+async function discussionNodeId(owner, repo, number) {
   const query =
     "query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){id}}}";
   return gh([
@@ -55,7 +55,7 @@ function discussionNodeId(owner, repo, number) {
   ]);
 }
 
-export function viewDiscussion(owner, repo, number) {
+export async function viewDiscussion(owner, repo, number) {
   const query =
     "query($owner:String!,$repo:String!,$num:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){id number title body url closed closedAt}}}";
   return ghJson([
@@ -74,7 +74,7 @@ export function viewDiscussion(owner, repo, number) {
   ]);
 }
 
-export function listDiscussions(owner, repo, limit = 100) {
+export async function listDiscussions(owner, repo, limit = 100) {
   const query =
     "query($owner:String!,$repo:String!,$limit:Int!){repository(owner:$owner,name:$repo){discussions(first:$limit){nodes{id number title url}}}}";
   return ghJson([
@@ -93,11 +93,11 @@ export function listDiscussions(owner, repo, limit = 100) {
   ]);
 }
 
-export function createDiscussion(owner, repo, title, body, categoryName) {
-  const repoId = repositoryId(owner, repo);
-  const catId = categoryId(owner, repo, categoryName);
+export async function createDiscussion(owner, repo, title, body, categoryName) {
+  const repoId = await repositoryId(owner, repo);
+  const catId = await categoryId(owner, repo, categoryName);
   const mutation = `mutation($repoId:ID!,$catId:ID!,$title:String!,$body:String!){createDiscussion(input:{repositoryId:$repoId,categoryId:$catId,title:$title,body:$body}){discussion{id number url}}}`;
-  const result = gh([
+  const result = await gh([
     "api",
     "graphql",
     "-f",
@@ -116,12 +116,12 @@ export function createDiscussion(owner, repo, title, body, categoryName) {
   return JSON.parse(result);
 }
 
-export function commentOnDiscussion(owner, repo, number, body) {
-  const discussionId = discussionNodeId(owner, repo, number);
+export async function commentOnDiscussion(owner, repo, number, body) {
+  const discussionId = await discussionNodeId(owner, repo, number);
   const mutation =
     "mutation($id:ID!,$body:String!){addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}}";
   return JSON.parse(
-    gh([
+    await gh([
       "api",
       "graphql",
       "-f",
@@ -149,11 +149,11 @@ export function flattenDiscussionComments(comments) {
   ]);
 }
 
-export function listComments(owner, repo, number, limit = 20) {
+export async function listComments(owner, repo, number, limit = 20) {
   const query =
     "query($owner:String!,$repo:String!,$num:Int!,$limit:Int!){repository(owner:$owner,name:$repo){discussion(number:$num){comments(first:$limit){nodes{id url body author{login} replies(first:100){nodes{id url body author{login}}}}}}}}";
   const comments = JSON.parse(
-    gh([
+    await gh([
       "api",
       "graphql",
       "-f",
@@ -173,11 +173,11 @@ export function listComments(owner, repo, number, limit = 20) {
   return flattenDiscussionComments(comments);
 }
 
-export function deleteDiscussion(owner, repo, number) {
-  const discussionId = discussionNodeId(owner, repo, number);
+export async function deleteDiscussion(owner, repo, number) {
+  const discussionId = await discussionNodeId(owner, repo, number);
   const mutation = "mutation($id:ID!){deleteDiscussion(input:{id:$id}){discussion{id}}}";
   return JSON.parse(
-    gh([
+    await gh([
       "api",
       "graphql",
       "-f",
@@ -190,12 +190,12 @@ export function deleteDiscussion(owner, repo, number) {
   );
 }
 
-export function updateDiscussion(owner, repo, number, title, body) {
-  const discussionId = discussionNodeId(owner, repo, number);
+export async function updateDiscussion(owner, repo, number, title, body) {
+  const discussionId = await discussionNodeId(owner, repo, number);
   const mutation =
     "mutation($id:ID!,$title:String!,$body:String!){updateDiscussion(input:{id:$id,title:$title,body:$body}){discussion{id number url}}}";
   return JSON.parse(
-    gh([
+    await gh([
       "api",
       "graphql",
       "-f",

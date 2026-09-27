@@ -67,9 +67,9 @@ export function reviewSubmissionInput(input: { event: string; body?: string; has
   return { event: input.event === "approve" ? "APPROVE" : "REQUEST_CHANGES", body: input.body ?? "" };
 }
 
-function reviewIdentity(repo: string, number: number) {
+async function reviewIdentity(repo: string, number: number) {
   const { owner, name } = repoParts(repo);
-  const data = ghJson([
+  const data = await ghJson([
     "api",
     "graphql",
     "-f",
@@ -86,19 +86,19 @@ function reviewIdentity(repo: string, number: number) {
   return pullRequest;
 }
 
-export function listPullRequestFiles(repo: string, number: number) {
+export async function listPullRequestFiles(repo: string, number: number) {
   repoParts(repo);
-  return ghJson(["api", `repos/${repo}/pulls/${number}/files`]) ?? [];
+  return (await ghJson(["api", `repos/${repo}/pulls/${number}/files`])) ?? [];
 }
 
-export function listPullRequestChecks(repo: string, number: number) {
-  return viewPullRequest(repo, number)?.statusCheckRollup ?? [];
+export async function listPullRequestChecks(repo: string, number: number) {
+  return (await viewPullRequest(repo, number))?.statusCheckRollup ?? [];
 }
 
-export function startPullRequestReview(repo: string, number: number, body = "") {
-  const pullRequest = reviewIdentity(repo, number);
-  assertNotSelfReview(pullRequest.author?.login, ghJson(["api", "user"])?.login);
-  const data = ghJson([
+export async function startPullRequestReview(repo: string, number: number, body = "") {
+  const pullRequest = await reviewIdentity(repo, number);
+  assertNotSelfReview(pullRequest.author?.login, (await ghJson(["api", "user"]))?.login);
+  const data = await ghJson([
     "api",
     "graphql",
     "-f",
@@ -111,16 +111,16 @@ export function startPullRequestReview(repo: string, number: number, body = "") 
   return { repo, pullNumber: number, reviewId: data?.data?.addPullRequestReview?.pullRequestReview?.id };
 }
 
-export function addInlinePullRequestReviewComment(
+export async function addInlinePullRequestReviewComment(
   repo: string,
   number: number,
   reviewId: string,
   input: Parameters<typeof inlineReviewInput>[0],
 ) {
   const comment = inlineReviewInput(input);
-  if (!changedPullRequestLine(listPullRequestFiles(repo, number), comment.path, comment.line, comment.side))
+  if (!changedPullRequestLine(await listPullRequestFiles(repo, number), comment.path, comment.line, comment.side))
     throw new Error("Inline review comment line is not part of the pull-request diff.");
-  const data = ghJson([
+  const data = await ghJson([
     "api",
     "graphql",
     "-f",
@@ -139,9 +139,9 @@ export function addInlinePullRequestReviewComment(
   return { reviewId, ...comment, threadId: data?.data?.addPullRequestReviewThread?.thread?.id };
 }
 
-export function submitPullRequestReview(reviewId: string, input: Parameters<typeof reviewSubmissionInput>[0]) {
+export async function submitPullRequestReview(reviewId: string, input: Parameters<typeof reviewSubmissionInput>[0]) {
   const review = reviewSubmissionInput(input);
-  const data = ghJson([
+  const data = await ghJson([
     "api",
     "graphql",
     "-f",

@@ -182,11 +182,13 @@ export class Runtime {
     extensionPaths = [],
     bundles = [],
     comm,
+    delivery,
     resident = false,
     initialTurn = "startup",
     namespace,
     crewMembers,
     crewLead,
+    sandbox,
   }) {
     await this.#ensureLifecycle();
     const bundle = resolveBundles(this.cwd, bundles);
@@ -210,10 +212,13 @@ export class Runtime {
         (this.#commUrl && id
           ? { url: this.#commUrl, actorId: id, namespace, authToken: this.#commAuthToken }
           : undefined),
+      delivery,
+      namespace,
       resident,
       initialTurn,
       crewMembers,
       crewLead,
+      sandbox,
     });
   }
 
@@ -224,7 +229,12 @@ export class Runtime {
 
   async inspect(id) {
     await this.#ensureLifecycle();
-    return this.#lifecycle.inspect(id);
+    const agent = await this.#lifecycle.inspect(id);
+    if (!agent?.found || !agent.namespace || !this.#comm) return agent;
+    const snapshot = await this.#comm.getStateSnapshot(agent.namespace).catch(() => undefined);
+    const lifecycleStatus = snapshot?.nodes?.find((node) => node.handle === agent.name)?.status;
+    if (!lifecycleStatus) return agent;
+    return { ...agent, processStatus: agent.status, lifecycleStatus, status: lifecycleStatus };
   }
 
   async remove(id) {

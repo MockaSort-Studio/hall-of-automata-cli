@@ -33,8 +33,9 @@ test("removing a live worker terminalizes its state as 'removed', not 'failed'",
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
-    const agent = await controller.spawn({ actorId: "live", name: "live", task: "SLEEP" });
+    const agent = await controller.spawn({ actorId: "live", name: "live", task: "SLEEP", namespace: "crew-smoke" });
     assert.equal(agent.status, "running");
+    assert.equal(agent.namespace, "crew-smoke");
     const result = await controller.remove(agent.id);
     assert.deepEqual(result, { id: "live", removed: true, status: "removed" });
     assert.deepEqual(await controller.list(), []);

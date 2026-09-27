@@ -37,7 +37,25 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
       config.agents.map((agent) => agent.name),
       ["lead-old-major-00", "developer-snowball-00"],
     );
-    assert.equal(config.kickoff, undefined);
+    assert.deepEqual(config.kickoff, {
+      kind: "kickoff",
+      body: "Crew kickoff: begin your bounded assignment now. Use SDK Comm for coordination and report terminal work state to Main/Lifecycle.",
+      assignments: [
+        { to: "lead-old-major-00", task: "", dependsOn: [] },
+        { to: "developer-snowball-00", task: "", dependsOn: [] },
+      ],
+      runId: prepared.runId,
+      topic: prepared.topic,
+    });
+    // Sandbox is not decided here: prepareCrew only records the requested
+    // environment (default "auto"); launchPreparedCrew resolves it later and
+    // threads a concrete `sandbox` into each agent only if Gondolin is
+    // actually usable (see tests/crew/environment-startup.test.mjs).
+    assert.deepEqual(config.environment, { microvm: "auto" });
+    assert.deepEqual(
+      config.agents.map((agent) => agent.sandbox),
+      [undefined, undefined],
+    );
     assert.equal(selected.members[0].handle, "lead-old-major-00");
     assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
@@ -174,7 +192,7 @@ test("prepareCrew assembles a bounded snapshot prompt with the full ordinal-suff
     rmSync(cwd, { recursive: true, force: true });
   }
 });
-test("prepareCrew leaves task delivery to a later Comm message", async () => {
+test("prepareCrew gives the worker parent the canonical first-turn kickoff", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
     const prepared = await prepareCrew(
@@ -184,8 +202,14 @@ test("prepareCrew leaves task delivery to a later Comm message", async () => {
       ".pi",
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.equal(config.kickoff, undefined);
+    assert.equal(config.kickoff.kind, "kickoff");
+    assert.deepEqual(config.kickoff.assignments, [{ to: "developer-snowball-00", task: "", dependsOn: [] }]);
     assert.equal(config.agents[0].initialTurn, "first-delivery");
+    assert.deepEqual(config.agents[0].delivery, {
+      from: "main",
+      payload: config.kickoff,
+      replyRequired: false,
+    });
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
