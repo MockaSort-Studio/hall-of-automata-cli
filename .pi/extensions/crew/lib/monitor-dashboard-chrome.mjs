@@ -16,7 +16,7 @@
 // border/background rendering -- there is no way around that in this repo's
 // dependency layout, so it is not covered by node --test.
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
-import { Box } from "@earendil-works/pi-tui";
+import { Box, matchesKey } from "@earendil-works/pi-tui";
 
 // Box only supports padding + background (see its own render()); it has no
 // border option. DynamicBorder is the documented fallback for a top/bottom
@@ -42,7 +42,9 @@ export function wrapDashboardChrome(theme, content) {
 
   return {
     render: (width) => [...top.render(width), ...box.render(width), ...bottom.render(width)],
-    handleInput: (data) => content.handleInput?.(data),
+    // Linux terminals can encode Escape differently from macOS. Normalize via
+    // pi-tui's parser before the pure component sees the key name.
+    handleInput: (data) => content.handleInput?.(matchesKey(data, "escape") ? "escape" : data),
     invalidate() {
       top.invalidate();
       bottom.invalidate();

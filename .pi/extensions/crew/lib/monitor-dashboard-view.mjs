@@ -126,7 +126,7 @@ export function createCrewDashboardComponent({ getData, onClose }) {
         this.switchTab();
         return;
       }
-      if (data === "\x1b" || data === "q") onClose?.();
+      if (data === "\x1b" || data === "escape" || data === "q") onClose?.();
     },
     invalidate() {},
   };

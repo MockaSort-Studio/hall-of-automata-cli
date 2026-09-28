@@ -1,71 +1,61 @@
-# Armory suite inventory (initial)
+# Armory suite inventory
 
-Evidence-based inventory of Hall CLI/Pi Armory-relevant tooling as of Wave 1.
-Aligned with `armory-env-lifecycle.md` and `microvm-armory-design.md`.
+Evidence-based inventory of Armory-related tooling in the staging repository.
 
-## Terminology
-
-- **Base tool**: baked into every guest image and fixed spawn profile; never fetched at spawn.
-- **Locker**: a lightweight index of suite manifests for one work domain.
-- **Suite**: one self-contained capability manifest under a locker.
-- **Operation**: one schema-bound capability granted or withheld per role.
+## Catalog shape
 
 ```text
-catalog index -> locker (work domain) -> suite (capability) -> operations
-collaboration -> github              -> issue, pull request, discussion ops
+catalog -> locker -> packaged Pi extension suite -> tool registrations
+armory/manifest.json
+  collaboration/github/manifest.json
 ```
+
+The outer catalog indexes package manifests only. Each packaged extension owns
+one suite manifest; tools are selected from that manifest, not independently
+resolved artifacts.
 
 ## Base guest tools
 
-- Shell and filesystem primitives are routed through each worker's own Gondolin guest
-  (`worker-gondolin-extension.mjs`, `gondolin-worker-*.mjs`). They are Env-owned,
-  not Armory-owned.
-- `gh` is currently checksum-verified and cached through `armory-gh.mjs`, but the
-  accepted design classifies it as a **base tool** to bake into the guest image.
-  Wave 1B generalizes the underlying cache/verify/materialize mechanics; it does
-  not change that classification.
+Shell and filesystem primitives are Env-owned and routed through each worker's
+own Gondolin guest. `gh` is a future base guest tool, not a bespoke Armory
+payload or guest-routing exception.
 
-## `collaboration/github`: first suite
+## `collaboration/github` (`pi-github-tools`)
 
-`collaboration/github` is the first and only implemented suite. It is currently a
-normal statically loaded Pi extension (`.pi/extensions/github/index.ts`), exposing
-GitHub operations across core/repo, issues, pull requests, discussions, projects,
-and labels.
+The staged GitHub suite is represented at:
 
-It has dual execution delivery, resolved per call in `lib/core/gh.ts`:
+```text
+armory/collaboration/github/
+  package.json
+  manifest.json
+```
 
-1. **Guest-routed**: when the current worker has a Gondolin VM, `gh` runs through
-   `execGhInGuest()` against the verified guest binary.
-2. **Host-routed fallback**: Main or a process without an active guest uses the
-   same operation implementation with host `gh`.
+Its manifest records the `gh` system probe, version, verified cache fallback,
+and the exact registered-tool allowlist. The normal extension source owns Pi
+model-facing descriptions and schemas; Armory must not affect normal extension
+installation.
 
-Both paths preserve the same `GithubError` behavior, as covered by
-`tests/github-armory-routing.test.mjs`. Operation schemas and Pi registrations are
-therefore shared regardless of execution environment. Pull-review self-review
-protection remains independent of that routing.
+During approved Crew sandbox construction only, the future loader will resolve
+that suite's native requirement into the Env/snapshot and load the same package
+with the profile's selected operations. Catalog loading, Env materialization,
+snapshot sidecar restoration, and package extraction are not implemented yet.
 
-## Proven versus designed-only
+## Status
 
-| Concept | Status |
-| --- | --- |
-| Shell/filesystem base tools | Implemented and Env-owned. |
-| `gh` as a base guest tool | Accepted design; current code is still Armory-shaped. |
-| `collaboration/github` | Static Pi extension with guest/host dual delivery. |
-| Catalog/locker loader | Designed only; no generic manifest loader exists. |
-| Sealed snapshots and sidecar restore | Designed only; Wave 1C scope. |
-
-## Deferred suites
-
-No second suite is implemented. `terraform` and `bazel` are illustrative future
-candidates only; this inventory deliberately does not claim manifests, operations,
-or policy for unimplemented suites.
+| Concept                                       | Status                               |
+| --------------------------------------------- | ------------------------------------ |
+| Gondolin worker isolation                     | Implemented.                         |
+| Generic cache/checksum primitives             | Implemented.                         |
+| GitHub suite/package manifest staging layout  | Implemented.                         |
+| Normal GitHub extension installation          | Unchanged and independent of Armory. |
+| Sandbox profile-driven Armory loader          | Not implemented.                     |
+| Sealed suite snapshot and sidecar restoration | Not implemented.                     |
+| External `hall-armory` package repository     | Not created.                         |
 
 ## Sources
 
+- `armory/manifest.json`
+- `armory/collaboration/github/manifest.json`
+- `armory/collaboration/github/src/index.ts`
 - `docs/crew/armory-env-lifecycle.md`
 - `docs/crew/microvm-armory-design.md`
-- `.pi/extensions/github/index.ts`
-- `.pi/extensions/github/lib/core/gh.ts`
-- `.pi/extensions/runtime/lib/armory-gh.mjs`
-- `tests/github-armory-routing.test.mjs`
-- `tests/runtime/armory-gh-resolver.test.mjs`

@@ -110,6 +110,21 @@ test("openDashboard sets minWidth to the Automata table's computed minimum conte
   assert.equal(result.options.overlayOptions.minWidth, 120);
 });
 
+test("openDashboard closes when the component receives Pi's named Escape key", () => {
+  const sessionCtx = fakeSessionCtx();
+  let closed = false;
+  openDashboard(
+    sessionCtx,
+    () => ({ automataRows: [], planRows: [] }),
+    (_theme, content) => content,
+  );
+  const built = sessionCtx.getFactory()(undefined, { fg: (_n, s) => s, bg: (_n, s) => s }, undefined, () => {
+    closed = true;
+  });
+  built.handleInput("escape");
+  assert.equal(closed, true);
+});
+
 test("openDashboard falls back to the unframed content component when no chrome is injected", () => {
   const sessionCtx = fakeSessionCtx();
   openDashboard(sessionCtx, () => ({ automataRows: [], planRows: [] }));

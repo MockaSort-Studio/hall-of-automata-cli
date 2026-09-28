@@ -8,7 +8,7 @@ Pi discovers project-local extensions:
 
 - `.pi/extensions/crew/index.ts` — Crew orchestration.
 - `.pi/extensions/runtime/index.ts` — SDK Lifecycle and Comm runtime.
-- `.pi/extensions/github/index.ts` — bounded GitHub tools.
+- `armory/collaboration/github/src/index.ts` — bounded GitHub tools.
 - `.pi/extensions/web/index.ts` — bounded web fetch.
 
 `tests/pi/test-extension-load.sh` is the relocation smoke test.

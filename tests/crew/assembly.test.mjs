@@ -6,7 +6,7 @@ test("assembly embeds bounded work without adapter tools", () => {
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);
   assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_") || tool.startsWith("github_")));
 });
-test("reviewer carries the native GitHub extension only when its tools are available", () => {
+test("reviewer uses only GitHub tools supplied by the runtime", () => {
   const tools = [
     "read",
     "grep",
@@ -23,7 +23,7 @@ test("reviewer carries the native GitHub extension only when its tools are avail
     "github_pull_request_comment",
   ];
   const actor = assemble("snowball", "reviewer", "Review PR 1.", { runtimeTools: tools });
-  assert.deepEqual(actor.extensionPaths, [".pi/extensions/github/index.ts"]);
+  assert.deepEqual(actor.extensionPaths, []);
 });
 
 test("assembly does not claim unverified Armory tools", () => {

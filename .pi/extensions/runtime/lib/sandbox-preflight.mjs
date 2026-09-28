@@ -21,6 +21,12 @@ function verifyQemu(binary) {
   throw new Error(`Gondolin sandbox requires ${binary}; install QEMU first (macOS: brew install qemu).`);
 }
 
+function verifyQemuImage(binary = "qemu-img") {
+  const result = spawnSync(binary, ["--version"], { stdio: "ignore" });
+  if (!result.error && result.status === 0) return;
+  throw new Error(`Gondolin sandbox requires ${binary}; install QEMU first (macOS: brew install qemu).`);
+}
+
 export async function preflightWorkerSandbox(config, dependencies = {}) {
   if (!config.sandbox) return;
   if (config.sandbox.kind !== "gondolin") throw new Error(`Unsupported worker sandbox: ${config.sandbox.kind}`);
@@ -28,6 +34,7 @@ export async function preflightWorkerSandbox(config, dependencies = {}) {
   environment.XDG_CACHE_HOME ??= gondolinCacheHome(environment);
   const binary = requiredQemuBinary();
   (dependencies.verifyQemu ?? verifyQemu)(binary);
+  (dependencies.verifyQemuImage ?? verifyQemuImage)();
   try {
     const gondolin = dependencies.gondolin ?? (await import(gondolinPackage));
     await gondolin.ensureGuestAssets();

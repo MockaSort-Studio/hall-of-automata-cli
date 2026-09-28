@@ -6,7 +6,6 @@ import { registerCrewMonitor } from "./lib/monitor.ts";
 import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
-import { registerHumanInboxTools } from "./lib/human-inbox-tools.ts";
 import { registerRosterTools } from "./lib/roster-tools.ts";
 import { runtimeFor } from "../runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
@@ -53,7 +52,6 @@ export default function crewExtension(pi: ExtensionAPI) {
   installCrewDispatchArming(pi);
   registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerCommunicationTools(pi);
-  registerHumanInboxTools(pi);
   registerRosterTools(pi);
   const monitor = registerCrewMonitor(pi);
 

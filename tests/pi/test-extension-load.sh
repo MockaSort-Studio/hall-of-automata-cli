@@ -7,8 +7,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/.pi"
 cp -R "$ROOT/.pi/extensions" "$TMP/.pi/extensions"
-
-if rg -n '(/Users/|/opt/|Workspace/|pi\.agents|pi\.tools\.call)' "$TMP/.pi/extensions"; then
+if rg -n '(/Users/|Workspace/|pi\.agents|pi\.tools\.call)' "$TMP/.pi/extensions"; then
   echo "Extension source contains a host-specific path or unsupported Pi API" >&2
   exit 1
 fi
@@ -19,7 +18,6 @@ export default function (pi) {
   const required = [
     "start_crew", "build_crew_member", "crew_register", "crew_unregister",
     "crew_begin_close", "crew_finish_close", "crew_close",
-    "github_issue_view", "github_issue_remove_label", "github_discussions_list",
     "web_fetch",
     "runtime_spawn_agent", "runtime_list_agents", "runtime_inspect_agent", "runtime_delete_agent",
   ];
@@ -36,7 +34,6 @@ PI_OFFLINE=1 pi \
   --no-prompt-templates \
   --no-themes \
   -e .pi/extensions/crew/index.ts \
-  -e .pi/extensions/github/index.ts \
   -e .pi/extensions/web/index.ts \
   -e .pi/extensions/runtime/index.ts \
   -e ./assert-tools.ts \

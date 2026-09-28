@@ -24,11 +24,12 @@ test("preflight verifies QEMU then downloads verified guest assets into the chos
     {
       environment,
       verifyQemu: (binary) => calls.push(binary),
+      verifyQemuImage: () => calls.push("qemu-img"),
       gondolin: { ensureGuestAssets: async () => calls.push("assets") },
     },
   );
   assert.match(environment.XDG_CACHE_HOME, /\.pi\/agent\/cache$/);
-  assert.deepEqual(calls, [requiredQemuBinary(), "assets"]);
+  assert.deepEqual(calls, [requiredQemuBinary(), "qemu-img", "assets"]);
 });
 
 test("preflight does not download assets if QEMU is unavailable", async () => {
@@ -39,6 +40,7 @@ test("preflight does not download assets if QEMU is unavailable", async () => {
         verifyQemu: () => {
           throw new Error("QEMU absent");
         },
+        verifyQemuImage: () => assert.fail("should not verify image tool"),
         gondolin: { ensureGuestAssets: async () => assert.fail("should not download") },
       },
     ),

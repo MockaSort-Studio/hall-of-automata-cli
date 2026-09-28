@@ -110,6 +110,12 @@ test("the Crew dashboard is given real border/background chrome, not unframed te
   // test (`cc --plugin-dir . --debug`, then `/crew-dashboard`).
   assert.match(source, /import \{ wrapDashboardChrome \} from "\.\/monitor-dashboard-chrome\.mjs"/);
   assert.match(source, /\},\s*wrapDashboardChrome,/);
+  const chrome = readFileSync(
+    new URL("../../.pi/extensions/crew/lib/monitor-dashboard-chrome.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(chrome, /import \{ Box, matchesKey \} from "@earendil-works\/pi-tui"/);
+  assert.match(chrome, /matchesKey\(data, "escape"\) \? "escape" : data/);
 });
 
 test("the Plan tab reads a live ledger connected directly to the run's own Comm URL, not a same-process Runtime", () => {

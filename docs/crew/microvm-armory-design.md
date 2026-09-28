@@ -178,21 +178,23 @@ snapshot; do not pre-load every suite into the base guest.
    found and fixed along the way (a Comm-registration race and a stale-`pi`-
    after-reload crash) are recorded in `docs/crew/follow-ups.md`; they affect
    every ordinary Crew worker, not only sandboxed ones.
-2. [DONE, needs reclassification] A working `gh` guest-only routing PoC
-   exists and is correct on its own terms (checksum-verified, argv-exec,
-   `getActiveGondolinVm()`-driven, no `/reload` to notice a new VM). What it
-   is not yet is a generalized Armory artifact: it is one bespoke file that
-   both resolves `gh`'s identity and drives guest install directly, and it
-   treats `gh` as a fetched/verified domain payload rather than what it
-   actually is here -- a base tool that belongs baked into the guest image.
-   Reclassify `gh` as a base tool, and use it as the worked example when
-   building the actual generalized artifact/catalog contract (schema,
-   digest rules, and the generic domain-suite loader from "Tool tiers"
-   above) -- specified separately.
-3. [NEXT] Build one real non-base domain suite (for example `terraform` or
-   `bazel`) through the generalized catalog and fixed spawn-profile flow.
-   Materialize it once before sealing; on a second worker, restore both the
-   guest bytes and host Pi operation registrations from its snapshot sidecar
-   without reload. Measure VM-ready, snapshot restore, first vs. repeat
-   invocation, RAM, and snapshot size on both a local hardware-accelerated
-   host and a real target CI runner.
+2. [DONE] Reclassified `gh` as a base tool and removed its bespoke Armory
+   payload/guest-routing implementation. The staging catalog has one package
+   suite, `collaboration/github` (`pi-github-tools` package): its package manifest records the
+   native requirement and all normal Pi tool registrations. Direct extension
+   installation remains independent of Armory.
+3. [NEXT] Prove one non-base domain profile (`terraform` or `bazel`): base
+   Pi/Crew/`gh` plus the suite extension and native closure. Env restores the
+   closest sealed parent, adds only missing digest-pinned payloads, probes,
+   writes the sidecar, and seals. Each worker gets a private COW VM and mounted
+   repository workspace; neither host nor repository needs the domain tools.
+   Measure VM-ready, restore, first/repeat invocation, RAM, backing/delta
+   sizes, and three-worker wall time before layer composition or more suites.
+   First fix/prove sealed restore on a supported Gondolin platform: the x86
+   checkpoint probe produced a corrupt qcow2 file.
+
+## Nix follow-up
+Use Nix to build/cache immutable suite dependency closures, not to replace
+Gondolin initially. Armory materializes the pinned closure into the guest;
+Gondolin remains the VM/workspace/network/secret/COW provider. Consider a Nix
+microVM provider only if Gondolin cannot provide reliable sealed backing layers.

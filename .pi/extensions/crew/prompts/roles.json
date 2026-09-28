@@ -51,7 +51,6 @@
       "github_pull_request_review_submit",
       "github_pull_request_comment"
     ],
-    "extensionPaths": [".pi/extensions/github/index.ts"],
     "thinking": "medium",
     "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Independently verify bounded work, report evidence to the assigned recipient, and submit review findings only when authorized."

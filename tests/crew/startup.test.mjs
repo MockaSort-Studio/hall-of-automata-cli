@@ -128,7 +128,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
       ".pi",
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.deepEqual(config.agents[0].extensionPaths, [".pi/extensions/github/index.ts"]);
+    assert.deepEqual(config.agents[0].extensionPaths, []);
     assert.match(config.agents[0].task, /## ASSIGNMENT CONTEXT/);
     assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), false);
   } finally {
