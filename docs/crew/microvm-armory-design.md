@@ -68,6 +68,25 @@ dependencies. Env never runs npm/pnpm, maintains no package cache, and does
 not copy suite archives into guest root disks. The normal host Pi npm workflow
 is separate and does not materialize Armory guest artifacts.
 
+### Filtered-store isolation invariant
+
+A worker never receives a host `/nix/store` mount. It receives one read-only
+virtual `/nix/store` provider whose immutable allowlist is the exact recursive
+closure of that worker's selected physical profile. Every provider operation
+(`open`, `stat`, `lstat`, `readdir`, `access`, `readlink`, and `realpath`) must
+reject a first store-path component outside that allowlist as generic `ENOENT`.
+It must normalize and reject traversal before delegation. Nix symlinks may
+resolve only through the same filtered provider; they must not escape to a
+host path.
+
+The provider is created separately for each worker VM. Immutable backing bytes
+may be shared in host Nix, but no guest sees another worker's workspace,
+credentials, writable overlay, unselected suite entries, or host store
+inventory. Main Pi has no worker VM, runner, or Armory proxy registration.
+The worker model has only registered metadata/proxies and guest-routed builtin
+tools; it has no host shell, Nix CLI, suite module import, VM handle, or
+credential value. The host runtime itself remains trusted control-plane code.
+
 A suite flake exposes a standard guest-suite output. It contains the complete
 guest dependency graph and a generic runner contract: describe approved
 operations and invoke one typed operation. The current GitHub flake proves the

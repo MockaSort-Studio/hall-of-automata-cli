@@ -28,15 +28,15 @@ wired through the worker lifecycle.
 - [~] Replace legacy package/native installation with selected suite-flake outputs
   (immutable Nix acquisition primitive exists; lifecycle still uses legacy path).
 - [x] Resolve each selected output's exact recursive Nix-store closure paths.
-- [~] Mount only those paths read-only in its worker-local VM (mount plumbing
-  is implemented for explicit worker Armory configuration; Crew wiring remains).
+- [~] Mount only those paths read-only in its worker-local VM. Replace the
+  hanging many-leaf topology with one security-reviewed filtered `/nix/store`
+  provider that exposes exactly the selected closure entries.
 - [~] Add Env `describe`/`invoke` transport using typed request/result files and
   the guest `armory-suite` executable (bridge and worker-local proxy exist;
   Crew profile/lease wiring remains).
 - [ ] Derive and verify runner authorization from the suite manifest and lease.
-- [ ] Run the complete bundled GitHub runner inside Gondolin (current manual
-  QEMU smoke hangs after the Nix output is built; diagnose before accepting
-  the end-to-end path).
+- [x] Run the complete bundled GitHub runner inside Gondolin using the filtered
+  single-store provider; `describe` returned the approved GitHub operation.
 
 ## Worker-local VM boundary
 
@@ -65,6 +65,9 @@ wired through the worker lifecycle.
 - [ ] Prove isolated Pi sessions, VMs/COW workspaces, and credentials.
 - [ ] Prove only immutable selected Nix paths are shared.
 - [ ] Prove neither host `gh` nor host Armory implementation executes.
+- [ ] Test filtered-store denial for unrelated paths, traversal, readdir,
+  `stat`/`access`, and symlink/realpath escape; test worker-to-worker and Main
+  session isolation of proxies, workspaces, and credentials.
 - [ ] Add Terraform through the same flake/runner/proxy contract.
 
 ## Deferred
