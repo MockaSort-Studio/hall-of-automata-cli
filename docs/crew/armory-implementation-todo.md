@@ -15,6 +15,15 @@ wired through the worker lifecycle.
 - [x] Keep Nix/runner inputs out of the standard Pi npm package.
 - [x] Define and smoke-test guest-runner `describe`/`invoke` behavior.
 
+## Blocker: immutable suite source identity
+
+- [ ] Add an immutable, reviewable Nix flake locator to each suite/catalog
+  release record (for example a Git revision plus suite-root directory and
+  selected output). A relative `native.closure` alone cannot be built by Env
+  after catalog resolution without inferring mutable `main` source.
+- [ ] Pin the catalog/release record that supplies that locator before Env
+  builds it. Do not infer or fetch an unpinned source from a raw catalog URL.
+
 ## Current: Env guest-suite bridge
 
 - [ ] Replace legacy package/native installation with selected suite-flake outputs.
