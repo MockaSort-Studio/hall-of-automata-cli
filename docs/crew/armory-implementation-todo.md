@@ -62,16 +62,20 @@ wired through the worker lifecycle.
 
 ## Acceptance proof
 
-- [ ] Run two GitHub-enabled Crew workers end to end.
-- [ ] Prove isolated Pi sessions, VMs/COW workspaces, and credentials.
-- [ ] Prove only immutable selected Nix paths are shared.
+- [~] Run two GitHub-enabled workers end to end (worker-level smoke passed;
+  full Crew SDK launch remains).
+- [~] Prove isolated Pi sessions, VMs/COW workspaces, and credentials (two
+  worker workspaces/session proxies passed; credential injection is not wired).
+- [x] Prove only immutable selected Nix paths are shared (two workers resolved
+  the same suite root and exact closure path set).
 - [ ] Prove neither host `gh` nor host Armory implementation executes.
-- [~] Test filtered-store denial for unrelated paths, traversal, readdir,
-  `stat`/`access`, and symlink/realpath escape (provider adversarial tests are
-  present; worker-to-worker and Main session isolation remains).
-- [ ] Add Terraform through the same flake/runner/proxy contract.
-
+- [x] Test filtered-store denial for unrelated paths, traversal, readdir,
+  `stat`/`access`, and symlink/realpath escape; worker-to-worker and Main
+  session proxy isolation passed.
 ## Deferred
+
+- [ ] Add Terraform through the same flake/runner/proxy contract after GitHub
+  acceptance is complete.
 
 - [x] Investigate Gondolin layering/checkpoints; see
   `gondolin-overlay-investigation.md`.
