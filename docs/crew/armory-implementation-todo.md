@@ -77,6 +77,13 @@ wired through the worker lifecycle.
   session proxy isolation passed.
 ## Follow-up diagnostics
 
+- [ ] Implement credential management: source/rotate per-worker credentials,
+  bind them to allowed hosts, and revoke them on worker teardown. Current
+  GitHub policy injects an existing host `GITHUB_TOKEN` only as a guest
+  placeholder; absent tokens leave operations unauthenticated.
+- [ ] Fix detached Lifecycle shutdown: the canonical `start_crew` run's
+  Lifecycle server ignored `SIGTERM`; force-killing it left worker QEMU
+  processes that required manual termination.
 - [ ] Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
   (~188 ms) and filtered VM creation (~43 ms) are not the startup bottleneck.
 - [ ] Preserve and inspect leadless-audit worker event logs before cleanup.
