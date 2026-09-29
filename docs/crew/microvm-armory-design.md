@@ -1,200 +1,139 @@
 # MicroVM + Armory design
 
-## Purpose
+## Decision
 
-Run Pi agents in a small, disposable Gondolin guest while granting specialized
-native Pi tools through cacheable, digest-pinned Armory artifacts. The guest is
-an isolation boundary, not a project environment image.
-
-## Two independent concerns
-
-Env and Armory do not know about each other's internals. Conflating them was
-a real mistake in the first `gh` implementation (a single file that both
-resolved a tool identity and drove VM mechanics directly), and made the
-pattern impossible to generalize to a second tool without copying it.
-
-| Layer      | Owns                                                             | Does not know about                        |
-| ---------- | ---------------------------------------------------------------- | ------------------------------------------ |
-| **Env**    | VM boot, backing disk, checkpoint/resume, guest filesystem       | any specific tool (`gh`, `terraform`, ...) |
-| **Armory** | catalog: tool -> digest, fetch source, guest requirement, policy | QEMU, VM lifecycle, checkpoint mechanics   |
-
-Env must be host-OS-agnostic. Local development here happens to be on Apple
-Silicon, but Linux is the realistic target for scaled/CI usage, and the two
-need different acceleration backends (`hvf` on macOS, `kvm` on Linux where
-exposed, `tcg` software-emulation fallback otherwise). The acceleration
-backend is selected per host at VM-create time, never hardcoded to one
-platform's value.
-
-## Lifecycle contract
-
-The detailed Armory/Env boundary, fixed spawn profile, snapshot sidecar, and
-per-worker provisioning/restore flow are specified in
-[`armory-env-lifecycle.md`](armory-env-lifecycle.md). In short: base tools are
-baked into the base image; Crew selects domain suites before spawn; Armory
-materializes them into an abstract filesystem; and the worker lifecycle seals
-and restores the resulting environment without exposing a reload step to the
-agent.
-
-## Model
+Crew dispatch is the sole entrypoint. Crew is built on Pi's subagent runtime;
+Env does not create a second agent model or a second Pi RPC topology. Each Pi
+subagent stays host-side. Env gives its registered tools one private Gondolin
+VM and routes approved native operations into that VM.
 
 ```text
-Pi host
-  ├─ routes built-in file/shell tools to one Gondolin guest per agent session
-  └─ Armory loader, invoked by domain, not wired per-tool at extension load
-       ├─ reads the catalog manifest for that domain
-       ├─ registers that domain's Pi tools live (pi.registerTool(), no reload)
-       └─ resolves, verifies, and invokes guest-only tool payloads
-
-Armory catalog entry (per domain, not per file)
-  ├─ Pi tool schemas the loader registers
-  ├─ manifest: guest platform, digest, authority, resource/network policy
-  ├─ guest payload: binary or complete toolchain closure
-  └─ setup/probe contract
+Crew dispatch -> Pi subagent -> Env lease -> private Gondolin VM
+                                    |              |
+                                    |              +-- workspace COW overlay
+                                    +-- Armory layers (read-only)
 ```
 
-The host-side adapter never executes the specialized binary. It exposes a
-verified payload to the guest and uses the VM execution API to invoke it.
+A guest is a disposable execution environment, not a repository devcontainer
+and not an image per automaton.
 
-## Artifact resolution
+## Profile source of truth
 
-For an allowed tool invocation, resolve the exact artifact digest:
+Crew already assembles `actor.tools` from `roles.json` and `roster.json`.
+That final tool set is the only input to profile compilation:
 
 ```text
-1. A provided toolchain matches the artifact's required identity -> use it.
-2. Exact payload exists in the local Armory cache -> use it.
-3. Restore that cache path from GitHub Actions cache -> use it.
-4. Fetch from the durable central Armory source -> verify and prepare it.
-5. On a successful Actions job, save the prepared cache path.
+role baseline tools + automaton roster tools - dispatch narrowing
 ```
 
-A version string alone is not a match; the artifact defines the identity to
-verify. Cache entries hold no secrets.
+`roles.json` defines reusable functional capabilities. `roster.json` defines
+an automaton's domain additions. Dispatch may narrow the result for a bounded
+task, never widen it beyond those declarations.
+
+Crew compiles tool names into three classes:
+
+| Class | Example | Handling |
+| --- | --- | --- |
+| Pi built-in | `read`, `bash`, `edit` | Env routes operations to the worker VM |
+| Crew internal | `comm_notify` | Host Crew/Comm only |
+| Armory operation | `github_pull_request_view` | Group by suite and activate through Env |
+
+Thus a profile is derived, not separately requested:
+
+```json
+{
+  "builtins": ["read", "bash", "edit"],
+  "suites": [{ "suite": "collaboration/github", "operations": ["github_pull_request_view"] }]
+}
+```
+
+## Suite and layer model
+
+An Armory suite is an atomic compatibility unit:
 
 ```text
-~/.cache/hall/armory/<guest-platform>/<artifact-digest>/
+Pi package identity + extension bundle + Nix closure identity
++ executable bindings + operation allowlist + probe/policy
 ```
 
-Base guest images, Armory tool payloads, and installed-domain disk
-checkpoints are all the same shape from a caching point of view: immutable
-blobs keyed by platform + digest. All three resolve through the same order
-above, restore from the same cache tiers, and get saved back the same way.
+Nix closures replace URL/archive native-binary fallback metadata. A suite pins
+Nix inputs, platform output/closure identity, and named entrypoints. A package
+never searches ambient `PATH` for the companion binary.
 
-GitHub Actions cache is an accelerant and may evict entries; that is
-accepted, not worked around. This system is meant for continuous use, so an
-inactivity-based eviction window is the right behavior, not a gap to patch.
-Cache scope is per-repo/branch (with base-branch fallback); that is also
-accepted -- each repository's Crew runs stay independent, with no cross-repo
-or cross-team shared cache requirement. Central Armory (GHCR, release
-assets, or a future service) remains the durable source cache restores fall
-back to.
-
-Cache hit/miss is a separate axis from boot/exec speed. A cache hit still
-boots through whatever acceleration backend the runner actually exposes
-(see "Two independent concerns" above); on a runner without KVM/HVF, that is
-software-emulated QEMU (`tcg`), which is meaningfully slower than the
-hardware-accelerated numbers measured below, not just "a bit slower."
-Verify actual boot/exec cost on the real target runner class before relying
-on local-hardware numbers for any CI-facing decision.
-
-## Boundaries
-
-| Owns                  | Responsibility                                                  |
-| --------------------- | --------------------------------------------------------------- |
-| Minimal guest         | isolation, disposable workspace, base shell/executor            |
-| Armory artifact       | executable/toolchain, Pi UX, digest, setup/probe, policy        |
-| Project configuration | arguments, repository config, input paths, build-cache settings |
-| Build cache           | project outputs; separate from immutable tool payloads          |
-
-An artifact may own a complete toolchain (for example Bazel plus JDK), but the
-base guest never accumulates it permanently.
-
-## VM sharing model: shared backing disk, one process per worker
-
-Each Crew worker gets its own Gondolin VM process and its own kernel boot.
-That boundary is not up for negotiation: it is what makes one worker's shell
-commands unable to observe or corrupt another's.
-
-A single already-running VM cannot safely take on a second isolated tenant.
-A qcow2 overlay is a disk branch point evaluated at `VM.create()`/`resume()`
-time; it selects what a _new_ VM boots from. It is not a live operation that
-grafts a fresh writable layer onto an already-running kernel. The only way to
-put multiple tenants on one already-booted kernel is guest-side containers
-(namespaces/cgroups), which would make the guest kernel the isolation
-boundary instead of the VM -- the same blast radius as unsandboxed host
-namespaces, for the actor (an LLM-driven agent running arbitrary shell
-commands) we most want isolated. Confirmed against Gondolin's actual
-primitives: `gondolin attach <session-id>` shares one kernel's filesystem and
-process view across shells: multi-session, not multi-tenant.
-
-What _is_ shared, safely, is the immutable backing disk:
+`gh` is mandatory base infrastructure. It is logically part of every guest
+base, but physically a read-only Nix closure layer rather than bytes copied
+into the small Gondolin root disk. GitHub operations are activated only for
+profiles that select them.
 
 ```text
-one shared, read-only backing image (kernel + rootfs [+ future Armory payloads])
-  ├─ worker A: own QEMU process, own COW overlay, own boot
-  ├─ worker B: own QEMU process, own COW overlay, own boot
-  └─ worker C: own QEMU process, own COW overlay, own boot
+small Gondolin root disk
++ base gh closure layer
++ selected domain closure layers
++ private VM COW overlay
++ private workspace overlay
 ```
 
-Every worker still boots its own kernel; only the read-only base layer is
-shared, so writes never leak between workers. Today the base image is plain
-kernel+rootfs, so this mainly dedupes the ~300MB local image cache. It
-becomes the mechanism that matters once a real domain suite is installed via
-the checkpoint flow (see First implementation, step 3): all workers resume
-from one checked-in image that already has the payload installed, instead of
-each worker re-provisioning it independently.
+The current root disk has about 79 MiB free; the tested Nix `gh` closure is
+about 84 MiB. Keeping closures as layers prevents root-image growth.
 
-Measured on this host (Apple Silicon, hardware-accelerated QEMU, 3 concurrent
-workers) -- see "Two independent concerns" above for why this is not assumed
-to hold on a Linux CI runner without verifying its acceleration backend:
+## Env adapter boundary
 
-| Metric                            | Value |
-| --------------------------------- | ----- |
-| Solo VM boot to first guest exec  | ~1.2s |
-| 3 concurrent VM boots, wall clock | ~2.1s |
-| Same 3 boots, serial sum          | ~5.6s |
+Env is the only Armory-to-guest adapter. It owns artifact acquisition, mounts,
+private VM lifecycle, guest command routing, sidecars, and snapshot reuse.
+Armory owns catalog and suite identity. Crew owns dispatch and policy.
 
-Concurrent workers already boot as independent OS processes. The future cost
-worth solving is payload provisioning/download duplication, not serialized
-boot.
+Env returns a lease with verified named bindings, conceptually:
 
-## Capability, policy, and large artifacts
+```text
+lease.execute("githubCli", argv) -> worker VM exec(exact guest gh path, argv)
+```
 
-Armory grants explicit tools, not ambient host executables. Suite manifests
-declare platform, authority, resources, network, and secret requirements;
-payloads are immutable and digest-verified. Large toolchains may use
-independently cached content-addressed components, while project build caches
-remain separate. Promote only measured expensive profiles to a sealed
-snapshot; do not pre-load every suite into the base guest.
+Installable Pi packages contain operation schemas and implementation over a
+small injected command-transport interface. Standalone loading may provide a
+local transport. Env provides the guest transport. Packages must not import or
+name Crew, Armory, Gondolin, Nix, snapshot paths, or environment variables.
 
-## First implementation
+## Immutable artifacts and snapshots
 
-1. [DONE] Integrate one minimal Gondolin VM with Crew worker dispatch. Route
-   each worker's built-in file/shell tools and user shell commands to its own
-   guest. Proven end-to-end through the real `start_crew` path: `environment:
-{ microvm: "auto" }` resolves and threads `sandbox` per launch, a real QEMU
-   VM boots (kernel/initrd from the Pi cache), `bash`/`read` route into the
-   guest, `.env`/`.npmrc` stay hidden, guest writes are visible to the host,
-   and the VM/process tear down cleanly on completion. Two platform bugs
-   found and fixed along the way (a Comm-registration race and a stale-`pi`-
-   after-reload crash) are recorded in `docs/crew/follow-ups.md`; they affect
-   every ordinary Crew worker, not only sandboxed ones.
-2. [DONE] Reclassified `gh` as a base tool and removed its bespoke Armory
-   payload/guest-routing implementation. The staging catalog has one package
-   suite, `collaboration/github` (`pi-github-tools` package): its package manifest records the
-   native requirement and all normal Pi tool registrations. Direct extension
-   installation remains independent of Armory.
-3. [NEXT] Prove one non-base domain profile (`terraform` or `bazel`): base
-   Pi/Crew/`gh` plus the suite extension and native closure. Env restores the
-   closest sealed parent, adds only missing digest-pinned payloads, probes,
-   writes the sidecar, and seals. Each worker gets a private COW VM and mounted
-   repository workspace; neither host nor repository needs the domain tools.
-   Measure VM-ready, restore, first/repeat invocation, RAM, backing/delta
-   sizes, and three-worker wall time before layer composition or more suites.
-   First fix/prove sealed restore on a supported Gondolin platform: the x86
-   checkpoint probe produced a corrupt qcow2 file.
+The artifact cache stores mountable, content-addressed closure layers. A layer
+contains Nix store paths plus a manifest that identifies its output, closure,
+platform, and entrypoints. It has no credentials.
 
-## Nix follow-up
-Use Nix to build/cache immutable suite dependency closures, not to replace
-Gondolin initially. Armory materializes the pinned closure into the guest;
-Gondolin remains the VM/workspace/network/secret/COW provider. Consider a Nix
-microVM provider only if Gondolin cannot provide reliable sealed backing layers.
+A sealed snapshot stores only mutable/root-disk preparation state. Its sidecar
+pins required layer digests and command bindings. Restore verifies and
+reattaches those immutable layers before creating a fresh private COW VM.
+The repository workspace and credentials are never reusable snapshot content.
+
+Snapshots are optional hot-profile caches, keyed by platform, base version,
+and canonical selected suite-layer digests -- never by role name, automaton,
+or repository. Promote measured frequent profiles and evict cold composites.
+A snapshot miss remains correct because Env can reattach verified layers.
+
+## Secrets and isolation
+
+Every worker gets a separate QEMU process, COW disk, workspace overlay, and
+credentials/session. No running VM is shared. GitHub credentials are supplied
+only at runtime through Gondolin's proxy/placeholders; neither closure layers
+nor snapshot disks contain credentials.
+
+## Evidence
+
+On Linux x86 with Pi Node 24 and Gondolin 0.12, programmatic QEMU checkpoint,
+resume, and private COW behavior pass. A Nix `gh` spike proved a read-only
+closure layer runs at its exact `/nix/store/.../bin/gh` path and can be
+reattached after checkpoint restore. The root snapshot remained about 2.5 MiB
+while the `gh` layer was about 84 MiB.
+
+## Delivery plan
+
+1. Define profile, suite-activation, layer, binding, sidecar, and Env lease
+   contracts from assembled `actor.tools`.
+2. Change Hall Armory manifests from archive fallbacks to pinned Nix closure
+   descriptors and publish mountable closure layers.
+3. Implement Env's layer cache, Gondolin mounts, and allowlisted guest command
+   executor; wire it into Crew's existing worker launch path.
+4. Give packages a generic injected transport factory; implement the GitHub
+   vertical slice with guest `gh` and no host `gh` requirement.
+5. Prove two Crew subagents receive separate VM/workspace overlays from one
+   `gh` base layer, including runtime-only credentials.
+6. Add Terraform as the second suite without new lifecycle machinery.

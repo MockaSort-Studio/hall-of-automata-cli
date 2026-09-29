@@ -8,7 +8,7 @@ Pi discovers project-local extensions:
 
 - `.pi/extensions/crew/index.ts` — Crew orchestration.
 - `.pi/extensions/runtime/index.ts` — SDK Lifecycle and Comm runtime.
-- `armory/collaboration/github/src/index.ts` — bounded GitHub tools.
+- Armory suites resolve from external `MockaSort-Studio/hall-armory`; Hall CLI has no local Armory/GitHub source tree.
 - `.pi/extensions/web/index.ts` — bounded web fetch.
 
 `tests/pi/test-extension-load.sh` is the relocation smoke test.
@@ -30,7 +30,9 @@ There is no generated `fabric_exec` launch code, Fabric actor creation, mesh sta
 - Lifecycle owns worker process handles, worktrees, inspection, and removal.
 - Comm owns per-actor mailbox state, delivery, acknowledgement, requeue, and request/reply correlation.
 
-Assembly combines only reusable checked-in persona, role discipline, safety contract, and allowed Crew/GitHub tools. Crew startup adds the run-specific assignment, run/topic metadata, and exact ordinal-suffixed Comm sender handle; the reusable persona never claims a runtime identity. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
+Assembly combines only reusable checked-in persona, role discipline, safety contract, and allowed tools. Crew startup adds the run-specific assignment, run/topic metadata, and exact ordinal-suffixed Comm sender handle; the reusable persona never claims a runtime identity. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
+
+Crew derives each worker profile from assembled `actor.tools`: built-ins route through Env, Comm stays host-side, and Armory operations resolve to Env-managed guest bindings. Pi's subagent runtime remains the worker mechanism; Env adds no agent or RPC topology.
 
 ## State and communication
 

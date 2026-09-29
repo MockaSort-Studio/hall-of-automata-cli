@@ -57,6 +57,13 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
       [undefined, undefined],
     );
     assert.equal(selected.members[0].handle, "lead-old-major-00");
+    assert.deepEqual(config.agents[1].environmentProfile, {
+      format: "hall.crew-profile/v1",
+      tools: ["read", "grep", "find", "ls", "bash", "edit", "write"],
+      commTools: ["comm_notify", "comm_request", "comm_reply"],
+      builtins: ["read", "grep", "find", "ls", "bash", "edit", "write"],
+      suites: [],
+    });
     assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
     assert.ok(config.agents[0].commTools.includes("comm_notify_all"));

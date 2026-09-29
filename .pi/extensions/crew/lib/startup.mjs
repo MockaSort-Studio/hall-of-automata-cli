@@ -4,6 +4,7 @@ import { discussionStateFilePath } from "../../runtime/lib/github-discussion.mjs
 import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../runtime/lib/crew-environment.mjs";
 import { assemble } from "./assembly.mjs";
+import { compileActorProfile } from "./actor-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
@@ -38,7 +39,12 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       ...member,
       runtimeTools: pi.getAllTools(),
     });
-    return { ...assembled, role: member.role, handle: handle(member.role, member.name, ordinal) };
+    return {
+      ...assembled,
+      profile: compileActorProfile({ tools: assembled.tools, commTools: assembled.commTools }),
+      role: member.role,
+      handle: handle(member.role, member.name, ordinal),
+    };
   });
   const leads = actors.filter((actor) => actor.role === "lead");
   if (leads.length > 1) throw new Error("A selected Crew may contain at most one lead.");
@@ -58,6 +64,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     task: workerTask(actor, runId, topic),
     tools: actor.tools,
     commTools: actor.commTools,
+    environmentProfile: actor.profile,
     extensionPaths: actor.extensionPaths,
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
@@ -76,6 +83,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       role: actor.role,
       handle: actor.handle,
       tools: actor.tools,
+      environmentProfile: actor.profile,
       extensionPaths: actor.extensionPaths,
       model: actor.model,
       thinking: actor.thinking,
@@ -153,9 +161,20 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
     const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
+    // Armory suite ownership is resolved only by the Env acquisition path.
+    // Until Hall Armory publishes the Nix-layer manifest revision, Crew records
+    // its immutable operation grants but does not fetch the legacy catalog.
+    const suiteTools = dependencies.resolveArmoryToolSuites
+      ? await dependencies.resolveArmoryToolSuites({ tools: [...new Set(config.agents.flatMap((agent) => agent.tools ?? []))] })
+      : [];
     config.environmentResolution = resolution;
     config.agents = config.agents.map((agent) => ({
       ...agent,
+      environmentProfile: compileActorProfile({
+        tools: agent.tools ?? [],
+        commTools: agent.commTools ?? [],
+        suites: suiteTools,
+      }),
       ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
     }));
     roster.environmentResolution = resolution;

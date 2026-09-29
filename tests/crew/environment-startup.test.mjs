@@ -64,6 +64,7 @@ test("resolved Gondolin is threaded into every worker launch", async () => {
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
+      resolveArmoryToolSuites: async () => [],
       runtimeFor: () => ({
         launchCrew: async (agents) => {
           launched = agents;
@@ -76,6 +77,38 @@ test("resolved Gondolin is threaded into every worker launch", async () => {
       launched.map((agent) => agent.sandbox),
       [{ kind: "gondolin" }],
     );
+    assert.deepEqual(launched[0].environmentProfile.suites, []);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("resolved Gondolin groups Crew-granted GitHub operations before worker launch", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      { members: [{ name: "snowball", role: "reviewer" }] },
+      { cwd },
+      ".pi",
+    );
+    let launched;
+    await launchPreparedCrew(cwd, prepared, {
+      resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
+      resolveArmoryToolSuites: async (request) => [
+        { suite: "collaboration/pi-github-tools", tools: request.tools.filter((tool) => tool.startsWith("github_")) },
+      ],
+      runtimeFor: () => ({
+        launchCrew: async (agents) => {
+          launched = agents;
+          return { comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) };
+        },
+        broadcast: async () => {},
+      }),
+    });
+    assert.deepEqual(launched[0].environmentProfile.builtins, ["read", "grep", "find", "ls", "bash"]);
+    assert.equal(launched[0].environmentProfile.suites[0].suite, "collaboration/pi-github-tools");
+    assert.equal(launched[0].environmentProfile.suites[0].tools.length, 8);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

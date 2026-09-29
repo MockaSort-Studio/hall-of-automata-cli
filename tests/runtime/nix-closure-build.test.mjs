@@ -1,0 +1,27 @@
+import { strict as assert } from "node:assert";
+import test from "node:test";
+import { buildNixClosure } from "../../.pi/extensions/runtime/lib/nix-closure-build.mjs";
+
+const root = "/nix/store/0123456789abcdefghijklmnopqrstuv-gh-2.101.0";
+const dependency = "/nix/store/vutsrqponmlkjihgfedcba9876543210-libc-1";
+
+test("Env builds a suite closure and records every recursive store path", async () => {
+  const calls = [];
+  const closure = await buildNixClosure({
+    suiteRoot: "/suites/github",
+    closure: "./nix",
+    execute: async (command, args) => {
+      calls.push([command, args]);
+      if (args[0] === "build") return { stdout: `${root}\n` };
+      return { stdout: JSON.stringify({ [dependency]: {}, [root]: {} }) };
+    },
+  });
+  assert.deepEqual(closure, { rootPath: root, paths: [root, dependency].sort(), closureDirectory: "/suites/github/nix" });
+  assert.equal(calls[0][1].at(-1), "path:/suites/github/nix#default");
+});
+
+test("Env rejects a closure path outside the suite", async () =>
+  assert.rejects(
+    buildNixClosure({ suiteRoot: "/suites/github", closure: "../../outside" }),
+    /escapes suite root/,
+  ));

@@ -1,102 +1,111 @@
 # Armory and Env lifecycle
 
-## Decision
+## Boundary
 
-Armory and Env are independent. Armory materializes verified suites into an
-abstract filesystem; Env creates, restores, snapshots, and destroys isolated
-environments. The per-worker lifecycle composes them during normal Crew agent
-startup. There is no central factory, shared running VM, or Armory knowledge
-of MicroVMs.
+Crew dispatches Pi subagents. Pi's subagent runtime remains unchanged. Env is
+the generic bridge from Crew's assembled tool grants to a private guest; Armory
+resolves immutable suite identities. Neither Armory nor installable Pi packages
+own Crew scheduling or VM mechanics.
 
-| Layer            | Owns                                                                                  | Does not know about   |
-| ---------------- | ------------------------------------------------------------------------------------- | --------------------- |
-| Armory           | catalog resolution, payload cache/verification, suite materialization, suite metadata | VM/QEMU lifecycle     |
-| Env              | guest filesystem, isolation, boot/resume/snapshot/stop, sandbox execution boundary    | lockers, tool vendors |
-| Worker lifecycle | profile selection, Armory/Env sequencing, host Pi tool registration                   | payload internals     |
+| Layer | Owns | Does not know about |
+| --- | --- | --- |
+| Crew | actor assembly, role/roster policy, dispatch narrowing | closure internals, VM mechanics |
+| Armory | catalog, package/suite identity, Nix closure descriptors | workers, QEMU, mounted workspaces |
+| Env | artifacts, mounts, VM lifecycle, sidecars, guest execution | vendors and role names |
+| Pi package | schemas and operations over injected transport | Crew, Env, Nix, Gondolin |
 
-Armory's target may be a VM filesystem, a container filesystem, or a test
-directory. Its installation contract is independent of the target type.
+## Derive the fixed profile
 
-## Catalog hierarchy
-
-```text
-catalog index -> locker (work domain) -> suite (capability) -> operations
-
-infrastructure -> terraform -> fmt, validate, plan, apply
-collaboration  -> github   -> issue, pull request, discussion operations
-```
-
-A locker is a lightweight index of suite manifests. A suite manifest is
-self-contained: runtime payloads, install/probe rules, operation schemas, and
-policy. There is no top-level artifact registry or operation-to-artifact
-cross-reference graph. Payloads remain internal to their suite.
-
-## Fixed spawn profile
-
-Before an agent starts, Crew derives a fixed profile from:
+`actor.tools`, assembled by Crew from `roles.json` and `roster.json`, is the
+source of truth. Crew classifies it into Pi built-ins, Crew/Comm tools, and
+Armory operations. It groups Armory operations by suite and passes the result
+to Env before the Pi subagent starts work.
 
 ```text
-role + assigned domain + Crew-approved suites and operations
+actor.tools
+  -> builtin operations: routed by Env to the VM
+  -> internal operations: stay in Crew/Comm
+  -> suite operations: resolved by Armory and activated by Env
 ```
 
-This profile is the sandbox allowlist. It does not widen during a worker's
-lifetime. A role can receive only a suite projection, for example Terraform
-`fmt`, `validate`, and `plan` for a tester, with `apply` included for an
-integrator.
+The profile is fixed for the worker lifetime. Dispatch can narrow the role and
+roster grant but cannot widen it.
 
-Two identities are kept separate:
+Keep two identities separate:
 
 ```text
-authorization digest = role + domain + permitted operation set
-snapshot digest      = base image + installed suite manifest/payload digests
+authorization digest = final permitted tool/operation set
+physical profile digest = platform + base + canonical suite-layer digests
 ```
 
-The authorization digest says what the worker may use. The snapshot digest
-says what its guest filesystem already contains.
+The first controls registration and execution. The second controls artifact
+and warm-snapshot reuse. Neither includes worker name or repository identity.
 
-## Spawn and restore
+## Suite activation
+
+A suite binds its Pi package and native closure as one compatibility unit:
 
 ```text
-start worker
-  -> derive fixed profile and snapshot key
-  -> matching sealed snapshot: boot private VM with a private COW overlay
-  -> snapshot miss: boot private provisioning environment
-       -> Armory materializes the profile's suites into its filesystem
-       -> lifecycle seals/publishes the immutable snapshot
-       -> continue with that private environment
-  -> rehydrate host Pi tool registrations from snapshot sidecar metadata
-  -> agent starts work
+package identity + extension bundle + Nix closure + named entrypoints
++ operation allowlist + probes + policy
 ```
 
-A sealed snapshot contains guest tool bytes and a digest-verified sidecar
-listing installed suites and their operation descriptors. Pi's tool registry
-is host-process state, so it is not literally in the VM snapshot; worker
-startup re-registers it automatically from that sidecar. This is invisible to
-the agent and requires neither `/reload` nor an explicit load action.
+Nix closures supersede archive/download native fallback metadata. Env receives
+named bindings, such as `githubCli`, to an exact guest entrypoint. An
+installable package receives an abstract command transport; it does not resolve
+an ambient binary or contain environment-specific routing.
 
-Base tools are baked into the base image and covered by the profile allowlist.
-Domain suites are provisioned before the snapshot is sealed. Once unrestricted
-`bash` is removed or constrained, the fixed allowlist is the unambiguous guest
-execution boundary.
+```text
+package operation -> transport.run("githubCli", argv)
+                  -> Env allowlist -> private VM exact guest command
+```
 
-## Concurrency and caching
+## Acquire and run
 
-Every worker has its own VM process, COW disk, workspace, credentials, and
-agent process. Only immutable payloads and sealed snapshots are shared.
+```text
+Crew prepares actor
+  -> compile final actor.tools profile
+  -> Armory resolves selected suites and closure identities
+  -> Env verifies/fetches immutable layers
+  -> Env creates one private Gondolin VM and mounts layers read-only
+  -> Env mounts the worker workspace privately
+  -> Env supplies bindings to package operation factories
+  -> Pi subagent runs with only the profile's registered operations
+```
 
-Concurrent workers resolve the same content-addressed cache keys. A lock is
-used only while publishing a cache/snapshot entry (temporary path then atomic
-rename); a worker never attaches to or waits indefinitely on another worker's
-live VM. On a miss it can provision its own private environment.
+The guest base is a small Gondolin root plus mandatory base layers, currently
+`gh`. Domain layers such as Terraform, uv, or Bazel are attached only when a
+selected suite needs them. No domain toolchain is required on the host or in a
+repository devcontainer.
 
-Payloads, base images, and sealed snapshots are keyed by platform plus digest
-and may be restored from local cache, GitHub Actions cache, then durable
-origin. Actions cache eviction and per-repository scope are accepted: it is an
-accelerant for continuous use, not durable state.
+## Cache and snapshot model
 
-## Host portability
+Nix-built layers are immutable, content-addressed, mountable artifacts. They
+are fetched from local cache, CI cache, then durable Armory origin. CI cache is
+an accelerant; its eviction is accepted.
 
-Env selects the available VM acceleration backend at runtime: `hvf` on macOS,
-`kvm` on Linux when exposed, otherwise `tcg`. Cache hits avoid provisioning
-work but do not make software-emulated runners fast; real CI runner classes
-must be measured independently of local Apple Silicon results.
+Each worker gets a distinct VM and COW overlay. A sealed snapshot stores only
+root/mutable preparation state and a sidecar pinning layer digests and bindings.
+On restore Env verifies and reattaches layers, then creates a new private COW
+VM. Workspaces, credentials, and live processes are never shared.
+
+Warm snapshots are an LRU-like performance cache for measured, frequent
+canonical layer sets. They are not a package registry and do not require every
+role/domain permutation to be prebuilt.
+
+## Credentials
+
+Credentials are injected only into live execution through Gondolin's controlled
+network/secret mechanism. They do not appear in Nix closures, layer manifests,
+snapshot disks, or sidecars.
+
+## First vertical slice
+
+1. Compile a Crew actor's existing `tools` into a profile.
+2. Resolve the GitHub suite and its Nix `gh` base layer.
+3. Mount that layer in the worker's private VM.
+4. Register the requested GitHub operation projection through Env's injected
+   guest transport.
+5. Prove two Crew-dispatched Pi subagents use different VM/workspace overlays
+   and no host `gh` binary.
+6. Add Terraform through the same contracts.

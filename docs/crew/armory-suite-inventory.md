@@ -1,61 +1,51 @@
 # Armory suite inventory
 
-Evidence-based inventory of Armory-related tooling in the staging repository.
+This inventory describes the target catalog boundary. Catalog manifests and
+releasable suite packages live in `MockaSort-Studio/hall-armory`; Hall CLI
+retains only Crew, Env, and generic runtime integration.
 
 ## Catalog shape
 
 ```text
-catalog -> locker -> packaged Pi extension suite -> tool registrations
-armory/manifest.json
-  collaboration/github/manifest.json
+catalog -> locker -> suite -> operation projection
+
+collaboration -> github -> issue / pull request / discussion operations
+infrastructure -> terraform -> fmt / validate / plan / apply
 ```
 
-The outer catalog indexes package manifests only. Each packaged extension owns
-one suite manifest; tools are selected from that manifest, not independently
-resolved artifacts.
-
-## Base guest tools
-
-Shell and filesystem primitives are Env-owned and routed through each worker's
-own Gondolin guest. `gh` is a future base guest tool, not a bespoke Armory
-payload or guest-routing exception.
-
-## `collaboration/github` (`pi-github-tools`)
-
-The staged GitHub suite is represented at:
+A suite is not a binary lookup. It is an atomic compatibility declaration:
 
 ```text
-armory/collaboration/github/
-  package.json
-  manifest.json
+Pi package identity + extension bundle + Nix closure identity
++ named guest entrypoints + operation allowlist + probe/policy
 ```
 
-Its manifest records the `gh` system probe, version, verified cache fallback,
-and the exact registered-tool allowlist. The normal extension source owns Pi
-model-facing descriptions and schemas; Armory must not affect normal extension
-installation.
+Nix closures supersede system-probe/archive-fallback native metadata. Nix
+builds/fetches the closure; Env mounts its verified immutable layer in a
+private worker guest.
 
-During approved Crew sandbox construction only, the future loader will resolve
-that suite's native requirement into the Env/snapshot and load the same package
-with the profile's selected operations. Catalog loading, Env materialization,
-snapshot sidecar restoration, and package extraction are not implemented yet.
+## Base and GitHub
+
+`gh` is mandatory base infrastructure. It is represented as a pinned Nix
+closure layer mounted in every guest, not copied into the Gondolin root disk.
+The GitHub Pi package is activated only when Crew's assembled `actor.tools`
+selects GitHub operations.
+
+The package must expose operation factories over an injected transport. Env
+binds that transport to the exact guest `gh` entrypoint. The package does not
+know Nix, Gondolin, Armory, Crew, or snapshot paths.
 
 ## Status
 
-| Concept                                       | Status                               |
-| --------------------------------------------- | ------------------------------------ |
-| Gondolin worker isolation                     | Implemented.                         |
-| Generic cache/checksum primitives             | Implemented.                         |
-| GitHub suite/package manifest staging layout  | Implemented.                         |
-| Normal GitHub extension installation          | Unchanged and independent of Armory. |
-| Sandbox profile-driven Armory loader          | Not implemented.                     |
-| Sealed suite snapshot and sidecar restoration | Not implemented.                     |
-| External `hall-armory` package repository     | Not created.                         |
+| Capability | Status |
+| --- | --- |
+| Gondolin worker isolation and built-in tool routing | Implemented |
+| Pi Node 24 + Gondolin 0.12 checkpoint/COW smoke | Proven on local x86 |
+| Nix `gh` closure mounted read-only in guest | Spike proven |
+| Closure layer sidecar/activation contract | Design next |
+| Crew `actor.tools` profile compiler | Not implemented |
+| Generic Env transport injection | Not implemented |
+| Hall Armory Nix closure manifests/artifact publishing | Not implemented |
+| GitHub operation through Env guest transport | Not implemented |
 
-## Sources
-
-- `armory/manifest.json`
-- `armory/collaboration/github/manifest.json`
-- `armory/collaboration/github/src/index.ts`
-- `docs/crew/armory-env-lifecycle.md`
-- `docs/crew/microvm-armory-design.md`
+See `armory-env-lifecycle.md` for the canonical launch and ownership model.
