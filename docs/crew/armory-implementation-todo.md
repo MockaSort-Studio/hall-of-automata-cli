@@ -28,9 +28,9 @@ wired through the worker lifecycle.
 - [~] Replace legacy package/native installation with selected suite-flake outputs
   (immutable Nix acquisition primitive exists; lifecycle still uses legacy path).
 - [x] Resolve each selected output's exact recursive Nix-store closure paths.
-- [~] Mount only those paths read-only in its worker-local VM. Replace the
-  hanging many-leaf topology with one security-reviewed filtered `/nix/store`
-  provider that exposes exactly the selected closure entries.
+- [x] Mount only those paths read-only in its worker-local VM using one
+  security-reviewed filtered `/nix/store` provider that exposes exactly the
+  selected closure entries.
 - [~] Add Env `describe`/`invoke` transport using typed request/result files and
   the guest `armory-suite` executable (bridge and worker-local proxy exist;
   Crew profile/lease wiring remains).
@@ -43,17 +43,16 @@ wired through the worker lifecycle.
 - [x] Keep VM ownership in the worker-local Pi runtime extension. Its Nix mount
   configuration is trusted runtime state, never model-visible tool data; it
   must not import suite modules or execute suite binaries on the host.
-- [~] Have outer `worker.mjs` prepare immutable suite outputs before Pi starts,
+- [x] Have outer `worker.mjs` prepare immutable suite outputs before Pi starts,
   then pass only exact mount paths and approved operation grants into the
-  worker-local runtime configuration (implemented for an explicit `armory`
-  worker profile; Crew profile compilation does not supply it yet).
+  worker-local runtime configuration.
 
 ## Then: host proxy and lifecycle
 
 - [~] Implement a generic Pi proxy holding only approved descriptor metadata and
   a guest-runner handle; it never imports suite code.
-- [~] Register only guest-described, approved operations in the worker Pi
-  subprocess that owns the VM (implemented for explicit Armory configuration).
+- [x] Register only guest-described, approved operations in the worker Pi
+  subprocess that owns the VM; a real Pi worker-session smoke passed.
 - [ ] Acquire the lease and describe operations before starting that worker Pi.
 - [ ] Release VM/lease state through worker lifecycle cleanup.
 - [ ] Remove/rework legacy host GitHub activation and Env package-cache/guest
