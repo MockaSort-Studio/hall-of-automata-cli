@@ -1,111 +1,104 @@
 # Armory and Env lifecycle
 
-## Boundary
+## Ownership
 
-Crew dispatches Pi subagents. Pi's subagent runtime remains unchanged. Env is
-the generic bridge from Crew's assembled tool grants to a private guest; Armory
-resolves immutable suite identities. Neither Armory nor installable Pi packages
-own Crew scheduling or VM mechanics.
+Crew selects policy. Env builds and runs guest suites. Pi remains the host
+subagent runtime. Armory suite code never runs in host Pi.
 
-| Layer | Owns | Does not know about |
-| --- | --- | --- |
-| Crew | actor assembly, role/roster policy, dispatch narrowing | closure internals, VM mechanics |
-| Armory | catalog, package/suite identity, Nix closure descriptors | workers, QEMU, mounted workspaces |
-| Env | artifacts, mounts, VM lifecycle, sidecars, guest execution | vendors and role names |
-| Pi package | schemas and operations over injected transport | Crew, Env, Nix, Gondolin |
+| Component | Owns |
+| --- | --- |
+| Crew | `actor.tools`, role/roster policy, dispatch narrowing |
+| Armory | suite catalog, co-located locked Nix flake, operation policy |
+| Nix | suite source/dependency resolution, immutable outputs, artifact cache |
+| Env | guest build/mount, VM lifecycle, guest runner invocation, workspace/network/secrets |
+| Host Pi worker | model session and generic per-session operation proxies |
+| Guest suite | operation implementation, dependencies, native tools, typed runner |
 
-## Derive the fixed profile
+No Env npm install, package cache, archive fallback, or copied guest toolchain
+exists. Nix is the one materializer and cache for Armory guest artifacts.
 
-`actor.tools`, assembled by Crew from `roles.json` and `roster.json`, is the
-source of truth. Crew classifies it into Pi built-ins, Crew/Comm tools, and
-Armory operations. It groups Armory operations by suite and passes the result
-to Env before the Pi subagent starts work.
+## Fixed worker preparation
 
 ```text
-actor.tools
-  -> builtin operations: routed by Env to the VM
-  -> internal operations: stay in Crew/Comm
-  -> suite operations: resolved by Armory and activated by Env
+Crew assembles actor.tools
+  -> derive fixed authorization profile
+  -> Env resolves suites and allowed operations
+  -> Nix builds each suite's locked guest output into /nix/store
+  -> Env creates private VM and mounts exact output closure paths read-only
+  -> Env asks guest runner to describe approved operations
+  -> worker Pi starts with generic proxy extension and descriptors
+  -> proxy registers selected tools in this Pi session only
 ```
 
-The profile is fixed for the worker lifetime. Dispatch can narrow the role and
-roster grant but cannot widen it.
+The Pi process starts after the guest is ready. It never imports the Armory
+suite package. Its proxy closures contain only operation metadata and a lease
+handle; every call enters the guest.
 
-Keep two identities separate:
+## Session-local tool registration
+
+`pi.registerTool()` is local to one worker subprocess. The generic proxy
+registers only descriptors that are both supplied by the guest suite and
+allowed by that worker authorization profile.
 
 ```text
-authorization digest = final permitted tool/operation set
-physical profile digest = platform + base + canonical suite-layer digests
+reviewer session: github_pull_request_view
+builder session: terraform_plan
+Main session: neither
 ```
 
-The first controls registration and execution. The second controls artifact
-and warm-snapshot reuse. Neither includes worker name or repository identity.
+Named schemas/descriptions must be visible to host Pi for model tool calling.
+That metadata is control-plane data, not permission to execute suite code on
+the host. If host Pi knew no operation metadata, the only alternative would be
+one untyped generic invocation tool.
 
-## Suite activation
+## Guest suite contract
 
-A suite binds its Pi package and native closure as one compatibility unit:
+A suite flake's standard output includes:
 
 ```text
-package identity + extension bundle + Nix closure + named entrypoints
-+ operation allowlist + probes + policy
+guest runner + extension implementation + locked dependencies + native closures
 ```
 
-Nix closures supersede archive/download native fallback metadata. Env receives
-named bindings, such as `githubCli`, to an exact guest entrypoint. An
-installable package receives an abstract command transport; it does not resolve
-an ambient binary or contain environment-specific routing.
+It supports two Env-invoked operations:
 
 ```text
-package operation -> transport.run("githubCli", argv)
-                  -> Env allowlist -> private VM exact guest command
+describe(approved operations) -> operation descriptors
+invoke(operation, typed input) -> structured result/error
 ```
 
-## Acquire and run
+The runner is a regular guest program, not a guest Pi process. The host generic
+proxy transports typed requests through the Env lease. A native dependency,
+such as `gh`, is resolved only inside this suite output and invoked only by the
+guest implementation.
+
+## Reuse and isolation
+
+Nix store paths are immutable and shared. Env mounts only the selected exact
+paths into each VM, never the host's whole `/nix` store. Workers receive fresh
+QEMU processes, COW overlays, workspaces, and runtime credentials.
 
 ```text
-Crew prepares actor
-  -> compile final actor.tools profile
-  -> Armory resolves selected suites and closure identities
-  -> Env verifies/fetches immutable layers
-  -> Env creates one private Gondolin VM and mounts layers read-only
-  -> Env mounts the worker workspace privately
-  -> Env supplies bindings to package operation factories
-  -> Pi subagent runs with only the profile's registered operations
+authorization profile = permitted operation names
+physical profile = platform + base + selected Nix output identities
 ```
 
-The guest base is a small Gondolin root plus mandatory base layers, currently
-`gh`. Domain layers such as Terraform, uv, or Bazel are attached only when a
-selected suite needs them. No domain toolchain is required on the host or in a
-repository devcontainer.
+The first implementation uses only Nix-store reuse. VM snapshots are deferred.
+If introduced later, a snapshot caches mutable root preparation only and pins
+Nix output identities in a sidecar. It never contains a workspace, credential,
+or live worker state.
 
-## Cache and snapshot model
+## Credentials and network
 
-Nix-built layers are immutable, content-addressed, mountable artifacts. They
-are fetched from local cache, CI cache, then durable Armory origin. CI cache is
-an accelerant; its eviction is accepted.
+Gondolin injects credentials only into live guest network execution. Nix source
+inputs, outputs, Nix store paths, worker profiles, and future snapshots contain
+no credentials.
 
-Each worker gets a distinct VM and COW overlay. A sealed snapshot stores only
-root/mutable preparation state and a sidecar pinning layer digests and bindings.
-On restore Env verifies and reattaches layers, then creates a new private COW
-VM. Workspaces, credentials, and live processes are never shared.
+## GitHub vertical slice
 
-Warm snapshots are an LRU-like performance cache for measured, frequent
-canonical layer sets. They are not a package registry and do not require every
-role/domain permutation to be prebuilt.
-
-## Credentials
-
-Credentials are injected only into live execution through Gondolin's controlled
-network/secret mechanism. They do not appear in Nix closures, layer manifests,
-snapshot disks, or sidecars.
-
-## First vertical slice
-
-1. Compile a Crew actor's existing `tools` into a profile.
-2. Resolve the GitHub suite and its Nix `gh` base layer.
-3. Mount that layer in the worker's private VM.
-4. Register the requested GitHub operation projection through Env's injected
-   guest transport.
-5. Prove two Crew-dispatched Pi subagents use different VM/workspace overlays
-   and no host `gh` binary.
-6. Add Terraform through the same contracts.
+1. Build a Nix guest output containing GitHub implementation/runner and `gh`.
+2. Mount its exact closure paths in one worker VM.
+3. Describe selected GitHub operations from that guest.
+4. Register generic proxies only in that worker Pi session.
+5. Invoke one operation through proxy -> guest runner -> guest `gh`.
+6. Prove a second worker has a separate VM/session projection and shares only
+   immutable Nix store paths.

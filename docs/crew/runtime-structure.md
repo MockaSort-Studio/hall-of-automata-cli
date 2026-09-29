@@ -32,7 +32,7 @@ There is no generated `fabric_exec` launch code, Fabric actor creation, mesh sta
 
 Assembly combines only reusable checked-in persona, role discipline, safety contract, and allowed tools. Crew startup adds the run-specific assignment, run/topic metadata, and exact ordinal-suffixed Comm sender handle; the reusable persona never claims a runtime identity. Runtime adds only `comm_notify`, `comm_request`, and `comm_reply`.
 
-Crew derives each worker profile from assembled `actor.tools`: built-ins route through Env, Comm stays host-side, and Armory operations resolve to Env-managed guest bindings. Pi's subagent runtime remains the worker mechanism; Env adds no agent or RPC topology.
+Crew derives each worker profile from assembled `actor.tools`: built-ins and Armory operations execute through Env in the guest, while Comm stays host-side. Armory operations appear in a worker Pi session only as generic proxies for guest-described approved descriptors; no Armory implementation loads in host Pi. Pi's subagent runtime remains the worker mechanism; Env adds no agent or RPC topology.
 
 ## State and communication
 

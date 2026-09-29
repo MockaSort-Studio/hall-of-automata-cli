@@ -1,51 +1,44 @@
 # Armory suite inventory
 
-This inventory describes the target catalog boundary. Catalog manifests and
-releasable suite packages live in `MockaSort-Studio/hall-armory`; Hall CLI
-retains only Crew, Env, and generic runtime integration.
+Hall Armory owns catalog manifests and suite source. Hall CLI owns Crew, Env,
+and the generic host proxy. An Armory suite is a guest execution artifact, not
+a host Pi extension.
 
-## Catalog shape
-
-```text
-catalog -> locker -> suite -> operation projection
-
-collaboration -> github -> issue / pull request / discussion operations
-infrastructure -> terraform -> fmt / validate / plan / apply
-```
-
-A suite is not a binary lookup. It is an atomic compatibility declaration:
+## Suite shape
 
 ```text
-Pi package identity + extension bundle + Nix closure identity
-+ named guest entrypoints + operation allowlist + probe/policy
+suite source + manifest + locked Nix flake
+  -> guest extension implementation/runner
+  -> guest dependencies
+  -> native tool closures
+  -> operation descriptors
 ```
 
-Nix closures supersede system-probe/archive-fallback native metadata. Nix
-builds/fetches the closure; Env mounts its verified immutable layer in a
-private worker guest.
+The host Pi worker receives only approved descriptors and generic proxy
+closures. It does not import the suite implementation or native binary.
 
-## Base and GitHub
+## GitHub
 
-`gh` is mandatory base infrastructure. It is represented as a pinned Nix
-closure layer mounted in every guest, not copied into the Gondolin root disk.
-The GitHub Pi package is activated only when Crew's assembled `actor.tools`
-selects GitHub operations.
+`collaboration/github` currently has a locked Nix flake that builds `gh` 2.101
+for Linux and a released extension package. The Nix closure mounts and executes
+in Gondolin successfully. The flake does not yet build the complete guest
+GitHub extension runner; therefore it is not yet an Env-activated suite.
 
-The package must expose operation factories over an injected transport. Env
-binds that transport to the exact guest `gh` entrypoint. The package does not
-know Nix, Gondolin, Armory, Crew, or snapshot paths.
+`gh` is not bytes in the Gondolin root image. It is an immutable Nix closure
+mounted only for worker profiles that select the GitHub suite.
 
 ## Status
 
 | Capability | Status |
 | --- | --- |
-| Gondolin worker isolation and built-in tool routing | Implemented |
-| Pi Node 24 + Gondolin 0.12 checkpoint/COW smoke | Proven on local x86 |
-| Nix `gh` closure mounted read-only in guest | Spike proven |
-| Closure layer sidecar/activation contract | Design next |
-| Crew `actor.tools` profile compiler | Not implemented |
-| Generic Env transport injection | Not implemented |
-| Hall Armory Nix closure manifests/artifact publishing | Not implemented |
-| GitHub operation through Env guest transport | Not implemented |
+| Crew `actor.tools` profile record | Implemented |
+| Hall Armory locked Nix suite flake | Implemented for GitHub `gh` |
+| Nix closure build, exact-path mount, guest `gh` smoke | Proven locally |
+| Host npm/package cache for Env | Explicitly rejected |
+| Guest suite runner/descriptor protocol | Not implemented |
+| Nix-built guest extension bundle/dependencies | Not implemented |
+| Per-worker generic Pi proxy registration | Not implemented |
+| Crew end-to-end guest suite invocation | Not implemented |
+| VM snapshot cache | Deferred |
 
-See `armory-env-lifecycle.md` for the canonical launch and ownership model.
+See `microvm-armory-design.md` for the canonical model.
