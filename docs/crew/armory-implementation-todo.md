@@ -72,4 +72,6 @@ wired through the worker lifecycle.
 
 ## Deferred
 
+- [x] Investigate Gondolin layering/checkpoints; see
+  `gondolin-overlay-investigation.md`.
 - [ ] Snapshot/profile-cache optimization after the base Nix-mount vertical slice.
