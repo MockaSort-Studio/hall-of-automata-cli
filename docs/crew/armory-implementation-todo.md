@@ -65,9 +65,9 @@ wired through the worker lifecycle.
 - [ ] Prove isolated Pi sessions, VMs/COW workspaces, and credentials.
 - [ ] Prove only immutable selected Nix paths are shared.
 - [ ] Prove neither host `gh` nor host Armory implementation executes.
-- [ ] Test filtered-store denial for unrelated paths, traversal, readdir,
-  `stat`/`access`, and symlink/realpath escape; test worker-to-worker and Main
-  session isolation of proxies, workspaces, and credentials.
+- [~] Test filtered-store denial for unrelated paths, traversal, readdir,
+  `stat`/`access`, and symlink/realpath escape (provider adversarial tests are
+  present; worker-to-worker and Main session isolation remains).
 - [ ] Add Terraform through the same flake/runner/proxy contract.
 
 ## Deferred

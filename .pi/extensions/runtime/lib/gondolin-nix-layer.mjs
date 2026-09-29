@@ -44,10 +44,18 @@ class FilteredStoreProvider extends VirtualProviderClass {
   accessSync(path, ...args) { return this.backend.accessSync(this.entry(path), ...args); }
 }
 
-// One filtered mount avoids Gondolin's many-sibling-mount deadlock while
-// exposing only the selected immutable closure entries to the guest.
-export function createGondolinNixLayer(paths, { provider = (selected) => new ReadonlyProvider(new FilteredStoreProvider(selected)) } = {}) {
+const validatePaths = (paths) => {
   if (!Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || !paths.every((path) => STORE_PATH.test(path)))
     throw new Error("Gondolin Nix layer requires unique Nix store paths");
-  return { "/nix/store": provider(paths) };
+  return paths;
+};
+
+export function createFilteredNixStoreProvider(paths, { backend } = {}) {
+  return new ReadonlyProvider(new FilteredStoreProvider(validatePaths(paths), backend));
+}
+
+// One filtered mount avoids Gondolin's many-sibling-mount deadlock while
+// exposing only the selected immutable closure entries to the guest.
+export function createGondolinNixLayer(paths, { provider = (selected) => createFilteredNixStoreProvider(selected) } = {}) {
+  return { "/nix/store": provider(validatePaths(paths)) };
 }
