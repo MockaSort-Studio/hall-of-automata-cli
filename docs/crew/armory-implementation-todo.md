@@ -34,6 +34,15 @@ wired through the worker lifecycle.
 - [ ] Derive and verify runner authorization from the suite manifest and lease.
 - [ ] Run the complete bundled GitHub runner inside Gondolin.
 
+## Blocker: current VM ownership violates the Pi boundary
+
+- [ ] Move VM/Env lease ownership from `worker-gondolin-extension.mjs` (loaded
+  inside host Pi) to outer `worker.mjs`. The existing location would expose
+  Nix mount paths to Pi when suite layers are attached.
+- [ ] Provide a worker-private local sidecar protocol so Pi's builtin routing
+  and generic Armory proxy can request guest operations without receiving VM
+  handles, Nix paths, suite code, or credentials.
+
 ## Then: host proxy and lifecycle
 
 - [ ] Implement a generic Pi proxy holding only approved descriptor metadata and
