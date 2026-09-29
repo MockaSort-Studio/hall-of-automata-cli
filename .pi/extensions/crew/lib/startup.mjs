@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { discussionStateFilePath } from "../../runtime/lib/github-discussion.mjs";
 import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../runtime/lib/crew-environment.mjs";
+import { resolveArmoryCatalogReference } from "../../runtime/lib/armory-catalog-reference.mjs";
+import { resolveNixGuestSuiteRequests } from "../../runtime/lib/nix-guest-suite-acquisition.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
@@ -161,22 +163,28 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
     const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
-    // Armory suite ownership is resolved only by the Env acquisition path.
-    // Until Hall Armory publishes the Nix-layer manifest revision, Crew records
-    // its immutable operation grants but does not fetch the legacy catalog.
-    const suiteTools = dependencies.resolveArmoryToolSuites
-      ? await dependencies.resolveArmoryToolSuites({ tools: [...new Set(config.agents.flatMap((agent) => agent.tools ?? []))] })
-      : [];
+    const grantedTools = [...new Set(config.agents.flatMap((agent) => agent.tools ?? []))];
+    const catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
+    const suiteTools = await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({
+      catalog,
+      tools: grantedTools,
+    });
     config.environmentResolution = resolution;
-    config.agents = config.agents.map((agent) => ({
-      ...agent,
-      environmentProfile: compileActorProfile({
+    config.agents = config.agents.map((agent) => {
+      const environmentProfile = compileActorProfile({
         tools: agent.tools ?? [],
         commTools: agent.commTools ?? [],
         suites: suiteTools,
-      }),
-      ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
-    }));
+      });
+      return {
+        ...agent,
+        environmentProfile,
+        ...(resolution.sandbox && environmentProfile.suites.length
+          ? { armory: { catalog: { flake: catalog.flake }, tools: environmentProfile.suites.flatMap((suite) => suite.tools) } }
+          : {}),
+        ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
+      };
+    });
     roster.environmentResolution = resolution;
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     writeFileSync(rosterPath, JSON.stringify(roster, null, 2));

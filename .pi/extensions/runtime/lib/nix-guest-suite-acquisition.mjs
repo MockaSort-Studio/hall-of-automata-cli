@@ -31,7 +31,7 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
   };
 }
 
-export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCatalogSuite, build = buildNixClosure }) {
+export async function resolveNixGuestSuiteRequests({ catalog, tools, readSuite = readCatalogSuite }) {
   if (!Array.isArray(tools) || tools.some((tool) => typeof tool !== "string" || !tool))
     throw new Error("Nix guest suite tools must be non-empty strings");
   const requested = new Set(tools);
@@ -45,5 +45,10 @@ export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCa
       if (selected.length) requests.push({ suite: `${locker.name}/${entry.extension}`, tools: selected });
     }
   }
+  return requests;
+}
+
+export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCatalogSuite, build = buildNixClosure }) {
+  const requests = await resolveNixGuestSuiteRequests({ catalog, tools, readSuite });
   return Promise.all(requests.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, build })));
 }
