@@ -57,13 +57,9 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
       [undefined, undefined],
     );
     assert.equal(selected.members[0].handle, "lead-old-major-00");
-    assert.deepEqual(config.agents[1].environmentProfile, {
-      format: "hall.crew-profile/v1",
-      tools: ["read", "grep", "find", "ls", "bash", "edit", "write"],
-      commTools: ["comm_notify", "comm_request", "comm_reply"],
-      builtins: ["read", "grep", "find", "ls", "bash", "edit", "write"],
-      suites: [],
-    });
+    assert.equal(config.agents[1].environmentProfile.format, "hall.crew-profile/v1");
+    assert.ok(config.agents[1].environmentProfile.tools.includes("github_issue_view"));
+    assert.ok(config.agents[1].environmentProfile.builtins.includes("github_issue_view"));
     assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
     assert.ok(config.agents[0].commTools.includes("comm_notify_all"));
@@ -137,7 +133,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.deepEqual(config.agents[0].extensionPaths, []);
     assert.match(config.agents[0].task, /## ASSIGNMENT CONTEXT/);
-    assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), false);
+    assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), true);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

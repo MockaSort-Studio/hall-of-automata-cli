@@ -1,10 +1,11 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { assemble } from "../../.pi/extensions/crew/lib/assembly.mjs";
-test("assembly embeds bounded work without adapter tools", () => {
+test("assembly gives every role the GitHub operation baseline", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.");
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);
-  assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_") || tool.startsWith("github_")));
+  assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_")));
+  assert.ok(actor.tools.includes("github_issue_view"));
 });
 test("reviewer uses only GitHub tools supplied by the runtime", () => {
   const tools = [

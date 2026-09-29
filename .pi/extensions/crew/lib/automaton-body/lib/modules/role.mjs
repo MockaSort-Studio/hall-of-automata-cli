@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { GITHUB_BASE_TOOLS, GITHUB_BASE_TOOL_SET } from "../../../github-base-tools.mjs";
 const ROOT = new URL("../../../../", import.meta.url);
 const catalog = JSON.parse(readFileSync(new URL("prompts/roles.json", ROOT), "utf8"));
 const THINKING = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -30,7 +31,7 @@ export function validateRoleTools(availableTools, roleName) {
   const entries = roleName ? [[roleName, catalog[roleName]]] : Object.entries(catalog);
   for (const [name, role] of entries) {
     if (!role) throw new Error(`Role "${name}" not defined`);
-    const missing = role.tools.filter((tool) => !available.has(tool));
+    const missing = [...role.tools, ...GITHUB_BASE_TOOLS].filter((tool) => !available.has(tool) && !GITHUB_BASE_TOOL_SET.has(tool));
     if (missing.length) throw new Error(`Role ${name} requires unavailable tools: ${missing.join(", ")}`);
   }
 }
@@ -39,7 +40,7 @@ export function roleModule(ctx) {
   if (!role) throw new Error(`Role "${ctx.role}" not defined. Available: ${Object.keys(catalog).join(", ")}`);
   return {
     instructions: readFileSync(new URL(`prompts/roles/${role.prompt}`, ROOT), "utf8").trim(),
-    tools: role.tools,
+    tools: [...new Set([...role.tools, ...GITHUB_BASE_TOOLS])],
     commTools: role.commTools,
     thinking: ctx.override?.thinking ?? role.thinking,
     ...(ctx.override?.model ? { model: ctx.override.model } : {}),
