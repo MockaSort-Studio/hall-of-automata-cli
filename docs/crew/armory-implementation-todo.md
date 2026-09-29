@@ -63,8 +63,8 @@ wired through the worker lifecycle.
 
 ## Acceptance proof
 
-- [~] Run two GitHub-enabled workers end to end (worker-level smoke passed;
-  full Crew SDK launch remains).
+- [x] Run two GitHub-enabled workers through a real Crew SDK launch; both
+  received prepared Armory configuration and shared the same guest suite root.
 - [x] Prove isolated Pi sessions and VMs/COW workspaces; guest credential
   injection supplies host-held secrets only as Gondolin placeholders.
 - [x] Prove only immutable selected Nix paths are shared (two workers resolved
