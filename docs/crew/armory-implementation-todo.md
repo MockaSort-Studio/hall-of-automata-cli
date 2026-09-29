@@ -69,7 +69,9 @@ wired through the worker lifecycle.
   injection supplies host-held secrets only as Gondolin placeholders.
 - [x] Prove only immutable selected Nix paths are shared (two workers resolved
   the same suite root and exact closure path set).
-- [ ] Prove neither host `gh` nor host Armory implementation executes.
+- [x] Prove guest GitHub invocation uses the Nix closure rather than host `gh`
+  (a host-PATH `gh` trap was not called); worker proxy imports only generic
+  runner/runtime modules, not Armory suite implementation.
 - [x] Test filtered-store denial for unrelated paths, traversal, readdir,
   `stat`/`access`, and symlink/realpath escape; worker-to-worker and Main
   session proxy isolation passed.
