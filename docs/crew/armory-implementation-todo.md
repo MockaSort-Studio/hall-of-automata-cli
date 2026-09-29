@@ -31,7 +31,8 @@ wired through the worker lifecycle.
 - [~] Mount only those paths read-only in its worker-local VM (mount plumbing
   is implemented for explicit worker Armory configuration; Crew wiring remains).
 - [~] Add Env `describe`/`invoke` transport using typed request/result files and
-  the guest `armory-suite` executable (generic bridge exists; lease wiring remains).
+  the guest `armory-suite` executable (bridge and worker-local proxy exist;
+  Crew profile/lease wiring remains).
 - [ ] Derive and verify runner authorization from the suite manifest and lease.
 - [ ] Run the complete bundled GitHub runner inside Gondolin.
 
@@ -47,10 +48,10 @@ wired through the worker lifecycle.
 
 ## Then: host proxy and lifecycle
 
-- [ ] Implement a generic Pi proxy holding only approved descriptor metadata and
-  an Env lease handle; it must never import suite code.
-- [ ] Register only guest-described, approved operations in the worker Pi
-  subprocess that owns the lease.
+- [~] Implement a generic Pi proxy holding only approved descriptor metadata and
+  a guest-runner handle; it never imports suite code.
+- [~] Register only guest-described, approved operations in the worker Pi
+  subprocess that owns the VM (implemented for explicit Armory configuration).
 - [ ] Acquire the lease and describe operations before starting that worker Pi.
 - [ ] Release VM/lease state through worker lifecycle cleanup.
 - [ ] Remove/rework legacy host GitHub activation and Env package-cache/guest

@@ -68,6 +68,10 @@ export function getActiveGondolinVm() {
   return vm;
 }
 
+export function ensureActiveGondolinVm() {
+  return ensureVm(process.cwd());
+}
+
 export default function gondolinWorkerExtension(pi) {
   const localCwd = process.cwd();
   const localRead = createReadTool(localCwd);

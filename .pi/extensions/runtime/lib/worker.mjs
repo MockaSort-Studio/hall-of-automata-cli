@@ -41,11 +41,17 @@ const args = [
   "--extension",
   resolve(import.meta.dirname, "worker-comm-extension.mjs"),
 ];
-if (config.sandbox?.kind === "gondolin")
+if (config.sandbox?.kind === "gondolin") {
   args.push(
     "--extension",
     resolve(config.extensionCwd, ".pi", "extensions", "runtime", "lib", "worker-gondolin-extension.mjs"),
   );
+  if (config.armory)
+    args.push(
+      "--extension",
+      resolve(config.extensionCwd, ".pi", "extensions", "runtime", "lib", "armory-worker-proxy-extension.mjs"),
+    );
+}
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));
 if (config.model) args.push("--model", config.model);
 if (config.thinking) args.push("--thinking", config.thinking);

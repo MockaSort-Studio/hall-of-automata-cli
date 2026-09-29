@@ -12,7 +12,12 @@ export function workerArmoryConfig(config) {
   const suites = armory.suites ?? [];
   if (!Array.isArray(paths) || new Set(paths).size !== paths.length || !paths.every((path) => STORE_PATH.test(path)))
     throw new Error("Worker Armory config has invalid Nix mount paths");
-  if (!Array.isArray(suites) || suites.some((suite) => !Array.isArray(suite.tools) || suite.tools.some((tool) => typeof tool !== "string" || !tool)))
+  if (
+    !Array.isArray(suites) ||
+    suites.some(
+      (suite) => !paths.includes(suite.rootPath) || !Array.isArray(suite.tools) || suite.tools.some((tool) => typeof tool !== "string" || !tool),
+    )
+  )
     throw new Error("Worker Armory config has invalid suite operation grants");
   return { paths, suites: suites.map((suite) => ({ rootPath: suite.rootPath, tools: [...new Set(suite.tools)] })) };
 }
