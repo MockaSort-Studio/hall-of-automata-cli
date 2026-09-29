@@ -56,7 +56,8 @@ wired through the worker lifecycle.
   subprocess that owns the VM; a real Pi worker-session smoke passed.
 - [x] Acquire immutable suite outputs and describe operations before starting
   that worker Pi; a full `worker.mjs` smoke passed.
-- [ ] Release VM/lease state through worker lifecycle cleanup.
+- [x] Release VM state through worker lifecycle cleanup; terminating a real
+  Armory worker left no QEMU process behind.
 - [ ] Remove/rework legacy host GitHub activation and Env package-cache/guest
   installer paths from Crew execution.
 
