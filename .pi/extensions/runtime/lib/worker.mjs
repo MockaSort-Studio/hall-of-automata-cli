@@ -12,10 +12,22 @@ async function prepareArmory(config) {
   if (!Array.isArray(config.armory?.tools) || !config.armory.tools.length) return undefined;
   const catalog = await resolveArmoryCatalogReference(config.armory.catalog);
   const suites = await acquireNixGuestSuites({ catalog, tools: config.armory.tools });
+  const credentials = new Map();
+  const allowedHosts = new Set();
+  for (const suite of suites) {
+    for (const host of suite.network?.allowedHosts ?? []) allowedHosts.add(host);
+    for (const credential of suite.network?.credentials ?? []) {
+      const existing = credentials.get(credential.environment);
+      if (existing && JSON.stringify(existing.hosts) !== JSON.stringify(credential.hosts))
+        throw new Error(`Conflicting Armory credential policy: ${credential.environment}`);
+      credentials.set(credential.environment, credential);
+    }
+  }
   return {
     catalogRevision: catalog.revision,
     nixPaths: [...new Set(suites.flatMap((suite) => suite.paths))].sort(),
     suites: suites.map(({ suite, rootPath, tools }) => ({ suite, rootPath, tools })),
+    network: { allowedHosts: [...allowedHosts].sort(), credentials: [...credentials.values()] },
   };
 }
 

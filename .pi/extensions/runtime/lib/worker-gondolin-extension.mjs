@@ -1,4 +1,4 @@
-import { RealFSProvider, ShadowProvider, VM, createShadowPathPredicate } from "@earendil-works/gondolin";
+import { RealFSProvider, ShadowProvider, VM, createHttpHooks, createShadowPathPredicate } from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -33,17 +33,22 @@ let vm;
 let starting;
 
 async function startVm(localCwd) {
+  const armory = readWorkerArmoryConfig();
+  const secrets = Object.fromEntries(
+    (armory.network?.credentials ?? [])
+      .filter((credential) => process.env[credential.environment])
+      .map((credential) => [credential.environment, { value: process.env[credential.environment], hosts: credential.hosts }]),
+  );
+  const network = armory.network ? createHttpHooks({ allowedHosts: armory.network.allowedHosts, secrets }) : undefined;
   const created = await VM.create({
     sessionLabel: `crew worker ${process.env.PI_SDK_ACTOR_ID ?? "unknown"}`,
+    ...(network ? { httpHooks: network.httpHooks, env: network.env } : {}),
     vfs: {
       mounts: {
         [GUEST_WORKSPACE]: new ShadowProvider(new RealFSProvider(localCwd), {
           shouldShadow: createShadowPathPredicate(HIDDEN_WORKSPACE_PATHS),
         }),
-        ...(() => {
-          const { paths } = readWorkerArmoryConfig();
-          return paths.length ? createGondolinNixLayer(paths) : {};
-        })(),
+        ...(armory.paths.length ? createGondolinNixLayer(armory.paths) : {}),
       },
     },
   });

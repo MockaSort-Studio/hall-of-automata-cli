@@ -27,6 +27,16 @@ function suiteEntry(catalog, suite) {
   return entry;
 }
 
+function validateNetwork(value) {
+  if (value === undefined) return undefined;
+  if (!value || !Array.isArray(value.allowedHosts) || value.allowedHosts.some((host) => typeof host !== "string" || !host))
+    throw new Error("Armory network policy is invalid");
+  const credentials = value.credentials ?? [];
+  if (!Array.isArray(credentials) || credentials.some((item) => typeof item?.environment !== "string" || !item.environment || !Array.isArray(item.hosts) || item.hosts.some((host) => typeof host !== "string" || !host)))
+    throw new Error("Armory credential policy is invalid");
+  return { allowedHosts: [...new Set(value.allowedHosts)], credentials: credentials.map((item) => ({ environment: item.environment, hosts: [...new Set(item.hosts)] })) };
+}
+
 function validatePackage(value) {
   if (!value || typeof value !== "object") throw new Error("Armory package is required");
   return {
@@ -46,7 +56,7 @@ export function validateArmorySuite(suite, requestedTools) {
   const tools = requestedTools ?? suite.tools;
   if (!Array.isArray(tools) || tools.some((tool) => !suite.tools.includes(tool)))
     throw new Error(`Armory suite ${suite.extension} was requested with undeclared tools`);
-  return { ...suite, package: validatePackage(suite.package), native: { closure, output }, tools: [...new Set(tools)] };
+  return { ...suite, package: validatePackage(suite.package), native: { closure, output }, network: validateNetwork(suite.network), tools: [...new Set(tools)] };
 }
 
 export async function resolveLiveArmorySuite({ suite, tools, catalogUrl = ARMORY_CATALOG_URL, fetcher = fetch }) {

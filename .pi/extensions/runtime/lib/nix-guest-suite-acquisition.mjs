@@ -25,6 +25,7 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
   return {
     suite: request.suite,
     tools: suite.tools,
+    network: suite.network,
     flake,
     rootPath: artifact.rootPath,
     paths: artifact.paths,

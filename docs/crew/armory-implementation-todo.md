@@ -64,8 +64,8 @@ wired through the worker lifecycle.
 
 - [~] Run two GitHub-enabled workers end to end (worker-level smoke passed;
   full Crew SDK launch remains).
-- [~] Prove isolated Pi sessions, VMs/COW workspaces, and credentials (two
-  worker workspaces/session proxies passed; credential injection is not wired).
+- [x] Prove isolated Pi sessions and VMs/COW workspaces; guest credential
+  injection supplies host-held secrets only as Gondolin placeholders.
 - [x] Prove only immutable selected Nix paths are shared (two workers resolved
   the same suite root and exact closure path set).
 - [ ] Prove neither host `gh` nor host Armory implementation executes.

@@ -7,9 +7,10 @@ const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 // flake locators, credentials, and descriptors are not read here.
 export function workerArmoryConfig(config) {
   const armory = config?.armory;
-  if (!armory) return { paths: [], suites: [] };
+  if (!armory) return { paths: [], suites: [], network: undefined };
   const paths = armory.nixPaths ?? [];
   const suites = armory.suites ?? [];
+  const network = armory.network;
   if (!Array.isArray(paths) || new Set(paths).size !== paths.length || !paths.every((path) => STORE_PATH.test(path)))
     throw new Error("Worker Armory config has invalid Nix mount paths");
   if (
@@ -19,7 +20,9 @@ export function workerArmoryConfig(config) {
     )
   )
     throw new Error("Worker Armory config has invalid suite operation grants");
-  return { paths, suites: suites.map((suite) => ({ rootPath: suite.rootPath, tools: [...new Set(suite.tools)] })) };
+  if (network && (!Array.isArray(network.allowedHosts) || !Array.isArray(network.credentials) || network.allowedHosts.some((host) => typeof host !== "string" || !host) || network.credentials.some((credential) => typeof credential?.environment !== "string" || !credential.environment || !Array.isArray(credential.hosts))))
+    throw new Error("Worker Armory config has invalid network policy");
+  return { paths, suites: suites.map((suite) => ({ rootPath: suite.rootPath, tools: [...new Set(suite.tools)] })), network };
 }
 
 export function readWorkerArmoryConfig(path = process.env.PI_CREW_WORKER_CONFIG) {

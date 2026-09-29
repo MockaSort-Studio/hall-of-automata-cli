@@ -6,7 +6,7 @@ const path = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
 
 test("worker Armory config exposes only exact mount paths and grants", () => {
   assert.deepEqual(workerArmoryConfig({ armory: { nixPaths: [path], suites: [{ rootPath: path, tools: ["github_issue_view"] }] } }), {
-    paths: [path], suites: [{ rootPath: path, tools: ["github_issue_view"] }],
+    paths: [path], suites: [{ rootPath: path, tools: ["github_issue_view"] }], network: undefined,
   });
 });
 

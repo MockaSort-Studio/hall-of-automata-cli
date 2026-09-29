@@ -38,7 +38,7 @@ export async function resolveArmoryCatalogReference({
   read = readFile,
 } = {}) {
   const catalogManifest = relativePath(manifest, "catalog manifest path");
-  const { stdout } = await execute("nix", ["flake", "metadata", "--json", flake]);
+  const { stdout } = await execute("nix", ["flake", "metadata", "--refresh", "--json", flake]);
   const metadata = JSON.parse(stdout);
   const locked = lockedGithub(metadata);
   return {
