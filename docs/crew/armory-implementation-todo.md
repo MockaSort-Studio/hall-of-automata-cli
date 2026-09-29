@@ -18,23 +18,24 @@ wired through the worker lifecycle.
 ## Immutable suite source identity
 
 - [x] Add explicit `native.output` to suite manifests and a root Armory flake.
-- [~] Resolve a catalog channel once through Nix to its immutable Git revision,
+- [x] Resolve a catalog channel once through Nix to its immutable Git revision,
   then derive suite flake locators from that revision, manifest path, closure,
-  and output. The resolver/build primitive exists; worker profile wiring remains.
-- [ ] Record the resolved catalog revision in each launched Crew worker profile.
+  and output.
+- [x] Record the resolved catalog revision in each launched Armory worker
+  configuration before Pi starts.
 
 ## Current: Env guest-suite bridge
 
-- [~] Replace legacy package/native installation with selected suite-flake outputs
-  (immutable Nix acquisition primitive exists; lifecycle still uses legacy path).
+- [x] Prepare selected worker suite-flake outputs through Nix; the active
+  worker path does not use npm package/native installation.
 - [x] Resolve each selected output's exact recursive Nix-store closure paths.
 - [x] Mount only those paths read-only in its worker-local VM using one
   security-reviewed filtered `/nix/store` provider that exposes exactly the
   selected closure entries.
-- [~] Add Env `describe`/`invoke` transport using typed request/result files and
-  the guest `armory-suite` executable (bridge and worker-local proxy exist;
-  Crew profile/lease wiring remains).
-- [ ] Derive and verify runner authorization from the suite manifest and lease.
+- [x] Add guest `describe`/`invoke` transport using typed request/result files
+  and the guest `armory-suite` executable.
+- [x] Derive and verify runner authorization from the suite manifest, final
+  worker grants, and guest-described operation projection.
 - [x] Run the complete bundled GitHub runner inside Gondolin using the filtered
   single-store provider; `describe` returned the approved GitHub operation.
 
@@ -49,7 +50,7 @@ wired through the worker lifecycle.
 
 ## Then: host proxy and lifecycle
 
-- [~] Implement a generic Pi proxy holding only approved descriptor metadata and
+- [x] Implement a generic Pi proxy holding only approved descriptor metadata and
   a guest-runner handle; it never imports suite code.
 - [x] Register only guest-described, approved operations in the worker Pi
   subprocess that owns the VM; a real Pi worker-session smoke passed.
