@@ -27,21 +27,23 @@ wired through the worker lifecycle.
 
 - [~] Replace legacy package/native installation with selected suite-flake outputs
   (immutable Nix acquisition primitive exists; lifecycle still uses legacy path).
-- [ ] Resolve each selected output's exact recursive Nix-store closure paths.
-- [ ] Mount only those paths read-only in its leased worker VM.
+- [x] Resolve each selected output's exact recursive Nix-store closure paths.
+- [~] Mount only those paths read-only in its worker-local VM (mount plumbing
+  is implemented for explicit worker Armory configuration; Crew wiring remains).
 - [~] Add Env `describe`/`invoke` transport using typed request/result files and
   the guest `armory-suite` executable (generic bridge exists; lease wiring remains).
 - [ ] Derive and verify runner authorization from the suite manifest and lease.
 - [ ] Run the complete bundled GitHub runner inside Gondolin.
 
-## Blocker: current VM ownership violates the Pi boundary
+## Worker-local VM boundary
 
-- [ ] Move VM/Env lease ownership from `worker-gondolin-extension.mjs` (loaded
-  inside host Pi) to outer `worker.mjs`. The existing location would expose
-  Nix mount paths to Pi when suite layers are attached.
-- [ ] Provide a worker-private local sidecar protocol so Pi's builtin routing
-  and generic Armory proxy can request guest operations without receiving VM
-  handles, Nix paths, suite code, or credentials.
+- [x] Keep VM ownership in the worker-local Pi runtime extension. Its Nix mount
+  configuration is trusted runtime state, never model-visible tool data; it
+  must not import suite modules or execute suite binaries on the host.
+- [~] Have outer `worker.mjs` prepare immutable suite outputs before Pi starts,
+  then pass only exact mount paths and approved operation grants into the
+  worker-local runtime configuration (implemented for an explicit `armory`
+  worker profile; Crew profile compilation does not supply it yet).
 
 ## Then: host proxy and lifecycle
 

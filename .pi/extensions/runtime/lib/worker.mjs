@@ -2,9 +2,24 @@ import { spawn } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
+import { resolveArmoryCatalogReference } from "./armory-catalog-reference.mjs";
+import { acquireNixGuestSuites } from "./nix-guest-suite-acquisition.mjs";
 
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
+
+async function prepareArmory(config) {
+  if (!Array.isArray(config.armory?.tools) || !config.armory.tools.length) return undefined;
+  const catalog = await resolveArmoryCatalogReference(config.armory.catalog);
+  const suites = await acquireNixGuestSuites({ catalog, tools: config.armory.tools });
+  return {
+    catalogRevision: catalog.revision,
+    nixPaths: [...new Set(suites.flatMap((suite) => suite.paths))].sort(),
+    suites: suites.map(({ suite, rootPath, tools }) => ({ suite, rootPath, tools })),
+  };
+}
+
+config.armory = await prepareArmory(config);
 const startedAt = Date.now();
 const boundedError = (value) => boundedText(value, 4000);
 const log = (event) =>

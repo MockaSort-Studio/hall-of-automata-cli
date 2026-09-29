@@ -18,6 +18,8 @@ import {
   writeOperations,
 } from "./gondolin-worker-operations.mjs";
 import { bashOperations } from "./gondolin-worker-shell.mjs";
+import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
+import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
 
 // A resident worker's own new_session call (see worker.mjs) fires
 // session_shutdown -> reload -> session_start again in this same process,
@@ -38,6 +40,10 @@ async function startVm(localCwd) {
         [GUEST_WORKSPACE]: new ShadowProvider(new RealFSProvider(localCwd), {
           shouldShadow: createShadowPathPredicate(HIDDEN_WORKSPACE_PATHS),
         }),
+        ...(() => {
+          const { paths } = readWorkerArmoryConfig();
+          return paths.length ? createGondolinNixLayer(paths) : {};
+        })(),
       },
     },
   });

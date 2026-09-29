@@ -85,6 +85,7 @@ export class LifecycleController {
           crewLead: config.crewLead,
           namespace: config.namespace,
           sandbox: config.sandbox,
+          armory: config.armory,
           logFile,
         }),
       );

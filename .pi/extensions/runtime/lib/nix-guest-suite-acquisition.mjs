@@ -30,3 +30,20 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
     paths: artifact.paths,
   };
 }
+
+export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCatalogSuite, build = buildNixClosure }) {
+  if (!Array.isArray(tools) || tools.some((tool) => typeof tool !== "string" || !tool))
+    throw new Error("Nix guest suite tools must be non-empty strings");
+  const requested = new Set(tools);
+  if (catalog.catalog?.format !== "hall.armory/v1" || !Array.isArray(catalog.catalog.lockers))
+    throw new Error("Unsupported Armory catalog format");
+  const requests = [];
+  for (const locker of catalog.catalog.lockers) {
+    for (const entry of locker.suites ?? []) {
+      const manifest = await readSuite(catalog, entry.manifest);
+      const selected = (manifest.tools ?? []).filter((tool) => requested.has(tool));
+      if (selected.length) requests.push({ suite: `${locker.name}/${entry.extension}`, tools: selected });
+    }
+  }
+  return Promise.all(requests.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, build })));
+}
