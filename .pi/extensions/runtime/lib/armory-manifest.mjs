@@ -36,7 +36,7 @@ function validatePackage(value) {
   };
 }
 
-function validateSuite(suite, requestedTools) {
+export function validateArmorySuite(suite, requestedTools) {
   if (suite?.format !== SUITE_FORMAT) throw new Error("Unsupported Armory suite manifest format");
   requiredString(suite.extension, "extension");
   const closure = requiredString(suite.native?.closure, "native Nix closure");
@@ -53,7 +53,7 @@ export async function resolveLiveArmorySuite({ suite, tools, catalogUrl = ARMORY
   const catalog = await fetchJson(catalogUrl, fetcher);
   const entry = suiteEntry(catalog, suite);
   const manifestUrl = new URL(requiredString(entry.manifest, "suite manifest path"), catalogUrl).href;
-  return { catalogUrl, manifestUrl, suite: validateSuite(await fetchJson(manifestUrl, fetcher), tools) };
+  return { catalogUrl, manifestUrl, suite: validateArmorySuite(await fetchJson(manifestUrl, fetcher), tools) };
 }
 
 // Crew gives Env final operation grants, not suite names. Resolve the catalog's
@@ -72,7 +72,7 @@ export async function resolveLiveArmoryToolSuites({ tools, catalogUrl = ARMORY_C
   const resolved = await Promise.all(
     candidates.map(async ({ suite, entry }) => {
       const manifestUrl = new URL(requiredString(entry.manifest, "suite manifest path"), catalogUrl).href;
-      const manifest = validateSuite(await fetchJson(manifestUrl, fetcher));
+      const manifest = validateArmorySuite(await fetchJson(manifestUrl, fetcher));
       const selected = manifest.tools.filter((tool) => requested.has(tool));
       return selected.length ? { suite, tools: selected } : undefined;
     }),

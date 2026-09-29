@@ -25,7 +25,8 @@ wired through the worker lifecycle.
 
 ## Current: Env guest-suite bridge
 
-- [ ] Replace legacy package/native installation with selected suite-flake outputs.
+- [~] Replace legacy package/native installation with selected suite-flake outputs
+  (immutable Nix acquisition primitive exists; lifecycle still uses legacy path).
 - [ ] Resolve each selected output's exact recursive Nix-store closure paths.
 - [ ] Mount only those paths read-only in its leased worker VM.
 - [~] Add Env `describe`/`invoke` transport using typed request/result files and
