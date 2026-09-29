@@ -1,5 +1,9 @@
 # Armory implementation todo
 
+This is the live implementation ledger. Update its state with every completed
+or partially completed milestone; `[~]` means implementation exists but is not
+wired through the worker lifecycle.
+
 ## Complete
 
 - [x] Document host Crew/Pi, Env proxy, and guest-suite execution boundaries.
