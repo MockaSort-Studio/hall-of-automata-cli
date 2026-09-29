@@ -75,6 +75,16 @@ wired through the worker lifecycle.
 - [x] Test filtered-store denial for unrelated paths, traversal, readdir,
   `stat`/`access`, and symlink/realpath escape; worker-to-worker and Main
   session proxy isolation passed.
+## Follow-up diagnostics
+
+- [ ] Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
+  (~188 ms) and filtered VM creation (~43 ms) are not the startup bottleneck.
+- [ ] Preserve and inspect leadless-audit worker event logs before cleanup.
+  The first audit run had two failed agents (7/14/2 and 8/21/1
+  turns/tool-calls/errors) but removal discarded detailed failure evidence.
+- [ ] Add the real two-worker Crew SDK smoke as an automated integration test;
+  today's manual smoke passed with the same 67-path suite closure root.
+
 ## Deferred
 
 - [ ] Add Terraform through the same flake/runner/proxy contract after GitHub
