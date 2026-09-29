@@ -53,7 +53,8 @@ wired through the worker lifecycle.
   a guest-runner handle; it never imports suite code.
 - [x] Register only guest-described, approved operations in the worker Pi
   subprocess that owns the VM; a real Pi worker-session smoke passed.
-- [ ] Acquire the lease and describe operations before starting that worker Pi.
+- [x] Acquire immutable suite outputs and describe operations before starting
+  that worker Pi; a full `worker.mjs` smoke passed.
 - [ ] Release VM/lease state through worker lifecycle cleanup.
 - [ ] Remove/rework legacy host GitHub activation and Env package-cache/guest
   installer paths from Crew execution.

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
 import { resolveArmoryCatalogReference } from "./armory-catalog-reference.mjs";
@@ -20,6 +20,10 @@ async function prepareArmory(config) {
 }
 
 config.armory = await prepareArmory(config);
+// The child Pi extensions read this same trusted worker config. Persist the
+// prepared lease projection, never the mutable catalog channel, before Pi is
+// spawned so they receive only exact paths and approved grants.
+writeFileSync(configPath, JSON.stringify(config));
 const startedAt = Date.now();
 const boundedError = (value) => boundedText(value, 4000);
 const log = (event) =>
