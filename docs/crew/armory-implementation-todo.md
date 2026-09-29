@@ -34,7 +34,9 @@ wired through the worker lifecycle.
   the guest `armory-suite` executable (bridge and worker-local proxy exist;
   Crew profile/lease wiring remains).
 - [ ] Derive and verify runner authorization from the suite manifest and lease.
-- [ ] Run the complete bundled GitHub runner inside Gondolin.
+- [ ] Run the complete bundled GitHub runner inside Gondolin (current manual
+  QEMU smoke hangs after the Nix output is built; diagnose before accepting
+  the end-to-end path).
 
 ## Worker-local VM boundary
 
