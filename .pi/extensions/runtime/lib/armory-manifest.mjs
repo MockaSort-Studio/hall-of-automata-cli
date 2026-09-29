@@ -40,12 +40,13 @@ function validateSuite(suite, requestedTools) {
   if (suite?.format !== SUITE_FORMAT) throw new Error("Unsupported Armory suite manifest format");
   requiredString(suite.extension, "extension");
   const closure = requiredString(suite.native?.closure, "native Nix closure");
+  const output = requiredString(suite.native?.output, "native Nix output");
   if (!Array.isArray(suite.tools) || !suite.tools.every((tool) => typeof tool === "string" && tool))
     throw new Error(`Armory suite ${suite.extension} has an invalid tool allowlist`);
   const tools = requestedTools ?? suite.tools;
   if (!Array.isArray(tools) || tools.some((tool) => !suite.tools.includes(tool)))
     throw new Error(`Armory suite ${suite.extension} was requested with undeclared tools`);
-  return { ...suite, package: validatePackage(suite.package), native: { closure }, tools: [...new Set(tools)] };
+  return { ...suite, package: validatePackage(suite.package), native: { closure, output }, tools: [...new Set(tools)] };
 }
 
 export async function resolveLiveArmorySuite({ suite, tools, catalogUrl = ARMORY_CATALOG_URL, fetcher = fetch }) {

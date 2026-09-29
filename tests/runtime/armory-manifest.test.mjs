@@ -16,7 +16,7 @@ const suite = {
     version: "0.1.2",
     integrity: "sha512-test",
   },
-  native: { closure: "./nix" },
+  native: { closure: ".", output: "guest" },
   tools: ["github_issue_view", "github_pull_request_view"],
 };
 

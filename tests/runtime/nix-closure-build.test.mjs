@@ -16,8 +16,27 @@ test("Env builds a suite closure and records every recursive store path", async 
       return { stdout: JSON.stringify({ [dependency]: {}, [root]: {} }) };
     },
   });
-  assert.deepEqual(closure, { rootPath: root, paths: [root, dependency].sort(), closureDirectory: "/suites/github/nix" });
+  assert.deepEqual(closure, {
+    rootPath: root,
+    paths: [root, dependency].sort(),
+    closureDirectory: "/suites/github/nix",
+    flake: "path:/suites/github/nix",
+    output: "default",
+  });
   assert.equal(calls[0][1].at(-1), "path:/suites/github/nix#default");
+});
+
+test("Env builds an explicit output from an immutable flake locator", async () => {
+  const calls = [];
+  await buildNixClosure({
+    flake: "github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567?dir=collaboration/github",
+    output: "guest",
+    execute: async (command, args) => {
+      calls.push([command, args]);
+      return args[0] === "build" ? { stdout: `${root}\n` } : { stdout: JSON.stringify({ [root]: {} }) };
+    },
+  });
+  assert.equal(calls[0][1].at(-1), "github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567?dir=collaboration/github#guest");
 });
 
 test("Env rejects a closure path outside the suite", async () =>

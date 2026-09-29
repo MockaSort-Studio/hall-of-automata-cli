@@ -15,14 +15,13 @@ wired through the worker lifecycle.
 - [x] Keep Nix/runner inputs out of the standard Pi npm package.
 - [x] Define and smoke-test guest-runner `describe`/`invoke` behavior.
 
-## Blocker: immutable suite source identity
+## Immutable suite source identity
 
-- [ ] Add an immutable, reviewable Nix flake locator to each suite/catalog
-  release record (for example a Git revision plus suite-root directory and
-  selected output). A relative `native.closure` alone cannot be built by Env
-  after catalog resolution without inferring mutable `main` source.
-- [ ] Pin the catalog/release record that supplies that locator before Env
-  builds it. Do not infer or fetch an unpinned source from a raw catalog URL.
+- [x] Add explicit `native.output` to suite manifests and a root Armory flake.
+- [~] Resolve a catalog channel once through Nix to its immutable Git revision,
+  then derive suite flake locators from that revision, manifest path, closure,
+  and output. The resolver/build primitive exists; worker profile wiring remains.
+- [ ] Record the resolved catalog revision in each launched Crew worker profile.
 
 ## Current: Env guest-suite bridge
 

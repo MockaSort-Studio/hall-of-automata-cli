@@ -19,12 +19,14 @@ function closurePaths(output) {
   return paths;
 }
 
-// Builds only the suite's locked default Nix output. Nix verifies its configured
-// binary caches; Env later mounts the resulting local store paths read-only.
-export async function buildNixClosure({ suiteRoot, closure, execute = exec }) {
-  const directory = closureDirectory(suiteRoot, closure);
-  const flake = `path:${directory}`;
-  const { stdout: buildOutput } = await execute("nix", ["build", "--no-link", "--print-out-paths", `${flake}#default`]);
+// Builds one locked Nix suite output. Nix verifies configured binary caches;
+// Env later mounts the resulting local store paths read-only.
+export async function buildNixClosure({ suiteRoot, closure, output = "default", flake, execute = exec }) {
+  if (typeof output !== "string" || !output || /\s/.test(output)) throw new Error("Nix suite output is required");
+  const directory = flake ? undefined : closureDirectory(suiteRoot, closure);
+  const locator = flake ?? `path:${directory}`;
+  if (typeof locator !== "string" || !locator || /\s/.test(locator)) throw new Error("Nix suite flake locator is required");
+  const { stdout: buildOutput } = await execute("nix", ["build", "--no-link", "--print-out-paths", `${locator}#${output}`]);
   const rootPath = buildOutput.trim();
   if (!STORE_PATH.test(rootPath)) throw new Error("Nix closure build did not return one store path");
   const { stdout: pathInfo } = await execute("nix", [
@@ -37,5 +39,5 @@ export async function buildNixClosure({ suiteRoot, closure, execute = exec }) {
   ]);
   const paths = closurePaths(pathInfo);
   if (!paths.includes(rootPath)) throw new Error("Nix closure omits its built root path");
-  return { rootPath, paths, closureDirectory: directory };
+  return { rootPath, paths, closureDirectory: directory, flake: locator, output };
 }
