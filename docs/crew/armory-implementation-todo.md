@@ -78,6 +78,9 @@ wired through the worker lifecycle.
   session proxy isolation passed.
 ## Follow-up diagnostics
 
+- [ ] Narrow per-assignment GitHub grants. GitHub is currently a common role
+  baseline, so a read-only assignment still registers mutation-capable guest
+  proxies; dispatch must project task-specific operation allowlists.
 - [ ] Implement credential management: source/rotate per-worker credentials,
   bind them to allowed hosts, and revoke them on worker teardown. Current
   GitHub policy injects an existing host `GITHUB_TOKEN` only as a guest
