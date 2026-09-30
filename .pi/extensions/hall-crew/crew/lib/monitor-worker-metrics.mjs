@@ -6,7 +6,7 @@
 // real temp directory, unlike the rest of monitor.ts's pi-tui-bound wiring.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { summarizeWorkerEvents } from "../../runtime/lib/worker-metrics.mjs";
+import { summarizeWorkerEvents } from "../../crew-runtime/lib/worker-metrics.mjs";
 
 const readEvents = (path) => {
   try {

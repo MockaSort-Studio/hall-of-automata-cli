@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { discussionStateFilePath } from "../../runtime/lib/github-discussion.mjs";
-import { runtimeFor } from "../../runtime/lib/shared-runtime.mjs";
-import { crewEnvironment, resolveCrewEnvironment } from "../../runtime/lib/crew-environment.mjs";
-import { resolveArmoryCatalogReference } from "../../runtime/lib/armory-catalog-reference.mjs";
-import { resolveNixGuestSuiteRequests } from "../../runtime/lib/nix-guest-suite-acquisition.mjs";
+import { discussionStateFilePath } from "../../crew-runtime/lib/github-discussion.mjs";
+import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
+import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
+import { resolveArmoryCatalogReference } from "../../crew-runtime/lib/armory-catalog-reference.mjs";
+import { resolveNixGuestSuiteRequests } from "../../crew-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";

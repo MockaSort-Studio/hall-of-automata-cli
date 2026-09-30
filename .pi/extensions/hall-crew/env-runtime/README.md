@@ -1,0 +1,8 @@
+# Environment Runtime
+
+The isolated worker-environment layer for Hall Crew. It will own Nix suite
+acquisition, filtered store views, Gondolin VMs, Armory runner proxies, and
+credential injection.
+
+It exposes approved guest operations to `crew-runtime`; it never defines Crew
+roles or policy.

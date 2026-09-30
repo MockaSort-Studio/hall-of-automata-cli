@@ -7,7 +7,7 @@ import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mj
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerCommunicationTools } from "./lib/communication-tools.ts";
 import { registerRosterTools } from "./lib/roster-tools.ts";
-import { runtimeFor } from "../runtime/lib/shared-runtime.mjs";
+import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 import { installCrewDispatchArming } from "./lib/dispatch-arming.mjs";
 

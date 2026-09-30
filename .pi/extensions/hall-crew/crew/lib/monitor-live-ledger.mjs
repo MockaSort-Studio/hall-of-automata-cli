@@ -14,7 +14,7 @@
 // permanent no-op (`if (!this.#comm) return () => {}`) unless *this*
 // Runtime instance itself started that Crew's Comm controller, which in a
 // real TUI session it never has.
-import { connectComm } from "../../runtime/lib/comm-client.mjs";
+import { connectComm } from "../../crew-runtime/lib/comm-client.mjs";
 
 // The plan's static shape (handle/dependsOn/task) is read once from the
 // local selected_crew_<uuid>.json -- not live state, just node identity --
