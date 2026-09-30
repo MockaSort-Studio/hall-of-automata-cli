@@ -32,6 +32,27 @@ test("lifecycle spawn failure removes its provisional run directory", async () =
   }
 });
 
+test("lifecycle shutdown terminates connected clients", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "lifecycle-shutdown-"));
+  const child = spawn(process.execPath, [serverPath, JSON.stringify({ cwd, workerModule: "unused" })], {
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  let socket;
+  try {
+    const port = await waitForPort(child);
+    socket = new WebSocket(`ws://127.0.0.1:${port}`);
+    await once(socket, "open");
+    const closed = once(socket, "close");
+    child.kill("SIGTERM");
+    await Promise.all([once(child, "exit"), closed]);
+    assert.equal(socket.readyState, WebSocket.CLOSED);
+  } finally {
+    socket?.terminate();
+    if (child.exitCode === null) child.kill("SIGKILL");
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("lifecycle RPC returns results and protocol errors", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "lifecycle-rpc-"));
   mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });

@@ -48,6 +48,7 @@ export class Runtime {
       cwd: this.cwd,
       workerModule: join(import.meta.dirname, "worker.mjs"),
       authToken: this.#lifecycleAuthToken,
+      hostPid: process.pid,
     });
     this.#lifecycleProcess = spawn(process.execPath, [join(import.meta.dirname, "lifecycle-server.mjs"), config], {
       stdio: ["ignore", "pipe", "ignore"],

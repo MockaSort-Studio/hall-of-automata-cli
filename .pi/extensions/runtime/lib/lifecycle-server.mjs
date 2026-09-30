@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import { LifecycleController } from "./lifecycle-controller.mjs";
+
 const config = JSON.parse(process.argv[2]);
 const controller = new LifecycleController(config);
 const authToken = config.authToken;
@@ -31,8 +32,31 @@ server.on("connection", (socket) =>
     }
   }),
 );
+
+let stopping;
+const shutdown = () => {
+  if (stopping) return stopping;
+  stopping = (async () => {
+    await controller.shutdown();
+    for (const socket of server.clients) socket.terminate();
+    await new Promise((resolve) => server.close(resolve));
+    process.exit(0);
+  })();
+  return stopping;
+};
+const parentIsAlive = () => {
+  if (!config.hostPid) return true;
+  try {
+    process.kill(config.hostPid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const parentWatch = setInterval(() => {
+  if (!parentIsAlive()) void shutdown();
+}, 1_000);
+parentWatch.unref();
+process.once("SIGTERM", () => void shutdown());
+process.once("SIGINT", () => void shutdown());
 process.stdout.write(`${JSON.stringify({ port: server.address().port })}\n`);
-process.once("SIGTERM", async () => {
-  await controller.shutdown();
-  server.close(() => process.exit(0));
-});
