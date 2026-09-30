@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
 test("assembly grants only explicit GitHub operations", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.", {
-    githubOperations: ["github_issue_view"],
+    allowedOperations: ["github_issue_view"],
   });
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);
   assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_")));
@@ -27,7 +27,7 @@ test("reviewer uses only GitHub tools supplied by the runtime", () => {
   ];
   const actor = assemble("snowball", "reviewer", "Review PR 1.", {
     runtimeTools: tools,
-    githubOperations: tools.filter((tool) => tool.startsWith("github_")),
+    allowedOperations: tools.filter((tool) => tool.startsWith("github_")),
   });
   assert.deepEqual(actor.extensionPaths, []);
 });

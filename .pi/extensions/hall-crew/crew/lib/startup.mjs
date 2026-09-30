@@ -97,8 +97,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       ...(input.members[index].acceptanceCriteria
         ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
         : {}),
-      ...(input.members[index].githubOperations
-        ? { githubOperations: input.members[index].githubOperations }
+      ...(input.members[index].allowedOperations
+        ? { allowedOperations: input.members[index].allowedOperations }
         : {}),
     })),
   };

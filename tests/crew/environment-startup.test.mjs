@@ -88,7 +88,7 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
   try {
     const prepared = await prepareCrew(
       { getAllTools: () => [] },
-      { members: [{ name: "snowball", role: "reviewer", githubOperations: ["github_issue_view"] }] },
+      { members: [{ name: "snowball", role: "reviewer", allowedOperations: ["github_issue_view"] }] },
       { cwd },
       ".pi",
     );
@@ -106,7 +106,7 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
         broadcast: async () => {},
       }),
     });
-    assert.deepEqual(launched[0].environmentProfile.builtins, ["read", "grep", "find", "ls", "bash"]);
+    assert.deepEqual(launched[0].environmentProfile.builtins, []);
     assert.equal(launched[0].environmentProfile.suites[0].suite, "collaboration/pi-github-tools");
     assert.equal(launched[0].environmentProfile.suites[0].tools.length, 1);
     assert.ok(launched[0].environmentProfile.suites[0].tools.includes("github_issue_view"));

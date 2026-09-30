@@ -25,7 +25,7 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
         task: "Measure safely",
         members: [
           { name: "old-major", role: "lead" },
-          { name: "snowball", role: "developer", githubOperations: ["github_issue_view"] },
+          { name: "snowball", role: "developer", allowedOperations: ["github_issue_view"] },
         ],
       },
       { cwd },
@@ -124,7 +124,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
             task: "Review PR 7.",
             deliverTo: "main",
             authority: { review: "submit", merge: false },
-            githubOperations: githubTools,
+            allowedOperations: githubTools,
           },
         ],
       },

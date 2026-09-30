@@ -78,8 +78,9 @@ wired through the worker lifecycle.
   session proxy isolation passed.
 ## Follow-up diagnostics
 
-- [x] Narrow GitHub grants per assignment. `githubOperations` is an explicit,
-  validated subset of the GitHub catalog; omitted means no GitHub proxy.
+- [x] Narrow operation grants per assignment. `allowedOperations` is a generic,
+  capability-checked allowlist for built-ins and Armory operations; omitted
+  means role-native tools only and no GitHub proxy.
 - [~] Add per-worker credential leases. Raw policy credential variables are
   removed before Pi starts; the worker receives an in-memory lease bound to
   allowed hosts and revokes it on VM teardown. A renewable external credential

@@ -9,6 +9,7 @@ import {
 } from "./automaton-body/lib/index.mjs";
 import { NAMES, getAutomaton } from "./roster.mjs";
 import { assignmentContext } from "./assignment-context.mjs";
+import { GITHUB_BASE_TOOLS, GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
 
 export const SOULS = NAMES;
 export const ROLES = ROLE_NAMES;
@@ -28,9 +29,15 @@ export function assemble(name, role, task, override = {}) {
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
-  // Role tools are the functional baseline. Roster tools are this automaton's
-  // domain additions. They are operation names, not extension declarations.
-  const tools = [...new Set([...body.tools, ...automaton.tools])];
+  // Role and roster tools are capabilities. An assignment may narrow every
+  // operation, including built-ins and Armory operations; GitHub capabilities
+  // are never granted until explicitly requested.
+  const capabilities = [...new Set([...body.tools, ...automaton.tools, ...GITHUB_BASE_TOOLS])];
+  const defaultTools = capabilities.filter((tool) => !GITHUB_BASE_TOOL_SET.has(tool));
+  const requested = override.allowedOperations;
+  if (requested !== undefined && (!Array.isArray(requested) || requested.some((tool) => !capabilities.includes(tool))))
+    throw new Error(`Crew assignment has an operation outside ${role}'s capabilities.`);
+  const tools = requested === undefined ? defaultTools : [...new Set(requested)];
   return {
     name: `${role}-${name}`,
     instructions: `${body.instructions}${automaton.tools.length ? `\n\n## ARMORY\nDeclared domain tools: ${automaton.tools.join(", ")}.` : ""}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}${assignmentContext(override)}`,

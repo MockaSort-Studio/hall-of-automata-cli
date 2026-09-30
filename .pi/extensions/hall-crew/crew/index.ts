@@ -21,7 +21,7 @@ const assignmentFields = {
   deliverTo: Type.Optional(Type.String()),
   authority: Type.Optional(Type.Record(Type.String(), Type.Union([Type.String(), Type.Boolean()]))),
   acceptanceCriteria: Type.Optional(Type.Array(Type.String())),
-  githubOperations: Type.Optional(Type.Array(Type.String())),
+  allowedOperations: Type.Optional(Type.Array(Type.String())),
 };
 const initialMember = Type.Object({
   name: Type.String(),
