@@ -2,5 +2,5 @@
 // automaton/role profiles may add or narrow this explicit baseline.
 export const BASE_TOOLS_PROFILE = Object.freeze([
   { suite: "system", operations: ["read", "grep", "find", "ls"] },
-  { suite: "collaboration/github", operations: ["github_issue_view"] },
+  { suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] },
 ]);

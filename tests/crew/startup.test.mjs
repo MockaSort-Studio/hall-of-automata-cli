@@ -25,7 +25,7 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
         task: "Measure safely",
         members: [
           { name: "old-major", role: "lead" },
-          { name: "snowball", role: "developer", tools: [{ suite: "collaboration/github", operations: ["github_issue_view"] }] },
+          { name: "snowball", role: "developer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] },
         ],
       },
       { cwd },
@@ -58,7 +58,7 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     );
     assert.equal(selected.members[0].handle, "lead-old-major-00");
     assert.equal(config.agents[1].environmentProfile.format, "hall.crew-profile/v1");
-    assert.deepEqual(config.agents[1].suiteGrants, [{ suite: "collaboration/github", tools: ["github_issue_view"] }]);
+    assert.deepEqual(config.agents[1].suiteGrants, [{ suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] }]);
     assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
     assert.ok(config.agents[0].commTools.includes("comm_notify_all"));
@@ -123,7 +123,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
             task: "Review PR 7.",
             deliverTo: "main",
             authority: { review: "submit", merge: false },
-            tools: [{ suite: "collaboration/github", operations: githubTools }],
+            tools: [{ suite: "collaboration/pi-github-tools", operations: githubTools }],
           },
         ],
       },
@@ -133,7 +133,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.deepEqual(config.agents[0].extensionPaths, []);
     assert.match(config.agents[0].task, /## ASSIGNMENT CONTEXT/);
-    assert.deepEqual(config.agents[0].suiteGrants, [{ suite: "collaboration/github", tools: githubTools }]);
+    assert.deepEqual(config.agents[0].suiteGrants, [{ suite: "collaboration/pi-github-tools", tools: githubTools }]);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

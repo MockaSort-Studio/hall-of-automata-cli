@@ -2,7 +2,7 @@
 // or the destinations at which a secret may be substituted.
 const policies = new Map([
   [
-    "collaboration/github",
+    "collaboration/pi-github-tools",
     [{ slot: "github-api", environment: "GITHUB_TOKEN", guestEnvironment: "GITHUB_TOKEN", hosts: ["api.github.com", "github.com"], source: "environment:GITHUB_TOKEN" }],
   ],
 ]);
