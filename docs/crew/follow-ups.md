@@ -1,6 +1,6 @@
 # Crew Operational Follow-ups
 
-Updated: 2026-09-27. This is the current backlog; the SDK runtime structure is
+Updated: 2026-09-30. This is the current backlog; the SDK runtime structure is
 canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Completed — SDK runtime migration
@@ -16,6 +16,15 @@ canonical in [runtime-structure.md](runtime-structure.md).
 - [x] Add roster, protocol, Comm, observability, startup, and relocation smoke coverage.
 
 ## Remaining runtime hardening
+
+- [ ] Repair the canonical `start_crew` dispatch contract before further live
+      canaries. A recent leadless Gondolin canary accepted a generated kickoff
+      payload but its worker exited before session/event evidence existed;
+      `runtime_send_message` has no `all` recipient and lead-only broadcast
+      cannot task a leadless Crew. Define one supported post-launch task path,
+      make kickoff opt-in/explicit according to the final protocol, and add an
+      E2E test proving delivery, worker registration, terminal cleanup, and
+      TUI roster retirement. Preserve failure logs before any cleanup.
 
 - [x] Audit context and persona assembly after the SDK port. The "obsolete Claude
       consultation overlay" was already fully removed prior to this session (commit
