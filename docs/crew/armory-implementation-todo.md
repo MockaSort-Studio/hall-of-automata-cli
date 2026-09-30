@@ -78,9 +78,9 @@ wired through the worker lifecycle.
   session proxy isolation passed.
 ## Follow-up diagnostics
 
-- [x] Narrow operation grants per assignment. `allowedOperations` is a generic,
-  capability-checked allowlist for built-ins and Armory operations; omitted
-  means role-native tools only and no GitHub proxy.
+- [x] Narrow operation grants per assignment. Each `tools` grant names an
+  exact Armory suite and operations; reserved suite `system` narrows native
+  role tools. Direct suite grants avoid reverse-searching operation ownership.
 - [~] Add per-worker credential leases. Raw policy credential variables are
   removed before Pi starts; the worker receives an in-memory lease bound to
   allowed hosts and revokes it on VM teardown. A renewable external credential

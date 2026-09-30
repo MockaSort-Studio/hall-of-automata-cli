@@ -18,6 +18,22 @@ export function crewPaths(configDir, runId) {
 }
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
 const runtimeIdentity = (name) => `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.`;
+const suiteGrants = (tools) => {
+  if (tools === undefined) return { system: undefined, suites: [] };
+  if (!Array.isArray(tools)) throw new Error("Crew tools must be suite grants.");
+  const seen = new Set();
+  for (const grant of tools) {
+    if (!grant || typeof grant.suite !== "string" || !grant.suite || !Array.isArray(grant.operations) || !grant.operations.length)
+      throw new Error("Crew suite grants require a suite and operations.");
+    if (seen.has(grant.suite) || new Set(grant.operations).size !== grant.operations.length || grant.operations.some((item) => typeof item !== "string" || !item))
+      throw new Error("Crew suite grants must be unique and non-empty.");
+    seen.add(grant.suite);
+  }
+  return {
+    system: tools.find((grant) => grant.suite === "system")?.operations,
+    suites: tools.filter((grant) => grant.suite !== "system").map(({ suite, operations }) => ({ suite, tools: operations })),
+  };
+};
 const workerTask = (actor, runId, topic) =>
   `${actor.instructions}\n\n${runtimeIdentity(actor.handle)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 export function queuedMessage(prepared) {
@@ -33,17 +49,20 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const paths = crewPaths(configDir, runId);
   const counts = new Map();
   const actors = input.members.map((member) => {
+    const grants = suiteGrants(member.tools);
     if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
     counts.set(key, ordinal + 1);
     const assembled = assemble(member.name, member.role, member.task ?? "", {
       ...member,
+      systemOperations: grants.system,
       runtimeTools: pi.getAllTools(),
     });
     return {
       ...assembled,
       profile: compileActorProfile({ tools: assembled.tools, commTools: assembled.commTools }),
+      suiteGrants: grants.suites,
       role: member.role,
       handle: handle(member.role, member.name, ordinal),
     };
@@ -68,6 +87,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     commTools: actor.commTools,
     environmentProfile: actor.profile,
     extensionPaths: actor.extensionPaths,
+    suiteGrants: actor.suiteGrants,
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
     resident: true,
@@ -97,9 +117,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       ...(input.members[index].acceptanceCriteria
         ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
         : {}),
-      ...(input.members[index].allowedOperations
-        ? { allowedOperations: input.members[index].allowedOperations }
-        : {}),
+      ...(input.members[index].tools ? { tools: input.members[index].tools } : {}),
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);
@@ -166,21 +184,20 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
     const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
-    const grantedTools = [...new Set(config.agents.flatMap((agent) => agent.tools ?? []))];
+    const suiteRequests = config.agents.flatMap((agent) => agent.suiteGrants ?? []);
     const catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
     const suiteTools = await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({
       catalog,
-      tools: grantedTools,
+      requests: suiteRequests,
     });
     config.environmentResolution = resolution;
     config.agents = config.agents.map((agent) => {
-      const environmentProfile = compileActorProfile({
-        tools: agent.tools ?? [],
-        commTools: agent.commTools ?? [],
-        suites: suiteTools,
-      });
+      const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
+      const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
+      const environmentProfile = compileActorProfile({ tools, commTools: agent.commTools ?? [], suites });
       return {
         ...agent,
+        tools,
         environmentProfile,
         ...(resolution.sandbox && environmentProfile.suites.length
           ? { armory: { catalog: { flake: catalog.flake }, tools: environmentProfile.suites.flatMap((suite) => suite.tools) } }

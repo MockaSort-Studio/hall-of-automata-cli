@@ -32,21 +32,23 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
   };
 }
 
-export async function resolveNixGuestSuiteRequests({ catalog, tools, readSuite = readCatalogSuite }) {
-  if (!Array.isArray(tools) || tools.some((tool) => typeof tool !== "string" || !tool))
-    throw new Error("Nix guest suite tools must be non-empty strings");
-  const requested = new Set(tools);
-  if (catalog.catalog?.format !== "hall.armory/v1" || !Array.isArray(catalog.catalog.lockers))
-    throw new Error("Unsupported Armory catalog format");
-  const requests = [];
-  for (const locker of catalog.catalog.lockers) {
-    for (const entry of locker.suites ?? []) {
-      const manifest = await readSuite(catalog, entry.manifest);
-      const selected = (manifest.tools ?? []).filter((tool) => requested.has(tool));
-      if (selected.length) requests.push({ suite: `${locker.name}/${entry.extension}`, tools: selected });
-    }
+export async function resolveNixGuestSuiteRequests({ catalog, requests, readSuite = readCatalogSuite }) {
+  if (!Array.isArray(requests)) throw new Error("Nix guest suite requests must be an array");
+  const grouped = new Map();
+  for (const request of requests) {
+    if (!request?.suite || !Array.isArray(request.tools) || request.tools.some((tool) => typeof tool !== "string" || !tool))
+      throw new Error("Nix guest suite requests require a suite and operations");
+    const tools = grouped.get(request.suite) ?? new Set();
+    request.tools.forEach((tool) => tools.add(tool));
+    grouped.set(request.suite, tools);
   }
-  return requests;
+  return Promise.all(
+    [...grouped].map(async ([suite, tools]) => {
+      const entry = catalogEntry(catalog.catalog, suite);
+      const manifest = validateArmorySuite(await readSuite(catalog, entry.manifest), [...tools]);
+      return { suite, tools: manifest.tools };
+    }),
+  );
 }
 
 export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCatalogSuite, build = buildNixClosure }) {

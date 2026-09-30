@@ -88,16 +88,14 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
   try {
     const prepared = await prepareCrew(
       { getAllTools: () => [] },
-      { members: [{ name: "snowball", role: "reviewer", allowedOperations: ["github_issue_view"] }] },
+      { members: [{ name: "snowball", role: "reviewer", tools: [{ suite: "collaboration/github", operations: ["github_issue_view"] }] }] },
       { cwd },
       ".pi",
     );
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
-      resolveArmoryToolSuites: async (request) => [
-        { suite: "collaboration/pi-github-tools", tools: request.tools.filter((tool) => tool.startsWith("github_")) },
-      ],
+      resolveArmoryToolSuites: async ({ requests }) => requests,
       runtimeFor: () => ({
         launchCrew: async (agents) => {
           launched = agents;
@@ -106,8 +104,8 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
         broadcast: async () => {},
       }),
     });
-    assert.deepEqual(launched[0].environmentProfile.builtins, []);
-    assert.equal(launched[0].environmentProfile.suites[0].suite, "collaboration/pi-github-tools");
+    assert.deepEqual(launched[0].environmentProfile.builtins, ["read", "grep", "find", "ls", "bash"]);
+    assert.equal(launched[0].environmentProfile.suites[0].suite, "collaboration/github");
     assert.equal(launched[0].environmentProfile.suites[0].tools.length, 1);
     assert.ok(launched[0].environmentProfile.suites[0].tools.includes("github_issue_view"));
   } finally {

@@ -21,7 +21,11 @@ const assignmentFields = {
   deliverTo: Type.Optional(Type.String()),
   authority: Type.Optional(Type.Record(Type.String(), Type.Union([Type.String(), Type.Boolean()]))),
   acceptanceCriteria: Type.Optional(Type.Array(Type.String())),
-  allowedOperations: Type.Optional(Type.Array(Type.String())),
+  tools: Type.Optional(
+    Type.Array(
+      Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) }),
+    ),
+  ),
 };
 const initialMember = Type.Object({
   name: Type.String(),

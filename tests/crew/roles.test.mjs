@@ -40,16 +40,16 @@ test("integrator has bounded reconciliation authority", () => {
 
 test("reviewer has review-only authority", () => {
   const result = assemble("snowball", "reviewer", "", {
-    allowedOperations: ["read", "grep", "find", "ls", "bash", "github_pull_request_view"],
+    systemOperations: ["read", "grep", "find", "ls", "bash"],
   });
-  for (const tool of ["read", "grep", "find", "ls", "bash", "github_pull_request_view"])
+  for (const tool of ["read", "grep", "find", "ls", "bash"])
     assert.ok(result.tools.includes(tool));
   for (const tool of ["edit", "write"]) assert.ok(!result.tools.includes(tool));
   assert.match(result.instructions, /REQUEST_CHANGES/);
 });
 
 test("rejects an assignment operation outside a role's capabilities", () =>
-  assert.throws(() => assemble("snowball", "advisor", "", { allowedOperations: ["github_unapproved"] }), /outside/));
+  assert.throws(() => assemble("snowball", "advisor", "", { systemOperations: ["edit"] }), /outside/));
 
 test("developer has bounded implementation authority", () => {
   const result = roleModule({ role: "developer", override: {} });

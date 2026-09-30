@@ -1,13 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
-test("assembly grants only explicit GitHub operations", () => {
+test("assembly narrows explicit system operations", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.", {
-    allowedOperations: ["github_issue_view"],
+    systemOperations: ["read"],
   });
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);
   assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_")));
-  assert.ok(actor.tools.includes("github_issue_view"));
+  assert.deepEqual(actor.tools, ["read"]);
 });
 test("reviewer uses only GitHub tools supplied by the runtime", () => {
   const tools = [
@@ -27,7 +27,7 @@ test("reviewer uses only GitHub tools supplied by the runtime", () => {
   ];
   const actor = assemble("snowball", "reviewer", "Review PR 1.", {
     runtimeTools: tools,
-    allowedOperations: tools.filter((tool) => tool.startsWith("github_")),
+    systemOperations: tools.filter((tool) => !tool.startsWith("github_")),
   });
   assert.deepEqual(actor.extensionPaths, []);
 });
