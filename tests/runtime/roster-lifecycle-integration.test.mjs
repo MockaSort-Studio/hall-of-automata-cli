@@ -10,8 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/runtime/lib/lifecycle-controller.mjs";
-import { applyWorkerStatusToRosterFiles } from "../../.pi/extensions/crew/lib/roster-lifecycle.mjs";
+import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { applyWorkerStatusToRosterFiles } from "../../.pi/extensions/hall-crew/crew/lib/roster-lifecycle.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
 

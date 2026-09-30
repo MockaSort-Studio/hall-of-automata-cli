@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acquireNixGuestSuite } from "../../.pi/extensions/runtime/lib/nix-guest-suite-acquisition.mjs";
+import { acquireNixGuestSuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-guest-suite-acquisition.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const catalog = {

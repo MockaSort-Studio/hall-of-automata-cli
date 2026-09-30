@@ -5,6 +5,6 @@ crews.
 
 - `crew/` defines the public tools, Crew policy, composition, and UI.
 - `crew-runtime/` owns Comm, Lifecycle, workers, and worktrees.
-- `env-runtime/` will own Nix, Gondolin, Armory guest suites, and credentials.
+- `env-runtime/` owns Nix, Gondolin, Armory guest suites, and credentials.
 
 Dependencies flow downward: `crew → crew-runtime → env-runtime`.

@@ -13,7 +13,7 @@ import {
   publishAtomically,
   resolveVerifiedArtifact,
   verifyChecksum,
-} from "../../.pi/extensions/runtime/lib/armory-core.mjs";
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-core.mjs";
 
 const sha256Hex = (text) => createHash("sha256").update(text).digest("hex");
 

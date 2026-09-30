@@ -90,7 +90,7 @@ The raw GitHub extension publicly registers only:
 
 See `.pi/extensions/github/index.ts:22-30`. Create, comment, and update helpers still exist in `.pi/extensions/github/lib/discussions/index.ts`, but are dormant: they are not registered tools and must not be counted as current public capability.
 
-Crew writes instead use `.pi/extensions/crew/lib/communication-tools.ts:5-10`:
+Crew writes instead use `.pi/extensions/hall-crew/crew/lib/communication-tools.ts:5-10`:
 
 | Wrapper | Governance added |
 |---|---|
@@ -100,7 +100,7 @@ Crew writes instead use `.pi/extensions/crew/lib/communication-tools.ts:5-10`:
 | `crew_ask` | Resolves a roster recipient and posts a directed `[QUESTION]`. |
 | `crew_broadcast` | Posts a `[BROADCAST]` and returns the run topic for mesh publication. |
 
-`.pi/extensions/crew/lib/comm.mjs:26-51` verifies only the caller-supplied `from` against roster names, rejects URL-only/non-substantive content, length-checks the caller-supplied signature, and performs GraphQL writes. It does not bind sender identity to the executing actor, prevent duplicate comments, make kickoff check/create atomic, or protect the raw delete tool. This is sufficient cooperative provenance for KR #358, not a security boundary.
+`.pi/extensions/hall-crew/crew/lib/comm.mjs:26-51` verifies only the caller-supplied `from` against roster names, rejects URL-only/non-substantive content, length-checks the caller-supplied signature, and performs GraphQL writes. It does not bind sender identity to the executing actor, prevent duplicate comments, make kickoff check/create atomic, or protect the raw delete tool. This is sufficient cooperative provenance for KR #358, not a security boundary.
 
 ## Cross-cutting reliability findings
 

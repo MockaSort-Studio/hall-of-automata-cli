@@ -6,8 +6,8 @@ Status: canonical for `dev`.
 
 Pi discovers project-local extensions:
 
-- `.pi/extensions/crew/index.ts` — Crew orchestration.
-- `.pi/extensions/runtime/index.ts` — SDK Lifecycle and Comm runtime.
+- `.pi/extensions/hall-crew/crew/index.ts` — Crew orchestration.
+- `.pi/extensions/hall-crew/crew-runtime/index.ts` — SDK Lifecycle and Comm runtime.
 - Armory suites resolve from external `MockaSort-Studio/hall-armory`; Hall CLI has no local Armory/GitHub source tree.
 - `.pi/extensions/web/index.ts` — bounded web fetch.
 

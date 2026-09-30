@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { registerArmoryWorkerProxies } from "../../.pi/extensions/runtime/lib/armory-worker-proxy-extension.mjs";
+import { registerArmoryWorkerProxies } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-worker-proxy-extension.mjs";
 
 const rootPath = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
 

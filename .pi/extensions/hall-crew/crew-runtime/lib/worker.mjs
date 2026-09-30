@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
-import { resolveArmoryCatalogReference } from "./armory-catalog-reference.mjs";
-import { acquireNixGuestSuites } from "./nix-guest-suite-acquisition.mjs";
+import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
+import { acquireNixGuestSuites } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
@@ -60,12 +60,12 @@ const args = [
 if (config.sandbox?.kind === "gondolin") {
   args.push(
     "--extension",
-    resolve(config.extensionCwd, ".pi", "extensions", "runtime", "lib", "worker-gondolin-extension.mjs"),
+    resolve(config.extensionCwd, ".pi", "extensions", "hall-crew", "env-runtime", "lib", "worker-gondolin-extension.mjs"),
   );
   if (config.armory)
     args.push(
       "--extension",
-      resolve(config.extensionCwd, ".pi", "extensions", "runtime", "lib", "armory-worker-proxy-extension.mjs"),
+      resolve(config.extensionCwd, ".pi", "extensions", "hall-crew", "env-runtime", "lib", "armory-worker-proxy-extension.mjs"),
     );
 }
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));

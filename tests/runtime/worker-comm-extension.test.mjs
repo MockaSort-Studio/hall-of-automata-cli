@@ -3,9 +3,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { CommController } from "../../.pi/extensions/runtime/lib/comm-controller.mjs";
-import { isDegenerateTurn } from "../../.pi/extensions/runtime/lib/degenerate-turn.mjs";
-import { STATIC_CONTEXT_MARKER } from "../../.pi/extensions/runtime/lib/worker-events.mjs";
+import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
+import { isDegenerateTurn } from "../../.pi/extensions/hall-crew/crew-runtime/lib/degenerate-turn.mjs";
+import { STATIC_CONTEXT_MARKER } from "../../.pi/extensions/hall-crew/crew-runtime/lib/worker-events.mjs";
 
 const loadExtension = async (config) => {
   const dir = mkdtempSync(join(tmpdir(), "worker-comm-config-"));
@@ -13,7 +13,7 @@ const loadExtension = async (config) => {
   writeFileSync(configPath, JSON.stringify(config));
   process.env.PI_CREW_WORKER_CONFIG = configPath;
   const module = await import(
-    `../../.pi/extensions/runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
+    `../../.pi/extensions/hall-crew/crew-runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
   );
   return module.default;
 };

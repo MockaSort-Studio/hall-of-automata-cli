@@ -1,4 +1,4 @@
-import { preflightWorkerSandbox } from "./sandbox-preflight.mjs";
+import { preflightWorkerSandbox } from "../../env-runtime/lib/sandbox-preflight.mjs";
 
 const validMicrovms = new Set(["auto", "gondolin", "none"]);
 

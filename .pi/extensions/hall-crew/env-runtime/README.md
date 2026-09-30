@@ -1,6 +1,6 @@
 # Environment Runtime
 
-The isolated worker-environment layer for Hall Crew. It will own Nix suite
+The isolated worker-environment layer for Hall Crew. It owns Nix suite
 acquisition, filtered store views, Gondolin VMs, Armory runner proxies, and
 credential injection.
 

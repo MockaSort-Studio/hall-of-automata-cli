@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-const source = readFileSync(new URL("../../.pi/extensions/crew/index.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/index.ts", import.meta.url), "utf8");
 
 test("crew extension imports all tool registration functions", () => {
   assert.match(source, /runtimeFor/);
@@ -27,7 +27,7 @@ test("crew extension calls all tool registration functions", () => {
 
 test("communication tools module exports registration function", () => {
   const commTools = readFileSync(
-    new URL("../../.pi/extensions/crew/lib/communication-tools.ts", import.meta.url),
+    new URL("../../.pi/extensions/hall-crew/crew/lib/communication-tools.ts", import.meta.url),
     "utf8",
   );
   assert.match(commTools, /export function registerCommunicationTools/);
@@ -36,7 +36,7 @@ test("communication tools module exports registration function", () => {
 });
 
 test("roster tools module exports registration function", () => {
-  const rosterTools = readFileSync(new URL("../../.pi/extensions/crew/lib/roster-tools.ts", import.meta.url), "utf8");
+  const rosterTools = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/lib/roster-tools.ts", import.meta.url), "utf8");
   assert.match(rosterTools, /export function registerRosterTools/);
   assert.match(rosterTools, /name: "crew_register"/);
   assert.match(rosterTools, /name: "crew_finish_close"/);

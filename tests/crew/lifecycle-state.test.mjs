@@ -7,7 +7,7 @@ import {
   canTransition,
   transition,
   createLifecycle,
-} from "../../.pi/extensions/crew/lib/lifecycle-state.mjs";
+} from "../../.pi/extensions/hall-crew/crew/lib/lifecycle-state.mjs";
 
 test("STATES and TERMINAL_OUTCOMES expose the durable contract vocabulary", () => {
   assert.deepEqual(STATES, ["queued", "running", "attention"]);

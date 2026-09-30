@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readCatalogSuite, resolveArmoryCatalogReference, suiteFlakeLocator } from "../../.pi/extensions/runtime/lib/armory-catalog-reference.mjs";
+import { readCatalogSuite, resolveArmoryCatalogReference, suiteFlakeLocator } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-catalog-reference.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const metadata = {

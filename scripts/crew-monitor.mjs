@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { summarizeWorkerEvents } from "../.pi/extensions/runtime/lib/worker-metrics.mjs";
+import { summarizeWorkerEvents } from "../.pi/extensions/hall-crew/crew-runtime/lib/worker-metrics.mjs";
 
 const root = process.cwd();
 const launch = join(root, ".pi", "runtime", "crew-launch");

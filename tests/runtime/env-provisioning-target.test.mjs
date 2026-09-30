@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { ARMORY_SIDECAR_PATH, createProvisioningTarget } from "../../.pi/extensions/runtime/lib/env-provisioning-target.mjs";
+import { ARMORY_SIDECAR_PATH, createProvisioningTarget } from "../../.pi/extensions/hall-crew/env-runtime/lib/env-provisioning-target.mjs";
 
 const material = {
   suite: "collaboration/pi-github-tools",

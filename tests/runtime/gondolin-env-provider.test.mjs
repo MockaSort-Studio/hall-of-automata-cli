@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { createGondolinProvisioningTarget } from "../../.pi/extensions/runtime/lib/gondolin-env-provider.mjs";
+import { createGondolinProvisioningTarget } from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-env-provider.mjs";
 
 const material = {
   suite: "collaboration/pi-github-tools",

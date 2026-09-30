@@ -5,7 +5,7 @@ import {
   WORKER_COMM_HOST_CONTROL_EXTENSION,
   classifySandboxExtensionPath,
   validateGondolinWorkerExtensionPath,
-} from "../../.pi/extensions/runtime/lib/sandbox-extension-paths.mjs";
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-extension-paths.mjs";
 
 test("classifies the worker Comm extension as permitted host control", () => {
   assert.equal(classifySandboxExtensionPath(WORKER_COMM_HOST_CONTROL_EXTENSION), "worker-comm-host-control");

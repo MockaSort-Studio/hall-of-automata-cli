@@ -4,7 +4,7 @@ import {
   createCrewDashboardComponent,
   formatAutomataLines,
   formatPlanLines,
-} from "../../.pi/extensions/crew/lib/monitor-dashboard-view.mjs";
+} from "../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard-view.mjs";
 
 const automataRow = () => ({
   actorId: "a1",

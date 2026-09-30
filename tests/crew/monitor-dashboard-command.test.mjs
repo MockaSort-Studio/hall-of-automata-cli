@@ -4,8 +4,8 @@ import {
   openDashboard,
   planRowsFor,
   registerCrewDashboardCommand,
-} from "../../.pi/extensions/crew/lib/monitor-dashboard-command.mjs";
-import { seedDependencyLedgerFromSelectedCrew } from "../../.pi/extensions/crew/lib/dependency-ledger-wiring.mjs";
+} from "../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard-command.mjs";
+import { seedDependencyLedgerFromSelectedCrew } from "../../.pi/extensions/hall-crew/crew/lib/dependency-ledger-wiring.mjs";
 
 const selectedCrew = {
   runId: "run-1",

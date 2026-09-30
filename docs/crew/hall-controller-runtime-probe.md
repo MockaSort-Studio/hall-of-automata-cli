@@ -58,10 +58,10 @@ flowchart TB
 
 | Concern                                                | Source                                                                                                                     |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| Main-facing lifecycle tools                            | [.pi/extensions/runtime/index.ts](../../.pi/extensions/runtime/index.ts)                                                   |
-| Current lifecycle manager and worktree/process control | [.pi/extensions/runtime/lib/runtime.mjs](../../.pi/extensions/runtime/lib/runtime.mjs)                                     |
-| SDK worker and JSONL telemetry                         | [.pi/extensions/runtime/lib/worker.mjs](../../.pi/extensions/runtime/lib/worker.mjs)                                       |
-| Named tool bundles                                     | [.pi/extensions/runtime/lib/tool-bundles.mjs](../../.pi/extensions/runtime/lib/tool-bundles.mjs)                           |
+| Main-facing lifecycle tools                            | [.pi/extensions/hall-crew/crew-runtime/index.ts](../../.pi/extensions/hall-crew/crew-runtime/index.ts)                                                   |
+| Current lifecycle manager and worktree/process control | [.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs)                                     |
+| SDK worker and JSONL telemetry                         | [.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs)                                       |
+| Named tool bundles                                     | [.pi/extensions/hall-crew/crew-runtime/lib/tool-bundles.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/tool-bundles.mjs)                           |
 | Native Discussion tools                                | [armory/collaboration/github/src/lib/discussions/tools.ts](../../armory/collaboration/github/src/lib/discussions/tools.ts) |
 
 ## Observability

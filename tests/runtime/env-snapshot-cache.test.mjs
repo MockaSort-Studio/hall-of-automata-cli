@@ -8,7 +8,7 @@ import {
   profileKey,
   publishSealedSnapshot,
   readSealedMetadata,
-} from "../../.pi/extensions/runtime/lib/env-snapshot-cache.mjs";
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/env-snapshot-cache.mjs";
 
 function freshCacheRoot() {
   const root = mkdtempSync(join(tmpdir(), "env-snapshot-cache-"));

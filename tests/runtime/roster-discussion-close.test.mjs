@@ -6,8 +6,8 @@ import test from "node:test";
 import {
   discussionStateFilePath,
   postDiscussionClosingComment,
-} from "../../.pi/extensions/runtime/lib/github-discussion.mjs";
-import { closeTerminalRosterDiscussions } from "../../.pi/extensions/runtime/lib/roster-discussion-close.mjs";
+} from "../../.pi/extensions/hall-crew/crew-runtime/lib/github-discussion.mjs";
+import { closeTerminalRosterDiscussions } from "../../.pi/extensions/hall-crew/crew-runtime/lib/roster-discussion-close.mjs";
 
 function fakeGh(dir, log) {
   const script = join(dir, "gh");

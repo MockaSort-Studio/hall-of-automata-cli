@@ -33,9 +33,9 @@ PI_OFFLINE=1 pi \
   --no-skills \
   --no-prompt-templates \
   --no-themes \
-  -e .pi/extensions/crew/index.ts \
+  -e .pi/extensions/hall-crew/crew/index.ts \
   -e .pi/extensions/web/index.ts \
-  -e .pi/extensions/runtime/index.ts \
+  -e .pi/extensions/hall-crew/crew-runtime/index.ts \
   -e ./assert-tools.ts \
   --list-models \
   --offline >/dev/null

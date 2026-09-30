@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
-import { preflightWorkerSandbox } from "./sandbox-preflight.mjs";
+import { preflightWorkerSandbox } from "../../env-runtime/lib/sandbox-preflight.mjs";
 
 const exec = promisify(execFile);
 const GIT_TIMEOUT = 30_000;
@@ -105,7 +105,8 @@ export class LifecycleController {
         child.once("spawn", resolve);
         child.once("error", reject);
       });
-      child.unref();
+      // Keep the child handle referenced: Lifecycle owns worker cleanup and
+      // must remain alive long enough to observe a natural worker exit.
       const agent = {
         id,
         name: config.name,
@@ -117,11 +118,15 @@ export class LifecycleController {
       };
       Object.defineProperty(agent, "child", { value: child });
       this.#agents.set(id, agent);
-      child.once("exit", (code, signal) => {
+      const recordExit = (code, signal) => {
         agent.status = terminalStatus(agent.status, code);
         agent.exitCode = code;
         agent.signal = signal;
-      });
+      };
+      child.once("exit", recordExit);
+      // A short-lived worker can exit between its spawn event and listener
+      // registration. Preserve its terminal state instead of leaving it live.
+      if (child.exitCode !== null) recordExit(child.exitCode, child.signal);
       return agent;
     } catch (error) {
       if (child?.pid)

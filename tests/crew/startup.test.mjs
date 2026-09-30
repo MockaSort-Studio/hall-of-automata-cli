@@ -3,10 +3,10 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { crewPaths, prepareCrew, queuedMessage } from "../../.pi/extensions/crew/lib/startup.mjs";
-import { assemble } from "../../.pi/extensions/crew/lib/assembly.mjs";
+import { crewPaths, prepareCrew, queuedMessage } from "../../.pi/extensions/hall-crew/crew/lib/startup.mjs";
+import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
 
-const source = readFileSync(new URL("../../.pi/extensions/crew/lib/startup.mjs", import.meta.url), "utf8");
+const source = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/lib/startup.mjs", import.meta.url), "utf8");
 
 test("crew paths include an immutable selected-party manifest", () =>
   assert.deepEqual(crewPaths(".pi", "run-1"), {

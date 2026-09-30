@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/runtime/lib/lifecycle-controller.mjs";
+import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 // A spawned worker must never receive host-root discovery: it runs inside
 // its own owned worktree under .pi/runtime/runs/<id>/worktree and must not

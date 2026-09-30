@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/runtime/lib/lifecycle-controller.mjs";
+import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
 

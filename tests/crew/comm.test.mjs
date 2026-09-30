@@ -19,7 +19,7 @@ import {
   resolveReplyTarget,
   signedBody,
   writeRoster,
-} from "../../.pi/extensions/crew/lib/comm.mjs";
+} from "../../.pi/extensions/hall-crew/crew/lib/comm.mjs";
 
 let tmpDir;
 const roster = {

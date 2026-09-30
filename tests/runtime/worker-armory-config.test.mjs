@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { workerArmoryConfig } from "../../.pi/extensions/runtime/lib/worker-armory-config.mjs";
+import { workerArmoryConfig } from "../../.pi/extensions/hall-crew/env-runtime/lib/worker-armory-config.mjs";
 
 const path = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
 

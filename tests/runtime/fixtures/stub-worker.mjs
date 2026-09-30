@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
 
-if (config.task === "FAIL") process.exit(1);
+if (config.task === "FAIL") setTimeout(() => process.exit(1), 10);
 if (config.task === "SLEEP") setInterval(() => {}, 1_000);
 // Dumps the worker's own environment so isolation tests can assert which
 // host-discovery variables (if any) a spawned worker actually receives.
@@ -20,4 +20,5 @@ if (config.task === "TURN") {
     `${JSON.stringify({ type: "turn", usage: { input: 10, output: 5, cacheRead: 90, cacheWrite: 0, totalTokens: 105 } })}\n`,
   );
 }
-// Default: exit success immediately, simulating a completed worker.
+// Let Lifecycle attach its process observers before the simulated worker exits.
+if (config.task !== "SLEEP" && config.task !== "FAIL") setTimeout(() => process.exit(0), 10);

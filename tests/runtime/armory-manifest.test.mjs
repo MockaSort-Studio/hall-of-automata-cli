@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { resolveLiveArmorySuite, resolveLiveArmoryToolSuites } from "../../.pi/extensions/runtime/lib/armory-manifest.mjs";
+import { resolveLiveArmorySuite, resolveLiveArmoryToolSuites } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-manifest.mjs";
 
 const catalogUrl = "https://example.test/manifest.json";
 const suiteUrl = "https://example.test/collaboration/github/manifest.json";

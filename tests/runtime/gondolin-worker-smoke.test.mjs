@@ -4,9 +4,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { requiredQemuBinary } from "../../.pi/extensions/runtime/lib/sandbox-preflight.mjs";
+import { requiredQemuBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
 
-const extension = new URL("../../.pi/extensions/runtime/lib/worker-gondolin-extension.mjs", import.meta.url).pathname;
+const extension = new URL("../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url).pathname;
 const qemuAvailable = () => spawnSync(requiredQemuBinary(), ["--version"], { stdio: "ignore" }).status === 0;
 
 function rpcBash(cwd) {

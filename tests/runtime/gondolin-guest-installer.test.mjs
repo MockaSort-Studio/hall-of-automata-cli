@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { ensureGuestNative, installGuestPackage } from "../../.pi/extensions/runtime/lib/gondolin-guest-installer.mjs";
+import { ensureGuestNative, installGuestPackage } from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-guest-installer.mjs";
 
 const pkg = { name: "@mockasort-studio/pi-github-tools", version: "0.1.2", integrity: "sha512-test" };
 

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { acquireArmoryEnvironment } from "../../.pi/extensions/runtime/lib/env-armory-coordinator.mjs";
+import { acquireArmoryEnvironment } from "../../.pi/extensions/hall-crew/env-runtime/lib/env-armory-coordinator.mjs";
 
 const profile = { suites: [{ suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] }] };
 const cached = {

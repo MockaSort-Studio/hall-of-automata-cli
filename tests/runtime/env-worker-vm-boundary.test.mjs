@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { acquireWorkerVm } from "../../.pi/extensions/runtime/lib/env-worker-vm-boundary.mjs";
-import { profileKey } from "../../.pi/extensions/runtime/lib/env-snapshot-cache.mjs";
+import { acquireWorkerVm } from "../../.pi/extensions/hall-crew/env-runtime/lib/env-worker-vm-boundary.mjs";
+import { profileKey } from "../../.pi/extensions/hall-crew/env-runtime/lib/env-snapshot-cache.mjs";
 
 function freshCacheRoot() {
   return mkdtempSync(join(tmpdir(), "env-worker-vm-boundary-"));

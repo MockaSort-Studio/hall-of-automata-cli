@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { prepareArmorySuite } from "../../.pi/extensions/runtime/lib/armory-handler.mjs";
+import { prepareArmorySuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-handler.mjs";
 
 const request = { suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] };
 

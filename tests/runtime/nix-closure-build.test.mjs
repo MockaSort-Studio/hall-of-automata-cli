@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { buildNixClosure } from "../../.pi/extensions/runtime/lib/nix-closure-build.mjs";
+import { buildNixClosure } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-closure-build.mjs";
 
 const root = "/nix/store/0123456789abcdefghijklmnopqrstuv-gh-2.101.0";
 const dependency = "/nix/store/vutsrqponmlkjihgfedcba9876543210-libc-1";

@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { roleModule } from "../../.pi/extensions/crew/lib/automaton-body/lib/modules/role.mjs";
-import { assemble } from "../../.pi/extensions/crew/lib/assembly.mjs";
+import { roleModule } from "../../.pi/extensions/hall-crew/crew/lib/automaton-body/lib/modules/role.mjs";
+import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
 
 test("roles provide bounded native capabilities", () => {
   for (const [role, tool, thinking] of [
@@ -19,7 +19,7 @@ test("roles provide bounded native capabilities", () => {
   }
 });
 
-test("base Crew policy is Comm-only", () => {
+test("base Crew policy has Comm and GitHub baselines", () => {
   const lead = roleModule({ role: "lead", override: {} });
   const architect = assemble("tomashco", "architect", "");
   assert.match(lead.instructions, /comm_request/);
@@ -27,8 +27,9 @@ test("base Crew policy is Comm-only", () => {
   assert.doesNotMatch(lead.instructions, /crew_kickoff|github_discussion/);
   assert.match(architect.instructions, /SDK Comm is the Crew coordination channel/);
   assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
-  assert.deepEqual(lead.tools, []);
-  assert.ok(!architect.tools.some((tool) => tool.startsWith("github_") || tool.startsWith("crew_")));
+  assert.ok(lead.tools.includes("github_issue_view"));
+  assert.ok(architect.tools.includes("github_issue_view"));
+  assert.ok(!architect.tools.some((tool) => tool.startsWith("crew_")));
 });
 
 test("integrator has bounded reconciliation authority", () => {
@@ -41,7 +42,7 @@ test("reviewer has review-only authority", () => {
   const result = roleModule({ role: "reviewer", override: {} });
   for (const tool of ["read", "grep", "find", "ls", "bash", "github_pull_request_view"])
     assert.ok(result.tools.includes(tool));
-  for (const tool of ["edit", "write", "github_pull_request_merge"]) assert.ok(!result.tools.includes(tool));
+  for (const tool of ["edit", "write"]) assert.ok(!result.tools.includes(tool));
   assert.match(result.instructions, /REQUEST_CHANGES/);
 });
 

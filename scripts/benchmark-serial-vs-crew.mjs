@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Runtime } from "../.pi/extensions/runtime/lib/runtime.mjs";
-import { prepareCrew } from "../.pi/extensions/crew/lib/startup.mjs";
+import { Runtime } from "../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
+import { prepareCrew } from "../.pi/extensions/hall-crew/crew/lib/startup.mjs";
 
 const root = process.cwd(),
   rounds = Number(process.argv[2] ?? 1),

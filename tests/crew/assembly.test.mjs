@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assemble } from "../../.pi/extensions/crew/lib/assembly.mjs";
+import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
 test("assembly gives every role the GitHub operation baseline", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.");
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);

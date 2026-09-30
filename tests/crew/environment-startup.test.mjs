@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { launchPreparedCrew, prepareCrew } from "../../.pi/extensions/crew/lib/startup.mjs";
+import { launchPreparedCrew, prepareCrew } from "../../.pi/extensions/hall-crew/crew/lib/startup.mjs";
 
 const pi = { getAllTools: () => [] };
 const prepare = (cwd, environment) =>
