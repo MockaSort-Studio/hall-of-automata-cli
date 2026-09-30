@@ -5,6 +5,7 @@ import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
 import { acquireNixGuestSuites } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { CREDENTIAL_LEASE_ENV, issueCredentialLease } from "../../env-runtime/lib/credential-lease.mjs";
+import { credentialPolicyForSuites } from "../../env-runtime/credential-policy.mjs";
 
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
@@ -13,22 +14,12 @@ async function prepareArmory(config) {
   if (!Array.isArray(config.armory?.tools) || !config.armory.tools.length) return undefined;
   const catalog = await resolveArmoryCatalogReference(config.armory.catalog);
   const suites = await acquireNixGuestSuites({ catalog, tools: config.armory.tools });
-  const credentials = new Map();
-  const allowedHosts = new Set();
-  for (const suite of suites) {
-    for (const host of suite.network?.allowedHosts ?? []) allowedHosts.add(host);
-    for (const credential of suite.network?.credentials ?? []) {
-      const existing = credentials.get(credential.environment);
-      if (existing && JSON.stringify(existing.hosts) !== JSON.stringify(credential.hosts))
-        throw new Error(`Conflicting Armory credential policy: ${credential.environment}`);
-      credentials.set(credential.environment, credential);
-    }
-  }
+  const credentials = credentialPolicyForSuites(suites.map((suite) => suite.suite));
   return {
     catalogRevision: catalog.revision,
     nixPaths: [...new Set(suites.flatMap((suite) => suite.paths))].sort(),
     suites: suites.map(({ suite, rootPath, tools }) => ({ suite, rootPath, tools })),
-    network: { allowedHosts: [...allowedHosts].sort(), credentials: [...credentials.values()] },
+    network: { credentials },
   };
 }
 
