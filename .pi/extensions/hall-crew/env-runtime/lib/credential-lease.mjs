@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-
-export const CREDENTIAL_LEASE_ENV = "HALL_CREW_GUEST_CREDENTIAL_LEASE";
+import { readFileSync } from "node:fs";
 
 export function issueCredentialLease(network, environment = process.env) {
   const credentials = {};
@@ -12,14 +11,13 @@ export function issueCredentialLease(network, environment = process.env) {
   return { id: randomUUID(), credentials };
 }
 
-export function consumeCredentialLease(environment = process.env) {
-  const raw = environment[CREDENTIAL_LEASE_ENV];
-  delete environment[CREDENTIAL_LEASE_ENV];
-  if (!raw) return { id: undefined, credentials: new Map() };
+export function consumeCredentialLease(fd = 3) {
   let lease;
   try {
-    lease = JSON.parse(raw);
-  } catch {
+    lease = JSON.parse(readFileSync(fd, "utf8"));
+  } catch (error) {
+    // Standalone Gondolin use has no worker credential descriptor.
+    if (error?.code === "EBADF" || error?.code === "EINVAL") return { id: undefined, credentials: new Map() };
     throw new Error("Invalid worker credential lease.");
   }
   if (!lease || typeof lease.id !== "string" || !lease.credentials || typeof lease.credentials !== "object")

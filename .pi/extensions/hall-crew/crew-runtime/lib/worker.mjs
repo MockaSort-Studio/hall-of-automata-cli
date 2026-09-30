@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
 import { acquireNixGuestSuites } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
-import { CREDENTIAL_LEASE_ENV, issueCredentialLease } from "../../env-runtime/lib/credential-lease.mjs";
+import { revokeCredentialLease } from "../../env-runtime/lib/credential-lease.mjs";
+import { createCredentialVault, revokeVaultLeases } from "../../env-runtime/lib/credential-vault.mjs";
 import { credentialPolicyForSuites } from "../../env-runtime/credential-policy.mjs";
 
 const configPath = resolve(process.argv[2]);
@@ -66,16 +68,20 @@ if (config.thinking) args.push("--thinking", config.thinking);
 // Credential values never enter worker.json. Source a fresh, host-held lease
 // for this worker, remove the raw variables, and hand the child Pi only the
 // lease consumed by the Gondolin extension.
-const credentialLease = issueCredentialLease(config.armory?.network);
+const vaultLeases = await createCredentialVault().lease(config.armory?.network?.credentials ?? [], {
+  workerId: process.env.PI_SDK_ACTOR_ID,
+});
+const credentialLease = {
+  id: randomUUID(),
+  credentials: Object.fromEntries([...vaultLeases].map(([name, lease]) => [name, { value: lease.value, hosts: lease.hosts }])),
+};
 const child = spawn("pi", args, {
   cwd: config.cwd,
-  stdio: ["pipe", "pipe", "pipe"],
-  env: {
-    ...process.env,
-    PI_CREW_WORKER_CONFIG: configPath,
-    [CREDENTIAL_LEASE_ENV]: JSON.stringify(credentialLease),
-  },
+  // fd 3 is a one-shot private credential channel, never an environment value.
+  stdio: ["pipe", "pipe", "pipe", "pipe"],
+  env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath },
 });
+child.stdio[3].end(JSON.stringify(credentialLease));
 let buffer = "";
 let startupSent = false;
 const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
@@ -109,6 +115,8 @@ child.stderr.on("data", (chunk) => log({ type: "agent_error", message: boundedEr
 child.once("error", (error) => log({ type: "agent_error", message: error.message }));
 child.once("exit", (code, signal) => {
   log({ type: code === 0 ? "agent_end" : "agent_error", elapsedMs: Date.now() - startedAt, code, signal });
+  revokeCredentialLease(credentialLease);
+  await revokeVaultLeases(vaultLeases);
   process.exitCode = code ?? 1;
 });
 // Pi RPC installs its stdin reader asynchronously; writing immediately after

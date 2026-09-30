@@ -32,6 +32,7 @@ import { consumeCredentialLease, revokeCredentialLease } from "./credential-leas
 // worker-comm-extension.mjs for the Comm connection.
 let vm;
 let starting;
+let secretManager;
 const credentialLease = consumeCredentialLease();
 
 async function startVm(localCwd) {
@@ -41,7 +42,10 @@ async function startVm(localCwd) {
       .filter((credential) => credentialLease.credentials.has(credential.environment))
       .map((credential) => [credential.environment, credentialLease.credentials.get(credential.environment)]),
   );
-  const network = armory.network ? createHttpHooks({ allowedHosts: armory.network.allowedHosts, secrets }) : undefined;
+  // No global egress policy is imposed here. Gondolin substitutes each secret
+  // only at its individually bound hosts.
+  const network = Object.keys(secrets).length ? createHttpHooks({ secrets }) : undefined;
+  secretManager = network?.secretManager;
   const created = await VM.create({
     sessionLabel: `crew worker ${process.env.PI_SDK_ACTOR_ID ?? "unknown"}`,
     ...(network ? { httpHooks: network.httpHooks, env: network.env } : {}),
@@ -105,6 +109,8 @@ export default function gondolinWorkerExtension(pi) {
     vm = undefined;
     starting = undefined;
     if (activeVm) await activeVm.close();
+    for (const { name } of secretManager?.listSecrets() ?? []) secretManager.deleteSecret(name);
+    secretManager = undefined;
     revokeCredentialLease(credentialLease);
   });
 
