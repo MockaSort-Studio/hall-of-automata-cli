@@ -12,17 +12,19 @@ records, and QEMU/process evidence outside TUI state.
 
 ## 1. Dispatch control plane
 
-1. [ ] **Define one initial-task contract.** Decide whether `start_crew` delivers
-   an initial task automatically or waits for an explicit Main task; remove the
-   other mechanism. Use this contract consistently in dispatch arming, worker
-   startup, terminal follow-ups, and tests.
-2. [ ] **Support leadless control.** Provide Main-to-run and Main-to-all delivery
-   plus correlated request replies without requiring a Lead. If any operation is
-   intentionally Lead-only, reject it before launch with a clear capability error.
-3. [ ] **Make launch and cleanup transactional.** Bound Comm/Lifecycle startup and
-   RPC calls; on failure stop partial processes, invalidate clients, archive
-   evidence, terminalize/retire the roster, and remove the TUI entry. Cleanup must
-   tolerate already-missing worktrees, agents, and records.
+1. [ ] **Implement explicit dispatch.** `start_crew` creates a ready run only;
+   Main explicitly delivers its first task through Comm. Remove duplicated
+   automatic kickoff/direct-prompt paths and apply the contract in dispatch arming,
+   worker startup, terminal follow-ups, and tests. See
+   [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
+2. [ ] **Support leadless control.** Provide Main-to-member/all delivery and
+   correlated request replies without requiring a Lead. Keep agent all-recipient
+   broadcast Lead-only and fail closed with typed capability errors.
+3. [ ] **Make launch and cleanup transactional.** Wait for worker readiness with
+   bounded Comm/Lifecycle startup and RPC calls; on failure stop partial processes,
+   invalidate clients, archive evidence, terminalize/retire the roster, and remove
+   the TUI entry. Cleanup must tolerate already-missing worktrees, agents, and
+   records.
 
 ## 2. Lifecycle state redesign
 
