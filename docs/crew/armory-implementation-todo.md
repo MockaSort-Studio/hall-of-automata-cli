@@ -2,7 +2,9 @@
 
 This is the live implementation ledger. Update its state with every completed
 or partially completed milestone; `[~]` means implementation exists but is not
-wired through the worker lifecycle.
+wired through the worker lifecycle. Active remaining work is canonicalized in
+[implementation-plan.md](implementation-plan.md); unchecked items below are
+historical notes, not a second backlog.
 
 ## Complete
 
@@ -89,20 +91,20 @@ wired through the worker lifecycle.
 - [~] Lifecycle now shuts workers down on `SIGTERM`/`SIGINT`, closes active
   clients, and watches its Main owner PID. Unit coverage passes; a canonical
   `start_crew` owner-death/QEMU-cleanup integration test remains.
-- [ ] Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
+- Historical unresolved item (canonical plan): Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
   (~188 ms) and filtered VM creation (~43 ms) are not the startup bottleneck.
-- [ ] Preserve and inspect leadless-audit worker event logs before cleanup.
+- Historical unresolved item (canonical plan): Preserve and inspect leadless-audit worker event logs before cleanup.
   The first audit run had two failed agents (7/14/2 and 8/21/1
   turns/tool-calls/errors) but removal discarded detailed failure evidence.
-- [ ] Add a canonical `start_crew` two-worker integration test. It must prove
+- Historical unresolved item (canonical plan): Add a canonical `start_crew` two-worker integration test. It must prove
   guest proxy registration, shared immutable closure identity, distinct
   workspaces, Main isolation, and normal plus owner-death teardown.
 
 ## Deferred
 
-- [ ] Add Terraform through the same flake/runner/proxy contract after GitHub
+- Historical unresolved item (canonical plan): Add Terraform through the same flake/runner/proxy contract after GitHub
   acceptance is complete.
 
 - [x] Investigate Gondolin layering/checkpoints; see
   `gondolin-overlay-investigation.md`.
-- [ ] Snapshot/profile-cache optimization after the base Nix-mount vertical slice.
+- Historical unresolved item (canonical plan): Snapshot/profile-cache optimization after the base Nix-mount vertical slice.

@@ -1,7 +1,9 @@
 # Crew Operational Follow-ups
 
 Updated: 2026-09-30. This is the current backlog; the SDK runtime structure is
-canonical in [runtime-structure.md](runtime-structure.md).
+canonical in [runtime-structure.md](runtime-structure.md). Active work is
+canonicalized in [implementation-plan.md](implementation-plan.md); unchecked items
+below are historical notes, not a second backlog.
 
 ## Completed — SDK runtime migration
 
@@ -17,7 +19,7 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Remaining runtime hardening
 
-- [ ] Repair the canonical `start_crew` dispatch contract before further live
+- Historical unresolved item (canonical plan): Repair the canonical `start_crew` dispatch contract before further live
       canaries. A recent leadless Gondolin canary accepted a generated kickoff
       payload but its worker exited before session/event evidence existed;
       `runtime_send_message` has no `all` recipient and lead-only broadcast
@@ -39,23 +41,23 @@ canonical in [runtime-structure.md](runtime-structure.md).
 - [x] Add lifecycle failure-injection and RPC protocol tests.
 - [x] Run a concurrent two-Crew cleanup probe; verify no worker, worktree, owner record,
       launcher, or RPC process remains after the idle window.
-- [ ] Harden partial Crew launch failure: bound Comm/Lifecycle startup and RPC calls; on
+- Historical unresolved item (canonical plan): Harden partial Crew launch failure: bound Comm/Lifecycle startup and RPC calls; on
       lifecycle-auth mismatch invalidate stale Runtime clients and clean partial processes;
       terminalize the roster and remove the monitor footer on every error/cancellation.
       Add a regression test for this exact zero-worker `launching` failure.
-- [ ] Make the GitHub Discussion adapter strictly on-demand. `start_crew` must not create
+- Historical unresolved item (canonical plan): Make the GitHub Discussion adapter strictly on-demand. `start_crew` must not create
       or attach it by default; attach a view adapter only after explicit user request and
       only after workers have registered.
-- [ ] Add no-lead dependency release. Start independent roots, retain dependent members in
+- Historical unresolved item (canonical plan): Add no-lead dependency release. Start independent roots, retain dependent members in
       resumable `waiting`, and have Runtime release them by a typed lifecycle snapshot only
       when every declared dependency is `complete`; terminal dependency failure/block must
       escalate the dependent terminally. `dependsOn` is currently ledger/visibility data,
       not a scheduler.
-- [ ] Expose a Main-side correlated Comm reply tool. Workers can issue `comm_request` and
+- Historical unresolved item (canonical plan): Expose a Main-side correlated Comm reply tool. Workers can issue `comm_request` and
       `runtime_receive_message` returns the request ID, but `runtime_send_message` cannot
       set `replyTo`; Main currently cannot satisfy such requests through the typed Runtime
       tool surface.
-- [ ] Add a blocked-work retry protocol. `blocked` is terminal and cannot be resumed: export
+- Historical unresolved item (canonical plan): Add a blocked-work retry protocol. `blocked` is terminal and cannot be resumed: export
       the worker patch and evidence, remove the terminal worker, then dispatch a fresh actor
       with the newly granted authority/configuration and an explicit retry link.
 - [x] Make Gondolin preflight verify the selected backend executable and guest assets, not
@@ -386,12 +388,12 @@ canonical in [runtime-structure.md](runtime-structure.md).
       `comm.state_snapshot` query returned `complete`. The worker used its
       reported `272k` model window; no files were modified. The Crew was kept
       alive for dashboard inspection before deliberate cleanup.
-- [ ] Remove now-unused raw-envelope observer APIs (`Runtime.observeRawComm`,
+- Historical unresolved item (canonical plan): Remove now-unused raw-envelope observer APIs (`Runtime.observeRawComm`,
       `comm.observe_raw`, `RawObserverSockets`, and raw-envelope-to-ledger
       tests). They have no production consumer after lifecycle updates became
       the sole state writer; retain no diagnostic API without an explicit
       purpose.
-- [ ] Remaining staged-migration step, not implemented here: today
+- Historical unresolved item (canonical plan): Remaining staged-migration step, not implemented here: today
       `registerPlan()` is idempotent per namespace but has no explicit replay
       contract for a Comm server that outlives Main's own process across a
       later reconnect (e.g. a Lifecycle server surviving Main and the TUI
@@ -412,17 +414,17 @@ canonical in [runtime-structure.md](runtime-structure.md).
       aggregate per-actor stats (`worker-metrics.mjs`, `crew-monitor.mjs`, the dashboard)
       already cover what's needed; an ordered per-turn sequence is not something we
       currently have a use for.
-- [ ] Establish an untouched baseline, then run an A/B quality gate before changing prompt
+- Historical unresolved item (canonical plan): Establish an untouched baseline, then run an A/B quality gate before changing prompt
       or context policy. Deferred, not rejected: this is worth having once Crew itself is
       stable. Building a formal evaluation harness on top of a system still finding and
       fixing collision/telemetry/dashboard bugs (this session) would be premature -- revisit
       once the runtime hardening backlog is genuinely quiet.
-- [ ] Run three controlled serial-versus-Crew benchmark rounds and publish median/range;
+- Historical unresolved item (canonical plan): Run three controlled serial-versus-Crew benchmark rounds and publish median/range;
       the current single pilot is not a performance decision. Same deferral as above.
 
 ## Deferred product work
 
-- [ ] Define the Hall CLI state-model port: Project progression, Issue closure, dependency
+- Historical unresolved item (canonical plan): Define the Hall CLI state-model port: Project progression, Issue closure, dependency
       management, and associated GitHub adapter contracts.
 - [x] Add explicit `PASS | BLOCKED | FAIL` outcomes and terminalize unattended blocked runs
       without falsely accepting work.
@@ -431,20 +433,20 @@ canonical in [runtime-structure.md](runtime-structure.md).
 
 ## Lifecycle state-management follow-up
 
-- [ ] Make lifecycle disposition mechanically disciplined: require a structured escalation
+- Historical unresolved item (canonical plan): Make lifecycle disposition mechanically disciplined: require a structured escalation
       reason for terminal `blocked`, reject ordinary implementation/test friction as
       `blocked`, and use resumable `waiting` for expected dependencies or input. Ensure an
       active worker cannot keep executing after a terminal update without an explicit Main
       intervention, and record the reason in the typed snapshot for auditability.
-- [ ] Add workload-aware Crew model selection. Select model and thinking from task risk,
+- Historical unresolved item (canonical plan): Add workload-aware Crew model selection. Select model and thinking from task risk,
       boundedness, required edits, and test/integration scope; cap/reassign agents whose
       turn or error budget signals a retry loop. Record the selection rationale and outcome
       so future dispatches can tune the policy instead of treating model choice as static.
-- [ ] Replace the shared Comm credential with launch-scoped, actor- and namespace-bound
+- Historical unresolved item (canonical plan): Replace the shared Comm credential with launch-scoped, actor- and namespace-bound
       capabilities; Main retains an admin credential and observers get read-only run-scoped
       credentials. Reject replay, impersonation, and absent server-owned namespace binding.
-- [ ] Paginate GitHub Discussion replies independently of top-level comments and add a
+- Historical unresolved item (canonical plan): Paginate GitHub Discussion replies independently of top-level comments and add a
       deterministic second-page reply fixture, preserving bounded transcript behavior.
-- [ ] Make the broad Node test command deterministic and bounded: identify lingering
+- Historical unresolved item (canonical plan): Make the broad Node test command deterministic and bounded: identify lingering
       sockets/processes or excessive serial work so a complete suite can finish within the
       CI timeout while preserving its real integration coverage.
