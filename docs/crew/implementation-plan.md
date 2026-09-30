@@ -42,17 +42,19 @@ retry or cleanup.
 
 9. [ ] **Schedule dependency graphs.** Release no-lead dependents only after typed
    successful dependencies; propagate failed/blocked dependencies terminally.
-10. [ ] **Define blocked/retry discipline.** Require a structured blocked reason,
-    use waiting for expected dependencies, stop work after terminal state, and
-    re-dispatch retries with preserved evidence and explicit authority.
-11. [ ] **Scope Comm capabilities.** Replace shared credentials with launch-,
+10. [ ] **Harden lifecycle state management.** Make the Comm server's typed
+    lifecycle state authoritative; validate transitions, require structured
+    blocked reasons, use waiting for expected dependencies, and stop work after
+    a terminal update.
+11. [ ] **Implement recovery and retry.** Preserve a terminal worker's patch,
+    logs, and configuration; clean its resources; then re-dispatch a fresh
+    actor with explicit authority and an auditable retry link.
+12. [ ] **Scope Comm capabilities.** Replace shared credentials with launch-,
     actor-, and namespace-bound admin/observer capabilities; reject replay and
     impersonation.
-12. [ ] **Finish typed-state migration.** Remove unused raw-envelope observer APIs;
+13. [ ] **Finish typed-state migration.** Remove unused raw-envelope observer APIs;
     either test the current process-per-run reconnect assumption or define replay
     semantics before allowing Comm servers to outlive Main.
-13. [ ] **Make external discussion handling bounded.** Keep it on-demand, paginate
-    replies independently, and retain deterministic multi-page coverage.
 14. [ ] **Make test execution bounded.** Diagnose lingering sockets/processes and
     excessive serial work so the complete Node suite reliably fits CI limits.
 
@@ -63,13 +65,15 @@ retry or cleanup.
 16. [ ] **Establish quality/performance evidence.** Capture an untouched baseline,
     run A/B quality gates, and publish three serial-versus-Crew benchmark rounds
     with median/range.
-17. [ ] **Define Hall CLI state-model port.** Specify Project/Issue progression,
-    dependency management, and GitHub adapter contracts.
-18. [ ] **Add Terraform guest suite.** Use the existing Nix guest-runner/proxy
-    contract only after GitHub acceptance is complete.
 
-## Exit criteria
+## Release criteria
 
-Phase 1 is required before any live Crew dispatch. Phase 2 is required before
-claiming GitHub credential/Armory acceptance. Phases 3–4 are independently planned
-hardening and product work.
+Phase 1 is required before any live Crew dispatch. Phases 1–3, the GitHub
+canary, and bounded CI validation are required for release. Phase 4 supplies
+release-quality evidence.
+
+## Deferred until after Crew release
+
+- Hall CLI state-model port and GitHub adapter contracts.
+- GitHub Discussion adapter on-demand/pagination work.
+- Terraform guest suite.
