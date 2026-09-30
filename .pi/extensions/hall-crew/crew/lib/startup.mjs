@@ -97,6 +97,9 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       ...(input.members[index].acceptanceCriteria
         ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
         : {}),
+      ...(input.members[index].githubOperations
+        ? { githubOperations: input.members[index].githubOperations }
+        : {}),
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);

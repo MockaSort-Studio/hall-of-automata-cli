@@ -20,6 +20,7 @@ import {
 import { bashOperations } from "./gondolin-worker-shell.mjs";
 import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
+import { consumeCredentialLease, revokeCredentialLease } from "./credential-lease.mjs";
 
 // A resident worker's own new_session call (see worker.mjs) fires
 // session_shutdown -> reload -> session_start again in this same process,
@@ -31,13 +32,14 @@ import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
 // worker-comm-extension.mjs for the Comm connection.
 let vm;
 let starting;
+const credentialLease = consumeCredentialLease();
 
 async function startVm(localCwd) {
   const armory = readWorkerArmoryConfig();
   const secrets = Object.fromEntries(
     (armory.network?.credentials ?? [])
-      .filter((credential) => process.env[credential.environment])
-      .map((credential) => [credential.environment, { value: process.env[credential.environment], hosts: credential.hosts }]),
+      .filter((credential) => credentialLease.credentials.has(credential.environment))
+      .map((credential) => [credential.environment, credentialLease.credentials.get(credential.environment)]),
   );
   const network = armory.network ? createHttpHooks({ allowedHosts: armory.network.allowedHosts, secrets }) : undefined;
   const created = await VM.create({
@@ -103,6 +105,7 @@ export default function gondolinWorkerExtension(pi) {
     vm = undefined;
     starting = undefined;
     if (activeVm) await activeVm.close();
+    revokeCredentialLease(credentialLease);
   });
 
   pi.registerTool(

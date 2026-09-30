@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
 import { acquireNixGuestSuites } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
+import { CREDENTIAL_LEASE_ENV, issueCredentialLease } from "../../env-runtime/lib/credential-lease.mjs";
 
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
@@ -71,10 +72,18 @@ if (config.sandbox?.kind === "gondolin") {
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));
 if (config.model) args.push("--model", config.model);
 if (config.thinking) args.push("--thinking", config.thinking);
+// Credential values never enter worker.json. Source a fresh, host-held lease
+// for this worker, remove the raw variables, and hand the child Pi only the
+// lease consumed by the Gondolin extension.
+const credentialLease = issueCredentialLease(config.armory?.network);
 const child = spawn("pi", args, {
   cwd: config.cwd,
   stdio: ["pipe", "pipe", "pipe"],
-  env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath },
+  env: {
+    ...process.env,
+    PI_CREW_WORKER_CONFIG: configPath,
+    [CREDENTIAL_LEASE_ENV]: JSON.stringify(credentialLease),
+  },
 });
 let buffer = "";
 let startupSent = false;

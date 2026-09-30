@@ -1,8 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
-test("assembly gives every role the GitHub operation baseline", () => {
-  const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.");
+test("assembly grants only explicit GitHub operations", () => {
+  const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.", {
+    githubOperations: ["github_issue_view"],
+  });
   assert.match(actor.instructions, /## BOUNDED ASSIGNMENT/);
   assert.ok(!actor.tools.some((tool) => tool.startsWith("crew_")));
   assert.ok(actor.tools.includes("github_issue_view"));
@@ -23,7 +25,10 @@ test("reviewer uses only GitHub tools supplied by the runtime", () => {
     "github_pull_request_review_submit",
     "github_pull_request_comment",
   ];
-  const actor = assemble("snowball", "reviewer", "Review PR 1.", { runtimeTools: tools });
+  const actor = assemble("snowball", "reviewer", "Review PR 1.", {
+    runtimeTools: tools,
+    githubOperations: tools.filter((tool) => tool.startsWith("github_")),
+  });
   assert.deepEqual(actor.extensionPaths, []);
 });
 

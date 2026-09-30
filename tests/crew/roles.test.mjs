@@ -19,7 +19,7 @@ test("roles provide bounded native capabilities", () => {
   }
 });
 
-test("base Crew policy has Comm and GitHub baselines", () => {
+test("base Crew policy has Comm and no implicit GitHub operations", () => {
   const lead = roleModule({ role: "lead", override: {} });
   const architect = assemble("tomashco", "architect", "");
   assert.match(lead.instructions, /comm_request/);
@@ -27,8 +27,8 @@ test("base Crew policy has Comm and GitHub baselines", () => {
   assert.doesNotMatch(lead.instructions, /crew_kickoff|github_discussion/);
   assert.match(architect.instructions, /SDK Comm is the Crew coordination channel/);
   assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
-  assert.ok(lead.tools.includes("github_issue_view"));
-  assert.ok(architect.tools.includes("github_issue_view"));
+  assert.ok(!lead.tools.some((tool) => tool.startsWith("github_")));
+  assert.ok(!architect.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("crew_")));
 });
 
@@ -39,12 +39,15 @@ test("integrator has bounded reconciliation authority", () => {
 });
 
 test("reviewer has review-only authority", () => {
-  const result = roleModule({ role: "reviewer", override: {} });
+  const result = roleModule({ role: "reviewer", override: { githubOperations: ["github_pull_request_view"] } });
   for (const tool of ["read", "grep", "find", "ls", "bash", "github_pull_request_view"])
     assert.ok(result.tools.includes(tool));
   for (const tool of ["edit", "write"]) assert.ok(!result.tools.includes(tool));
   assert.match(result.instructions, /REQUEST_CHANGES/);
 });
+
+test("rejects unapproved assignment GitHub operations", () =>
+  assert.throws(() => roleModule({ role: "advisor", override: { githubOperations: ["github_unapproved"] } }), /invalid GitHub/));
 
 test("developer has bounded implementation authority", () => {
   const result = roleModule({ role: "developer", override: {} });

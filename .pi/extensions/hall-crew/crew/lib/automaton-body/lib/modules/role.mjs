@@ -38,9 +38,12 @@ export function validateRoleTools(availableTools, roleName) {
 export function roleModule(ctx) {
   const role = catalog[ctx.role];
   if (!role) throw new Error(`Role "${ctx.role}" not defined. Available: ${Object.keys(catalog).join(", ")}`);
+  const githubOperations = ctx.override?.githubOperations ?? [];
+  if (!Array.isArray(githubOperations) || githubOperations.some((tool) => !GITHUB_BASE_TOOL_SET.has(tool)))
+    throw new Error(`Role ${ctx.role} has an invalid GitHub operation grant.`);
   return {
     instructions: readFileSync(new URL(`prompts/roles/${role.prompt}`, ROOT), "utf8").trim(),
-    tools: [...new Set([...role.tools, ...GITHUB_BASE_TOOLS])],
+    tools: [...new Set([...role.tools.filter((tool) => !GITHUB_BASE_TOOL_SET.has(tool)), ...githubOperations])],
     commTools: role.commTools,
     thinking: ctx.override?.thinking ?? role.thinking,
     ...(ctx.override?.model ? { model: ctx.override.model } : {}),

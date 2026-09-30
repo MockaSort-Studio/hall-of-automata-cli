@@ -25,7 +25,7 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
         task: "Measure safely",
         members: [
           { name: "old-major", role: "lead" },
-          { name: "snowball", role: "developer" },
+          { name: "snowball", role: "developer", githubOperations: ["github_issue_view"] },
         ],
       },
       { cwd },
@@ -124,6 +124,7 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
             task: "Review PR 7.",
             deliverTo: "main",
             authority: { review: "submit", merge: false },
+            githubOperations: githubTools,
           },
         ],
       },
@@ -133,7 +134,8 @@ test("prepareCrew carries reviewer GitHub capability and generic assignment cont
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.deepEqual(config.agents[0].extensionPaths, []);
     assert.match(config.agents[0].task, /## ASSIGNMENT CONTEXT/);
-    assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), true);
+    assert.equal(config.agents[0].tools.includes("github_pull_request_merge"), false);
+    assert.equal(config.agents[0].tools.includes("github_pull_request_view"), true);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

@@ -78,13 +78,13 @@ wired through the worker lifecycle.
   session proxy isolation passed.
 ## Follow-up diagnostics
 
-- [ ] Narrow per-assignment GitHub grants. GitHub is currently a common role
-  baseline, so a read-only assignment still registers mutation-capable guest
-  proxies; dispatch must project task-specific operation allowlists.
-- [ ] Implement credential management: source/rotate per-worker credentials,
-  bind them to allowed hosts, and revoke them on worker teardown. Current
-  GitHub policy injects an existing host `GITHUB_TOKEN` only as a guest
-  placeholder; absent tokens leave operations unauthenticated.
+- [x] Narrow GitHub grants per assignment. `githubOperations` is an explicit,
+  validated subset of the GitHub catalog; omitted means no GitHub proxy.
+- [~] Add per-worker credential leases. Raw policy credential variables are
+  removed before Pi starts; the worker receives an in-memory lease bound to
+  allowed hosts and revokes it on VM teardown. A renewable external credential
+  source/rotation service is still required; absent tokens remain
+  unauthenticated.
 - [~] Lifecycle now shuts workers down on `SIGTERM`/`SIGINT`, closes active
   clients, and watches its Main owner PID. Unit coverage passes; a canonical
   `start_crew` owner-death/QEMU-cleanup integration test remains.
