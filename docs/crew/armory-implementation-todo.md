@@ -58,8 +58,9 @@ wired through the worker lifecycle.
   that worker Pi; a full `worker.mjs` smoke passed.
 - [x] Release VM state through worker lifecycle cleanup; terminating a real
   Armory worker left no QEMU process behind.
-- [ ] Remove/rework legacy host GitHub activation and Env package-cache/guest
-  installer paths from Crew execution.
+- [x] Remove legacy Env package-cache, guest package/native installer, and
+  snapshot-provisioning paths. Crew executes only immutable Nix guest suites;
+  their dead implementation tests were removed with the code.
 
 ## Acceptance proof
 
@@ -81,16 +82,17 @@ wired through the worker lifecycle.
   bind them to allowed hosts, and revoke them on worker teardown. Current
   GitHub policy injects an existing host `GITHUB_TOKEN` only as a guest
   placeholder; absent tokens leave operations unauthenticated.
-- [ ] Fix detached Lifecycle shutdown: the canonical `start_crew` run's
-  Lifecycle server ignored `SIGTERM`; force-killing it left worker QEMU
-  processes that required manual termination.
+- [~] Lifecycle now shuts workers down on `SIGTERM`/`SIGINT`, closes active
+  clients, and watches its Main owner PID. Unit coverage passes; a canonical
+  `start_crew` owner-death/QEMU-cleanup integration test remains.
 - [ ] Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
   (~188 ms) and filtered VM creation (~43 ms) are not the startup bottleneck.
 - [ ] Preserve and inspect leadless-audit worker event logs before cleanup.
   The first audit run had two failed agents (7/14/2 and 8/21/1
   turns/tool-calls/errors) but removal discarded detailed failure evidence.
-- [ ] Add the real two-worker Crew SDK smoke as an automated integration test;
-  today's manual smoke passed with the same 67-path suite closure root.
+- [ ] Add a canonical `start_crew` two-worker integration test. It must prove
+  guest proxy registration, shared immutable closure identity, distinct
+  workspaces, Main isolation, and normal plus owner-death teardown.
 
 ## Deferred
 
