@@ -4,73 +4,80 @@ Updated: 2026-09-30. This is the sole active TODO list. `follow-ups.md` and
 `armory-implementation-todo.md` retain completed evidence and historical context;
 they do not define additional work.
 
-## Phase 0 — freeze live dispatch
+## Release gate
 
-No further live Crew canary until Phase 1 passes. Preserve worker configuration,
-events, lifecycle records, and QEMU/process evidence outside TUI state before any
-retry or cleanup.
+No live Crew canary until dispatch and lifecycle acceptance pass. Before every
+retry or cleanup, archive worker configuration, events, patches, lifecycle
+records, and QEMU/process evidence outside TUI state.
 
-## Phase 1 — reliable dispatch and lifecycle (release blocker)
+## 1. Dispatch control plane
 
-1. [ ] **Define and enforce one kickoff/task protocol.** Decide whether kickoff is
-   automatic or explicit, remove the other path, and document the one contract in
-   dispatch arming, worker startup, and terminal follow-ups.
-2. [ ] **Make leadless messaging usable.** Provide a supported Main-to-Crew/all
-   delivery path (or require a Lead); support correlated replies where needed.
-3. [ ] **Make partial launch atomic.** Bound Comm/Lifecycle startup and RPC calls;
-   on any failure stop processes, invalidate stale clients, terminalize/remove the
-   roster, and retire the TUI entry.
-4. [ ] **Preserve evidence and make cleanup idempotent.** Archive worker event/log
-   evidence before removal; tolerate missing worktrees and stale runtime records.
-5. [ ] **Prove the contract with canonical `start_crew` E2E.** A Gondolin canary
-   must register, receive exactly the defined initial task, complete one read-only
-   operation, report terminal state, and leave no worker, worktree, Comm/Lifecycle,
-   QEMU, roster, or TUI entry. Include normal, launch-failure, and owner-death paths.
+1. [ ] **Define one initial-task contract.** Decide whether `start_crew` delivers
+   an initial task automatically or waits for an explicit Main task; remove the
+   other mechanism. Use this contract consistently in dispatch arming, worker
+   startup, terminal follow-ups, and tests.
+2. [ ] **Support leadless control.** Provide Main-to-run and Main-to-all delivery
+   plus correlated request replies without requiring a Lead. If any operation is
+   intentionally Lead-only, reject it before launch with a clear capability error.
+3. [ ] **Make launch and cleanup transactional.** Bound Comm/Lifecycle startup and
+   RPC calls; on failure stop partial processes, invalidate clients, archive
+   evidence, terminalize/retire the roster, and remove the TUI entry. Cleanup must
+   tolerate already-missing worktrees, agents, and records.
 
-## Phase 2 — Armory GitHub acceptance
+## 2. Lifecycle state redesign
 
-6. [ ] **Complete live GitHub read canary.** Through the guest proxy, list/view one
-   permitted issue with `collaboration/pi-github-tools.github_issue_view`; prove no
-   host suite execution, no raw credential in worker artifacts, and no mutation.
-7. [ ] **Add credential renewal/rotation.** Back `createCredentialVault()` with a
-   renewable source and test `secretManager.updateSecret()` and revocation.
-8. [ ] **Profile and improve guest startup.** Investigate the approximately 4.8 s
-   GitHub `describe` path; retain cold/warm measurements and assess profile-cache
-   or snapshot optimization without caching workspace, credential, or live state.
+4. [ ] **Specify separate state domains.** Do not use one status for everything:
+   model *work* state, process/VM *health*, and resource *disposition* separately.
+   Define the Crew and member state machines, legal transitions, terminal outcomes,
+   ownership, and persisted fields.
+5. [ ] **Make the lifecycle service authoritative and durable.** The service owns
+   versioned state plus an append-only transition/audit record. Workers request
+   transitions; Main performs administrative transitions; the TUI is query-only.
+   Define idempotency, reconnect/replay, stale-writer rejection, and crash recovery.
+6. [ ] **Define operational semantics.** Model explicit registration, readiness,
+   active work, waiting-for-dependency/input, terminal work result, cleanup, and
+   archived evidence. A terminal work result stops further execution; process death
+   is health evidence, not an assumed work outcome.
+7. [ ] **Define dependency and recovery semantics.** Release dependents only after
+   required successful results; propagate failure/block deterministically. For a
+   retry, preserve patch/log/configuration evidence, clean the old resource, and
+   create a new member attempt linked to the prior terminal result with explicit
+   authority.
+8. [ ] **Implement and prove the redesign.** Replace raw-envelope lifecycle writers,
+   migrate roster/TUI projections, and cover transitions, duplicate messages,
+   disconnect/reconnect, worker/owner death, cleanup races, dependency release, and
+   recovery/retry.
 
-## Phase 3 — runtime correctness and operational security
+## 3. Canonical release evidence
 
-9. [ ] **Schedule dependency graphs.** Release no-lead dependents only after typed
-   successful dependencies; propagate failed/blocked dependencies terminally.
-10. [ ] **Harden lifecycle state management.** Make the Comm server's typed
-    lifecycle state authoritative; validate transitions, require structured
-    blocked reasons, use waiting for expected dependencies, and stop work after
-    a terminal update.
-11. [ ] **Implement recovery and retry.** Preserve a terminal worker's patch,
-    logs, and configuration; clean its resources; then re-dispatch a fresh
-    actor with explicit authority and an auditable retry link.
-12. [ ] **Scope Comm capabilities.** Replace shared credentials with launch-,
-    actor-, and namespace-bound admin/observer capabilities; reject replay and
-    impersonation.
-13. [ ] **Finish typed-state migration.** Remove unused raw-envelope observer APIs;
-    either test the current process-per-run reconnect assumption or define replay
-    semantics before allowing Comm servers to outlive Main.
-14. [ ] **Make test execution bounded.** Diagnose lingering sockets/processes and
-    excessive serial work so the complete Node suite reliably fits CI limits.
+9. [ ] **Run canonical `start_crew` E2E.** Prove exact initial-task delivery,
+   worker registration, typed lifecycle progression, terminal cleanup, and TUI
+   retirement for normal, partial-launch-failure, and owner-death paths.
+10. [ ] **Run canonical two-worker Gondolin E2E.** Prove guest-proxy registration,
+    shared immutable closure identity, distinct VM/workspaces, Main isolation, and
+    no residual worker, worktree, Comm/Lifecycle, QEMU, roster, or TUI state.
+11. [ ] **Bound CI validation.** Diagnose lingering sockets/processes and excessive
+    serial work so the complete Node suite is deterministic and fits its CI limit.
 
-## Phase 4 — measurement and product expansion
+## 4. Armory GitHub acceptance
 
-15. [ ] **Add model-selection policy.** Select model/thinking from task risk and
+12. [ ] **Complete live read-only GitHub canary.** Invoke
+    `collaboration/pi-github-tools.github_issue_view` through the guest proxy and
+    prove no host suite execution, raw credential artifact, or mutation.
+13. [ ] **Add credential renewal and rotation.** Back `createCredentialVault()` with
+    a renewable source; test `secretManager.updateSecret()` and revocation.
+14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
+    about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
+    workspace, credential, or live worker state.
+
+## 5. Release-quality policy
+
+15. [ ] **Scope Comm capabilities.** Replace shared credentials with launch-, actor-,
+    namespace-, and observer-bound capabilities; reject replay and impersonation.
+16. [ ] **Add model-selection policy.** Choose model/thinking from task risk and
     scope; record rationale, budgets, and outcome.
-16. [ ] **Establish quality/performance evidence.** Capture an untouched baseline,
-    run A/B quality gates, and publish three serial-versus-Crew benchmark rounds
-    with median/range.
-
-## Release criteria
-
-Phase 1 is required before any live Crew dispatch. Phases 1–3, the GitHub
-canary, and bounded CI validation are required for release. Phase 4 supplies
-release-quality evidence.
+17. [ ] **Establish quality/performance evidence.** Capture a baseline, run an A/B
+    quality gate, and publish three serial-versus-Crew rounds with median/range.
 
 ## Deferred until after Crew release
 
