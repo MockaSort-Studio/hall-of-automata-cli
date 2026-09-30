@@ -9,6 +9,7 @@ import {
 } from "./automaton-body/lib/index.mjs";
 import { NAMES, getAutomaton } from "./roster.mjs";
 import { assignmentContext } from "./assignment-context.mjs";
+import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
 
 export const SOULS = NAMES;
 export const ROLES = ROLE_NAMES;
@@ -30,7 +31,8 @@ export function assemble(name, role, task, override = {}) {
     .build();
   // System operations belong to a role/automaton capability set. Armory
   // operations are validated by their explicitly requested suite at launch.
-  const capabilities = [...new Set([...body.tools, ...automaton.tools])];
+  const baseSystem = BASE_TOOLS_PROFILE.find((grant) => grant.suite === "system")?.operations ?? [];
+  const capabilities = [...new Set([...body.tools, ...automaton.tools, ...baseSystem])];
   const requested = override.systemOperations;
   if (requested !== undefined && (!Array.isArray(requested) || requested.some((tool) => !capabilities.includes(tool))))
     throw new Error(`Crew assignment has a system operation outside ${role}'s capabilities.`);

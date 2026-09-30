@@ -7,6 +7,7 @@ import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-cata
 import { resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
+import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
@@ -49,7 +50,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const paths = crewPaths(configDir, runId);
   const counts = new Map();
   const actors = input.members.map((member) => {
-    const grants = suiteGrants(member.tools);
+    const grants = suiteGrants(member.tools ?? BASE_TOOLS_PROFILE);
     if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
@@ -185,11 +186,10 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   try {
     const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
     const suiteRequests = config.agents.flatMap((agent) => agent.suiteGrants ?? []);
-    const catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
-    const suiteTools = await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({
-      catalog,
-      requests: suiteRequests,
-    });
+    const catalog = resolution.sandbox ? await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)() : undefined;
+    const suiteTools = resolution.sandbox
+      ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
+      : [];
     config.environmentResolution = resolution;
     config.agents = config.agents.map((agent) => {
       const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
