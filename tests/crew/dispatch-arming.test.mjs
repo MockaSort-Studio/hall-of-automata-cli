@@ -9,13 +9,14 @@ test("dispatch detection is bounded to an explicit dispatch token", () => {
   assert.equal(isCrewDispatchRequest("describe dispatching"), false);
 });
 
-test("dispatch arming injects the canonical launch and automatic-kickoff protocol", () => {
+test("dispatch arming injects the manifest-kickoff and explicit-task protocol", () => {
   let input;
   installCrewDispatchArming({ on: (name, handler) => name === "input" && (input = handler) });
   const armed = input({ source: "interactive", text: "dispatch" });
   assert.equal(armed.action, "transform");
   assert.match(armed.text, /start_crew/);
-  assert.match(armed.text, /automatically broadcasts/);
+  assert.match(armed.text, /non-turn-triggering/);
+  assert.match(armed.text, /does not assign specialist work/);
   assert.match(armed.text, /Crew TUI and lifecycle own worker progress/);
   assert.deepEqual(input({ source: "extension", text: "dispatch" }), { action: "continue" });
 });

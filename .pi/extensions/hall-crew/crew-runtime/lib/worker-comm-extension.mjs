@@ -36,6 +36,7 @@ let staticContextReported = false;
 // settle event that may never come again).
 let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
 let replyContext;
+let kickoffManifest;
 let firstDelivery = true;
 let deliveries = Promise.resolve();
 const settledWaiters = [];
@@ -87,12 +88,11 @@ export default function workerCommExtension(pi) {
       // establish its typed lifecycle before that task can terminalize.
       if (config.delivery) await comm.lifecycleUpdate(config.comm.namespace, "running");
       comm.onDelivery((message) => {
-        // The initial kickoff is already delivered by worker.mjs as the
-        // first RPC prompt. Keep its canonical Comm envelope observable and
-        // acknowledge it without creating a duplicate first turn.
-        if (config.delivery?.payload?.kind === "kickoff" && message.payload?.kind === "kickoff") {
+        // A kickoff is a shared manifest, not an assignment. Retain it as
+        // trusted runtime context and acknowledge it without spending a model turn.
+        if (message.payload?.kind === "kickoff" && message.payload?.phase === "manifest") {
+          kickoffManifest = message.payload;
           comm.acknowledge(message.id);
-          firstDelivery = false;
           return;
         }
         deliveries = deliveries.then(async () => {

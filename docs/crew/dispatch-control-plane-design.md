@@ -29,11 +29,12 @@ Relevant sources: `crew/lib/startup.mjs`, `crew/lib/kickoff-payload.mjs`,
 
 ## Contract
 
-`start_crew` creates a run and starts resident workers; it does **not** deliver a
-work task or synthesize a kickoff. The run is `ready` only after every required
-worker has authenticated with Comm and explicitly announced readiness. Main then
-uses a typed dispatch command to deliver the first task. A task is a normal Comm
-envelope, not a second out-of-band Pi prompt.
+`start_crew` creates a run and starts resident workers. It broadcasts one compact
+non-turn-triggering kickoff **manifest**: directory, plan shape, and run identity,
+never detailed assignments. The run is `ready` only after every required worker
+has authenticated with Comm and explicitly announced readiness. Main then uses a
+typed dispatch command to deliver the first task. A task is a normal Comm envelope,
+not a second out-of-band Pi prompt.
 
 A run has three dispatch-control states:
 
@@ -68,17 +69,19 @@ reply and acknowledges the request.
 ## Delivery and readiness
 
 1. Start Comm and Lifecycle; persist only `preparing` metadata.
-2. Spawn workers without `delivery` and without an initial task prompt.
-3. Each worker opens authenticated Comm, registers once, then emits a typed
+2. Spawn workers without `delivery` and without a specialist initial task prompt.
+3. Broadcast the compact kickoff manifest; workers acknowledge it without a model
+   turn and retain it as trusted runtime context.
+4. Each worker opens authenticated Comm, registers once, then emits a typed
    `worker_ready` control event after its Pi session is usable.
-4. Runtime waits for all required ready events within a bounded timeout. It writes
+5. Runtime waits for all required ready events within a bounded timeout. It writes
    `ready` plus the member identity mapping only after that succeeds.
-5. Main sends `runtime_dispatch` (one member) or `runtime_dispatch_all` (all
+6. Main sends `runtime_dispatch` (one member) or `runtime_dispatch_all` (all
    roots). The broker persists the envelope before delivery; a worker invokes Pi
    only after claiming it and acknowledges after its turn settles.
-6. Repeating the same dispatch idempotency key returns its original result;
+7. Repeating the same dispatch idempotency key returns its original result;
    a different initial dispatch after `dispatched` fails.
-7. On registration timeout, disconnect before readiness, or launch error: archive
+8. On registration timeout, disconnect before readiness, or launch error: archive
    evidence, stop spawned resources, mark dispatch control `failed`, and remove
    the active TUI roster entry.
 
@@ -87,8 +90,8 @@ Main may dispatch roots only; the future lifecycle scheduler releases dependents
 
 ## Implementation seams
 
-- Remove `kickoffPayload`, `config.kickoff`, and `agent.delivery` from
-  `crew/lib/startup.mjs`; use an explicit run-dispatch record instead.
+- Keep `kickoffPayload` as the compact manifest, but remove `agent.delivery`
+  from `crew/lib/startup.mjs`; use an explicit run-dispatch record for work.
 - In `worker.mjs`, remove delivery text from `sendStartupPrompt()`. Resident
   workers establish a Pi session solely to become ready.
 - In `worker-comm-extension.mjs`, remove the kickoff special case. Add one
@@ -104,7 +107,8 @@ Main may dispatch roots only; the future lifecycle scheduler releases dependents
 
 ## Required tests
 
-1. `start_crew` has no initial task envelope or Pi prompt.
+1. `start_crew` emits one compact manifest kickoff, but no specialist task
+   envelope or Pi prompt.
 2. A run becomes ready only after every worker registers and reports ready.
 3. Main can send one member, all members, request, and correlated reply.
 4. `all` cannot be used as an actor ID; namespace/role authorization is enforced.

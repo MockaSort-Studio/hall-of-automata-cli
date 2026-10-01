@@ -46,7 +46,8 @@ test("auto resolves before Runtime creates workers and records its host fallback
     assert.equal(result.status, "started");
     assert.equal(launched[0].sandbox, undefined);
     assert.equal(kickoff.kind, "kickoff");
-    assert.deepEqual(kickoff.assignments, [{ to: "developer-snowball-00", task: "", dependsOn: [] }]);
+    assert.equal(kickoff.phase, "manifest");
+    assert.deepEqual(kickoff.plan, [{ to: "developer-snowball-00", dependsOn: [] }]);
     for (const path of [prepared.configFile, prepared.rosterFile])
       assert.deepEqual(JSON.parse(readFileSync(join(cwd, path), "utf8")).environmentResolution, {
         microvm: "none",

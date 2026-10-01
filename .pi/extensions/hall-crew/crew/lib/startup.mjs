@@ -18,7 +18,8 @@ export function crewPaths(configDir, runId) {
   };
 }
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
-const runtimeIdentity = (name) => `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.`;
+const runtimeIdentity = (name, directory) =>
+  `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.\n\n## CREW DIRECTORY\n${directory}`;
 const suiteGrants = (tools) => {
   if (tools === undefined) return { system: undefined, suites: [] };
   if (!Array.isArray(tools)) throw new Error("Crew tools must be suite grants.");
@@ -35,8 +36,8 @@ const suiteGrants = (tools) => {
     suites: tools.filter((grant) => grant.suite !== "system").map(({ suite, operations }) => ({ suite, tools: operations })),
   };
 };
-const workerTask = (actor, runId, topic) =>
-  `${actor.instructions}\n\n${runtimeIdentity(actor.handle)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
+const workerTask = (actor, runId, topic, directory) =>
+  `${actor.instructions}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched on the SDK runtime.`;
 }
@@ -55,7 +56,9 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
     counts.set(key, ordinal + 1);
-    const assembled = assemble(member.name, member.role, member.task ?? "", {
+    // Only a Lead receives its coordination assignment at session startup.
+    // Specialists wait for a directed task after the manifest kickoff.
+    const assembled = assemble(member.name, member.role, member.role === "lead" ? member.task ?? "" : "", {
       ...member,
       systemOperations: grants.system,
       runtimeTools: pi.getAllTools(),
@@ -77,13 +80,14 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     if (dependsOn.some((name) => !handles.has(name) || name === own))
       throw new Error(`Crew member ${own} has an invalid dependsOn reference.`);
   });
+  const directory = actors.map((actor) => `- ${actor.handle} (${actor.role})`).join("\n");
   const agents = actors.map((actor) => ({
     name: actor.handle,
     actorId: `${namespace}-${actor.handle}`,
     namespace,
     crewMembers: actors.map((item) => item.handle),
     crewLead: leads[0]?.handle,
-    task: workerTask(actor, runId, topic),
+    task: workerTask(actor, runId, topic, directory),
     tools: actor.tools,
     commTools: actor.commTools,
     environmentProfile: actor.profile,
@@ -122,7 +126,6 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);
-  agents.forEach((agent) => (agent.delivery = { from: "main", payload: kickoff, replyRequired: false }));
   try {
     writeFileSync(join(ctx.cwd, paths.selected), JSON.stringify(selected, null, 2));
     writeFileSync(

@@ -39,10 +39,15 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     );
     assert.deepEqual(config.kickoff, {
       kind: "kickoff",
-      body: "Crew kickoff: begin your bounded assignment now. Use SDK Comm for coordination and report terminal work state to Main/Lifecycle.",
-      assignments: [
-        { to: "lead-old-major-00", task: "", dependsOn: [] },
-        { to: "developer-snowball-00", task: "", dependsOn: [] },
+      phase: "manifest",
+      body: "Crew manifest: use the directory for targeted coordination. Await a directed task before beginning work.",
+      members: [
+        { handle: "lead-old-major-00", role: "lead" },
+        { handle: "developer-snowball-00", role: "developer" },
+      ],
+      plan: [
+        { to: "lead-old-major-00", dependsOn: [] },
+        { to: "developer-snowball-00", dependsOn: [] },
       ],
       runId: prepared.runId,
       topic: prepared.topic,
@@ -158,7 +163,7 @@ test("prepareCrew rejects a dependsOn reference to an unknown handle", async () 
     rmSync(cwd, { recursive: true, force: true });
   }
 });
-test("prepareCrew assembles a bounded snapshot prompt with the full ordinal-suffixed Crew handle", async () => {
+test("prepareCrew gives a waiting specialist a bounded identity and Crew directory", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
     const prepared = await prepareCrew(
@@ -176,26 +181,16 @@ test("prepareCrew assembles a bounded snapshot prompt with the full ordinal-suff
     // precedes the SDK runtime block, matching workerTask()'s fixed template order.
     assert.match(
       prompt,
-      /## BOUNDED ASSIGNMENT\nBuild one bounded windmill plank\.\n\n## CREW IDENTITY\nYour exact Comm sender handle is developer-snowball-00\.\n\n## SDK CREW RUNTIME\n/,
+      /## CREW IDENTITY\nYour exact Comm sender handle is developer-snowball-00\.\n\n## CREW DIRECTORY\n- developer-snowball-00 \(developer\)\n\n## SDK CREW RUNTIME\n/,
     );
-    // No sitewide concept of a maximum assembled-prompt size exists (grepped for
-    // exceeds/length >/token limit across .pi/extensions/crew): the only enforced
-    // bounds are per-field (assembly.mjs's 4000-char assignment cap, startup.mjs's
-    // 8000-char task cap). This derives a ceiling from those documented bounds plus
-    // the fixed non-assignment instruction/template overhead, rather than asserting
-    // an invented number.
+    assert.doesNotMatch(prompt, /Build one bounded windmill plank/);
     const fixedOverhead = assemble("snowball", "developer", "").instructions.length;
-    const runtimeTemplateOverhead = 400; // identity line + SDK CREW RUNTIME block boilerplate
-    const MAX_ASSIGNMENT_CHARS = 4000;
-    assert.ok(
-      prompt.length <= fixedOverhead + MAX_ASSIGNMENT_CHARS + runtimeTemplateOverhead,
-      `assembled prompt (${prompt.length} chars) exceeded the bound derived from documented per-field caps`,
-    );
+    assert.ok(prompt.length <= fixedOverhead + 600, "waiting specialist prompt includes only bounded runtime context");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
-test("prepareCrew gives the worker parent the canonical first-turn kickoff", async () => {
+test("prepareCrew broadcasts one manifest but gives specialists no direct first-turn delivery", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
     const prepared = await prepareCrew(
@@ -206,13 +201,10 @@ test("prepareCrew gives the worker parent the canonical first-turn kickoff", asy
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.equal(config.kickoff.kind, "kickoff");
-    assert.deepEqual(config.kickoff.assignments, [{ to: "developer-snowball-00", task: "", dependsOn: [] }]);
+    assert.equal(config.kickoff.phase, "manifest");
+    assert.deepEqual(config.kickoff.plan, [{ to: "developer-snowball-00", dependsOn: [] }]);
     assert.equal(config.agents[0].initialTurn, "first-delivery");
-    assert.deepEqual(config.agents[0].delivery, {
-      from: "main",
-      payload: config.kickoff,
-      replyRequired: false,
-    });
+    assert.equal(config.agents[0].delivery, undefined);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

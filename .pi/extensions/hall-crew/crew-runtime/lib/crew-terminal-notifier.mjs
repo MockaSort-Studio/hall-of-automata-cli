@@ -4,7 +4,7 @@ const TERMINAL = new Set(["complete", "blocked", "failed"]);
 
 // Follow-up turns raised by a terminal notification may immediately dispatch a
 // replacement Crew, so retain the same launch/kickoff contract as user input.
-const dispatchProtocol = `\n\n## CREW DISPATCH PROTOCOL\nIf dispatching a Crew: use only \`start_crew\`; its successful launch automatically broadcasts the standard \`kind: "kickoff"\` Comm payload to every worker. Do not send a separate kickoff.`;
+const dispatchProtocol = `\n\n## CREW DISPATCH PROTOCOL\nIf dispatching a Crew: use only \`start_crew\`; its successful launch broadcasts one non-turn-triggering \`kind: "kickoff"\` manifest after worker registration. It does not assign specialist work; use Main dispatch controls for directed tasks. Do not send a second kickoff.`;
 
 function nodesOf(snapshot) {
   return Array.isArray(snapshot?.nodes) ? snapshot.nodes : [];

@@ -73,6 +73,12 @@ test("lifecycle_update changes only this worker's typed state", async (t) => {
   assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "running");
 });
 
+test("manifest kickoff is acknowledged without a model turn", async (t) => {
+  const { comm, pi } = await setup(t);
+  comm.emit("lead", "ns-worker", { kind: "kickoff", phase: "manifest", members: [] });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(pi.deliveries.length, 0);
+});
 test("comm_notify to main reaches main directly, unprefixed", async (t) => {
   const { comm, pi } = await setup(t, ["comm_notify", "comm_request", "comm_reply"]);
   const notify = await pi.tools.get("comm_notify").execute("call", { to: "main", payload: { ok: true } });

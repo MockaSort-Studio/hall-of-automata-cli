@@ -85,14 +85,11 @@ child.stdio[3].end(JSON.stringify(credentialLease));
 let buffer = "";
 let startupSent = false;
 const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
-const startsPrompt = !config.resident || config.delivery || config.initialTurn === "startup";
+const startsPrompt = !config.resident || config.initialTurn === "startup";
 const sendStartupPrompt = () => {
   if (!startsPrompt || startupSent) return;
   startupSent = true;
-  const delivery = config.delivery
-    ? `\n\nCommunication delivery: ${JSON.stringify({ from: config.delivery.from, payload: config.delivery.payload, replyRequired: Boolean(config.delivery.replyRequired) })}`
-    : "";
-  send({ id: "initial", type: "prompt", message: `${config.task}${delivery}` });
+  send({ id: "initial", type: "prompt", message: config.task });
 };
 child.stdout.on("data", (chunk) => {
   buffer += String(chunk);
