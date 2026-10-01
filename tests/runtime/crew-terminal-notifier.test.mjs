@@ -19,7 +19,7 @@ test("notifies Main once only after a nonempty typed run becomes terminal", asyn
   assert.deepEqual(sent[0].message, {
     customType: "crew-terminal",
     content:
-      "Crew run-1 reached terminal lifecycle state (1 complete, 1 blocked).\n\n## CREW DISPATCH PROTOCOL\nIf dispatching a Crew: use only `start_crew`; its successful launch broadcasts one non-turn-triggering `kind: \"kickoff\"` manifest after worker registration. It does not assign specialist work; use Main dispatch controls for directed tasks. Do not send a second kickoff.",
+      "Crew run-1 reached terminal lifecycle state (1 complete, 1 blocked).\n\n## CREW DISPATCH PROTOCOL\nIf dispatching a Crew: use only `start_crew`; its successful launch broadcasts one non-turn-triggering `kind: \"kickoff\"` manifest to registered Crew recipients. It does not assign specialist work; use Main dispatch controls for directed tasks. Do not send a second kickoff.",
     display: true,
     details: { namespace: "run-1", counts: { complete: 1, blocked: 1, failed: 0 } },
   });
