@@ -28,6 +28,24 @@ records, and QEMU/process evidence outside TUI state.
 
 Items 1-3 are implemented and unit/integration tested; their live proof is item 9.
 
+### Resume here (dispatch control plane leftovers)
+
+- [ ] Lead-run activation: Main sends the task to the Lead; Lead dispatches
+  validated roots through the broker (not built; Main currently sends directly).
+- [ ] Verify roster `done` + TUI entry retirement on launch failure.
+- [ ] Stop the Comm/Lifecycle servers when a launch rolls back (only workers are
+  removed today).
+- [ ] Restart Pi and verify Main tool registration: `runtime_send_message`,
+  `runtime_send_all`, `runtime_request_member`, `runtime_reply_message`,
+  `runtime_acknowledge_message`, `runtime_dispatch`.
+- [ ] Then run item 9 (one-worker canonical E2E, `microvm: none` first, then
+  Gondolin with `collaboration/pi-github-tools.github_issue_view`).
+
+State at handoff: 384 tests, 381 pass, 3 skipped, 0 fail. No live Crew, runtime
+or QEMU state remains. Runtime tools are exposed by
+`.pi/extensions/hall-crew/crew-runtime/index.ts`; design in
+[dispatch-control-plane-design.md](dispatch-control-plane-design.md).
+
 ## 2. Lifecycle state redesign
 
 4. [ ] **Specify separate state domains.** Do not use one status for everything:
