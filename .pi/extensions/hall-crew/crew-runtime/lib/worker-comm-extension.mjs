@@ -84,9 +84,6 @@ export default function workerCommExtension(pi) {
   const ensureCommConnected = () => {
     commReady ??= (async () => {
       comm = await connectComm(config.comm);
-      // worker.mjs owns a configured first delivery through its RPC prompt;
-      // establish its typed lifecycle before that task can terminalize.
-      if (config.delivery) await comm.lifecycleUpdate(config.comm.namespace, "running");
       comm.onDelivery((message) => {
         // A kickoff is a shared manifest, not an assignment. Retain it as
         // trusted runtime context and acknowledge it without spending a model turn.

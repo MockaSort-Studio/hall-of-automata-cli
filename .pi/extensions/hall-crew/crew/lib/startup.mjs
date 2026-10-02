@@ -1,6 +1,5 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { discussionStateFilePath } from "../../crew-runtime/lib/github-discussion.mjs";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
@@ -155,18 +154,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
             task: member.task,
           })),
           kickoff,
-          adapters:
-            input.githubDiscussion === false
-              ? []
-              : [
-                  {
-                    id: "github-discussion",
-                    runId,
-                    startedAt: new Date().toISOString(),
-                    category: input.discussionCategory ?? "General",
-                    stateFile: discussionStateFilePath(join(configDir, "runtime", "crew-launch"), runId),
-                  },
-                ],
+          // External discussion adapters are deferred until after Crew release.
+          adapters: [],
         },
         null,
         2,

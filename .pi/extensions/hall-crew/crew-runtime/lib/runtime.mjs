@@ -28,6 +28,7 @@ export class Runtime {
   #commProcess;
   #commAuthToken;
   #mainDeliveries = [];
+  #mainInbox = new Map();
   #lifecycle;
   #lifecycleProcess;
   #lifecycleAuthToken;
@@ -113,9 +114,28 @@ export class Runtime {
     return { url: this.#commUrl, authToken: this.#commAuthToken };
   }
 
+  #memberId(runId, handle) {
+    if (!/^[0-9a-f-]{36}$/i.test(runId) || !/^[a-z]+-[a-z0-9-]+-\d{2}$/i.test(handle))
+      throw new Error("runId and member handle are required");
+    return `crew-${runId}-${handle}`;
+  }
+
   async send(to, payload) {
     if (!this.#comm) throw new Error("Communication controller is not running");
     return this.#comm.emit({ to, payload });
+  }
+
+  async sendMember(runId, to, payload) {
+    return this.send(this.#memberId(runId, to), payload);
+  }
+
+  async request(runId, to, payload) {
+    if (!this.#comm) throw new Error("Communication controller is not running");
+    return this.#comm.emit({ to: this.#memberId(runId, to), payload, replyRequired: true });
+  }
+
+  async broadcastRun(runId, payload) {
+    return this.broadcast(`crew-${runId}`, payload);
   }
 
   async broadcast(namespace, payload) {
@@ -127,10 +147,27 @@ export class Runtime {
     if (!this.#comm) throw new Error("Communication controller is not running");
     if (actorId === "main" && this.#mainDeliveries.length) {
       const message = this.#mainDeliveries.shift();
-      await this.#comm.acknowledge(message.id);
+      this.#mainInbox.set(message.id, message);
       return message;
     }
     return (await this.#comm.claim(actorId)) ?? null;
+  }
+
+  async acknowledgeMain(messageId) {
+    const message = this.#mainInbox.get(messageId);
+    if (!message) throw new Error("Unknown Main delivery");
+    const result = await this.#comm.acknowledge(messageId);
+    if (result.acknowledged) this.#mainInbox.delete(messageId);
+    return result;
+  }
+
+  async replyFromMain(messageId, payload) {
+    const message = this.#mainInbox.get(messageId);
+    if (!message) throw new Error("Unknown Main delivery");
+    if (!message.replyRequired) throw new Error("Main delivery does not require a reply");
+    const result = await this.#comm.emit({ to: message.from, payload, replyTo: message.id });
+    await this.acknowledgeMain(messageId);
+    return result;
   }
 
   async inspectComm() {

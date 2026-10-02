@@ -84,5 +84,4 @@ records, and QEMU/process evidence outside TUI state.
 ## Deferred until after Crew release
 
 - Hall CLI state-model port and GitHub adapter contracts.
-- GitHub Discussion adapter on-demand/pagination work.
 - Terraform guest suite.

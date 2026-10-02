@@ -1,27 +1,24 @@
 # Dispatch control-plane design
 
-Status: proposed. This design replaces the current duplicated automatic-kickoff
-paths before another Crew is dispatched.
+Status: partially implemented. Manifest kickoff is implemented; authenticated
+readiness, Main task dispatch, reply handling, and transactional launch remain.
 
 ## Findings
 
-Current kickoff is not deterministic:
+The previous duplicate direct-prompt and Comm kickoff paths have been removed.
+The remaining determinism gaps are:
 
-1. `prepareCrew()` creates `config.kickoff`, copies it into every worker's
-   `agent.delivery`, and `launchPreparedCrew()` separately calls
-   `runtime.broadcast()` with the same payload.
-2. `worker.mjs` embeds `config.delivery` in the worker's direct initial Pi prompt
-   before Comm registration is proven. `worker-comm-extension.mjs` later receives
-   the second envelope and acknowledges it without a turn.
-3. The direct prompt and Comm delivery have different acknowledgement, ordering,
-   retry, and failure semantics. A worker can exit after process spawn but before
-   authenticated registration; the roster then remains misleadingly queued/started.
-4. Main has direct `Runtime.send(to, payload)` and `Runtime.broadcast(namespace,
+1. `launchPreparedCrew()` broadcasts the manifest after worker process spawn, not
+   after authenticated worker readiness. A worker can exit before connection while
+   the roster is still marked `started`.
+2. Main has direct `Runtime.send(to, payload)` and `Runtime.broadcast(namespace,
    payload)` methods, but the exposed Main tool accepts only one exact recipient.
    The literal recipient `all` is invalid. Agent request correlation exists in the
    broker but Main has no typed `replyTo` surface.
-5. Agent all-recipient broadcast is role-tool gated, while Main broadcast is not.
+3. Agent all-recipient broadcast is role-tool gated, while Main broadcast is not.
    This is correct authority separation but is not represented by a clear API.
+4. Reply correlation tracks an outstanding request but must also enforce that only
+   its original recipient may reply.
 
 Relevant sources: `crew/lib/startup.mjs`, `crew/lib/kickoff-payload.mjs`,
 `crew-runtime/lib/worker.mjs`, `worker-comm-extension.mjs`, `runtime.mjs`,
@@ -94,8 +91,9 @@ Main may dispatch roots only; the future lifecycle scheduler releases dependents
   from `crew/lib/startup.mjs`; use an explicit run-dispatch record for work.
 - In `worker.mjs`, remove delivery text from `sendStartupPrompt()`. Resident
   workers establish a Pi session solely to become ready.
-- In `worker-comm-extension.mjs`, remove the kickoff special case. Add one
-  authenticated `worker_ready` control RPC after Comm and Pi are live.
+- In `worker-comm-extension.mjs`, retain the manifest acknowledgement special
+  case and add one authenticated `worker_ready` control RPC after Comm and Pi are
+  live.
 - Add broker control APIs for readiness and typed reply errors in
   `comm-controller.mjs` and `comm-controller-dispatch.mjs`.
 - Add Runtime methods and Main tools: `runtime_send`, `runtime_send_all`,

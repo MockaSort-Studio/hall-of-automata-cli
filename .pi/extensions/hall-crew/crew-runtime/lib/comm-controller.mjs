@@ -49,7 +49,9 @@ export class CommController {
     this.#record("actor_registered", { actorId });
   }
   emit(from, to, payload, replyRequired = false, replyTo) {
-    if (replyTo && !this.#pendingReplies.has(replyTo)) throw new Error("Unknown reply request");
+    const request = replyTo && this.#pendingReplies.get(replyTo);
+    if (replyTo && !request) throw new Error("Unknown reply request");
+    if (request && request.to !== from) throw new Error("Only the request recipient may reply");
     if (!this.#actors.has(to)) throw new Error(`Unknown recipient: ${to}`);
     this.#assertPeerAccess(from, to);
     const queuedAt = Date.now();
@@ -68,7 +70,6 @@ export class CommController {
     this.#inbox(to).push(message);
     if (replyRequired) this.#pendingReplies.set(message.id, message);
     if (replyTo) {
-      const request = this.#pendingReplies.get(replyTo);
       this.#pendingReplies.delete(replyTo);
       this.#record("message_replied", {
         ...this.#metrics(message),

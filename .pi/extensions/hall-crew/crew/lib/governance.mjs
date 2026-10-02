@@ -10,7 +10,7 @@ export function governance({
   const discussion =
     discussionNumber && discussionUrl
       ? `Continue ${discussionUrl} (#${discussionNumber}); do not create another Discussion.`
-      : "Create one canonical Discussion with crew_kickoff.";
+      : "No external Discussion is attached to this Crew run.";
   const terminal =
     completionMode === "human-gated"
       ? "Human-gated mode is not available on the SDK Crew runtime yet."

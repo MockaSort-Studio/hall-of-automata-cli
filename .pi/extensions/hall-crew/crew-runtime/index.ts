@@ -79,11 +79,51 @@ export default function runtimeExtension(pi: any): void {
   });
   pi.registerTool({
     name: "runtime_send_message",
-    label: "Runtime: send message",
-    description: "Send one opaque payload from Main to an agent through the communication controller.",
-    parameters: Type.Object({ to: Type.String(), payload: Type.Unknown() }),
+    label: "Runtime: send to member",
+    description: "Send one opaque payload from Main to one exact Crew member handle.",
+    parameters: Type.Object({ runId: Type.String(), to: Type.String(), payload: Type.Unknown() }),
     async execute(_id, input) {
-      const result = await runtime.send(input.to, input.payload);
+      const result = await runtime.sendMember(input.runId, input.to, input.payload);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_send_all",
+    label: "Runtime: send to Crew",
+    description: "Send one opaque Main payload to every member of one Crew run.",
+    parameters: Type.Object({ runId: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      const result = await runtime.broadcastRun(input.runId, input.payload);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_request_member",
+    label: "Runtime: request member",
+    description: "Send a Main request to one member and retain its correlated reply in Main's inbox.",
+    parameters: Type.Object({ runId: Type.String(), to: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      const result = await runtime.request(input.runId, input.to, input.payload);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_reply_message",
+    label: "Runtime: reply",
+    description: "Reply once to a request delivered to Main and acknowledge that delivery.",
+    parameters: Type.Object({ messageId: Type.String(), payload: Type.Unknown() }),
+    async execute(_id, input) {
+      const result = await runtime.replyFromMain(input.messageId, input.payload);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
+    name: "runtime_acknowledge_message",
+    label: "Runtime: acknowledge",
+    description: "Acknowledge one non-request delivery received by Main.",
+    parameters: Type.Object({ messageId: Type.String() }),
+    async execute(_id, input) {
+      const result = await runtime.acknowledgeMain(input.messageId);
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   });

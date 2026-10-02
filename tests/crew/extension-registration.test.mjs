@@ -6,7 +6,7 @@ const source = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/index.t
 
 test("crew extension imports all tool registration functions", () => {
   assert.match(source, /runtimeFor/);
-  assert.match(source, /import.*registerCommunicationTools.*from.*communication-tools/);
+  assert.doesNotMatch(source, /registerCommunicationTools/);
   assert.match(source, /import.*registerRosterTools.*from.*roster-tools/);
 });
 
@@ -21,18 +21,8 @@ test("crew extension wires terminal notifications through Main session flow", ()
 });
 
 test("crew extension calls all tool registration functions", () => {
-  assert.match(source, /registerCommunicationTools\(pi\)/);
+  assert.doesNotMatch(source, /registerCommunicationTools\(pi\)/);
   assert.match(source, /registerRosterTools\(pi\)/);
-});
-
-test("communication tools module exports registration function", () => {
-  const commTools = readFileSync(
-    new URL("../../.pi/extensions/hall-crew/crew/lib/communication-tools.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(commTools, /export function registerCommunicationTools/);
-  assert.match(commTools, /name: "crew_kickoff"/);
-  assert.match(commTools, /name: "crew_close"/);
 });
 
 test("roster tools module exports registration function", () => {
