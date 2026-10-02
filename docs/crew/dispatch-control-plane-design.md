@@ -1,7 +1,11 @@
 # Dispatch control-plane design
 
-Status: partially implemented. Manifest kickoff is implemented; authenticated
-readiness, Main task dispatch, reply handling, and transactional launch remain.
+Status: implemented (unit/integration level). Manifest kickoff, authenticated
+`comm.ready` readiness barrier (30 s), broker-enforced Lead-only broadcast,
+recipient-only replies, Main send/send-all/request/reply/acknowledge, one-shot
+idempotent `runtime_dispatch` of root tasks, and evidence archiving to
+`.pi/runtime/archive/<actor>` on launch rollback are in place. Remaining: live
+canonical E2E and roster/TUI retirement proof.
 
 ## Findings
 

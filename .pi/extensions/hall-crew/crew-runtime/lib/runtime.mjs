@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { cp } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveBundles } from "./tool-bundles.mjs";
 import { connectComm } from "./comm-client.mjs";
@@ -29,6 +30,8 @@ export class Runtime {
   #commAuthToken;
   #mainDeliveries = [];
   #mainInbox = new Map();
+  #plans = new Map();
+  #dispatches = new Map();
   #lifecycle;
   #lifecycleProcess;
   #lifecycleAuthToken;
@@ -87,7 +90,7 @@ export class Runtime {
     if (initial) this.#terminalNotifier.observe(initial);
   }
 
-  async startComm(actorIds = [], adapters = [], plan) {
+  async startComm(actors = [], adapters = [], plan) {
     if (!this.#comm) {
       this.#commProcess = spawn(
         process.execPath,
@@ -106,8 +109,13 @@ export class Runtime {
       this.#comm = await connectComm({ url: this.#commUrl, actorId: "main", authToken });
       this.#comm.onDelivery((message) => this.#mainDeliveries.push(message));
     }
-    await Promise.all(actorIds.map((actorId) => this.#comm.registerActor(actorId)));
+    await Promise.all(
+      actors.map((actor) =>
+        typeof actor === "string" ? this.#comm.registerActor(actor) : this.#comm.registerActor(actor.actorId, actor.role),
+      ),
+    );
     if (plan?.namespace) {
+      this.#plans.set(plan.namespace, plan.members ?? []);
       await this.#comm.registerPlan(plan.namespace, plan.members ?? []);
       await this.#observeTerminalState(plan.namespace);
     }
@@ -136,6 +144,31 @@ export class Runtime {
 
   async broadcastRun(runId, payload) {
     return this.broadcast(`crew-${runId}`, payload);
+  }
+
+  async dispatchRoots(runId, idempotencyKey) {
+    if (!idempotencyKey || typeof idempotencyKey !== "string") throw new Error("Dispatch idempotencyKey is required");
+    const namespace = `crew-${runId}`;
+    const prior = this.#dispatches.get(namespace);
+    if (prior?.key === idempotencyKey) return prior.result;
+    if (prior) throw new Error("Initial Crew dispatch already exists");
+    const members = this.#plans.get(namespace);
+    if (!members) throw new Error("Unknown Crew dispatch plan");
+    const roots = members.filter((member) => !member.dependsOn?.length);
+    const deliveries = await Promise.all(
+      roots.map(async (member) => ({
+        to: member.handle,
+        ...(await this.sendMember(runId, member.handle, {
+          kind: "task",
+          phase: "assignment",
+          runId,
+          task: member.task,
+        })),
+      })),
+    );
+    const result = { dispatched: true, recipients: deliveries };
+    this.#dispatches.set(namespace, { key: idempotencyKey, result });
+    return result;
   }
 
   async broadcast(namespace, payload) {
@@ -191,7 +224,7 @@ export class Runtime {
     if (new Set(actorIds).size !== actorIds.length) throw new Error("Crew agent actor IDs must be unique.");
     const members = Object.fromEntries(agents.map((agent) => [agent.name, agent.actorId]));
     const comm = await this.startComm(
-      actorIds,
+      agents.map(({ actorId, role }) => ({ actorId, role })),
       adapters.map((adapter) => ({
         ...adapter,
         recipients: members,
@@ -202,8 +235,20 @@ export class Runtime {
     const launched = [];
     try {
       for (const agent of agents) launched.push(await this.spawn(agent));
+      if (plan?.namespace && agents.every((agent) => agent.resident))
+        await this.#comm.waitReady(plan.namespace, actorIds, 30_000);
       return { comm, agents: launched };
     } catch (error) {
+      // Preserve worker evidence outside the run directory before rollback.
+      await Promise.allSettled(
+        launched.map((agent) =>
+          cp(
+            join(this.cwd, ".pi", "runtime", "runs", agent.id),
+            join(this.cwd, ".pi", "runtime", "archive", agent.id),
+            { recursive: true, force: true },
+          ),
+        ),
+      );
       await Promise.allSettled(launched.map((agent) => this.remove(agent.id)));
       throw error;
     }

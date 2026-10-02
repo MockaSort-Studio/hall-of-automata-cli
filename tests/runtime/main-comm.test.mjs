@@ -45,3 +45,41 @@ test("Main receives a request and only its correlated reply acknowledges it", as
   assert.equal(replies[0]?.replyTo, request.id);
   assert.deepEqual(replies[0]?.payload, { answer: "yes" });
 });
+
+test("readiness barrier resolves after workers report ready and times out otherwise", async () => {
+  const { CommController } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs");
+  const comm = new CommController();
+  comm.registerActor("ns-a", { role: "developer" });
+  comm.registerPlan("ns", [{ handle: "developer-a-00", dependsOn: [], task: "" }]);
+  await assert.rejects(comm.waitReady("ns", ["ns-a"], 20), /timed out/);
+  const pending = comm.waitReady("ns", ["ns-a"], 1000);
+  comm.markReady("ns-a", "ns");
+  assert.deepEqual(await pending, { ready: ["ns-a"] });
+});
+
+test("broker allows broadcast only from a lead", async () => {
+  const { CommController } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs");
+  const comm = new CommController({ broadcastStaggerMs: 0 });
+  comm.registerActor("ns-lead", { role: "lead" });
+  comm.registerActor("ns-dev", { role: "developer" });
+  comm.registerPlan("ns", [
+    { handle: "lead-a-00", dependsOn: [], task: "" },
+    { handle: "developer-b-00", dependsOn: [], task: "" },
+  ]);
+  await assert.rejects(comm.broadcast("ns-dev", "ns", {}), /Only the Crew Lead/);
+  await comm.broadcast("ns-lead", "ns", {});
+});
+
+test("dispatchRoots delivers only root tasks, idempotently and once", async (t) => {
+  const { runtime, worker } = await setup(t);
+  const got = [];
+  worker.onDelivery((m) => got.push(m));
+  await assert.rejects(runtime.dispatchRoots("22222222-2222-2222-2222-222222222222", "k"), /Unknown Crew dispatch plan/);
+  const first = await runtime.dispatchRoots(runId, "k");
+  assert.equal(first.recipients.length, 1);
+  assert.deepEqual(await runtime.dispatchRoots(runId, "k"), first);
+  await assert.rejects(runtime.dispatchRoots(runId, "other"), /already exists/);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(got.length, 1);
+  assert.equal(got[0].payload.kind, "task");
+});

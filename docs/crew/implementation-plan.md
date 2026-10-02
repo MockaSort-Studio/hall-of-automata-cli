@@ -12,19 +12,21 @@ records, and QEMU/process evidence outside TUI state.
 
 ## 1. Dispatch control plane
 
-1. [ ] **Implement explicit dispatch.** `start_crew` creates a ready run only;
+1. [x] **Implement explicit dispatch.** `start_crew` creates a ready run only;
    Main explicitly delivers its first task through Comm. Remove duplicated
    automatic kickoff/direct-prompt paths and apply the contract in dispatch arming,
    worker startup, terminal follow-ups, and tests. See
    [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
-2. [ ] **Support leadless control.** Provide Main-to-member/all delivery and
+2. [x] **Support leadless control.** Provide Main-to-member/all delivery and
    correlated request replies without requiring a Lead. Keep agent all-recipient
    broadcast Lead-only and fail closed with typed capability errors.
-3. [ ] **Make launch and cleanup transactional.** Wait for worker readiness with
+3. [x] **Make launch and cleanup transactional.** Wait for worker readiness with
    bounded Comm/Lifecycle startup and RPC calls; on failure stop partial processes,
    invalidate clients, archive evidence, terminalize/retire the roster, and remove
    the TUI entry. Cleanup must tolerate already-missing worktrees, agents, and
    records.
+
+Items 1-3 are implemented and unit/integration tested; their live proof is item 9.
 
 ## 2. Lifecycle state redesign
 

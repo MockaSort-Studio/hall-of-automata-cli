@@ -14,8 +14,16 @@ export function dispatchCommRequest(controller, socket, state, request) {
   }
   if (method === "comm.register_actor") {
     if (state.actorId !== "main") throw new Error("Only Main may register actors");
-    controller.registerActor(params.actorId);
+    controller.registerActor(params.actorId, { role: params.role });
     return { registered: params.actorId };
+  }
+  if (method === "comm.ready") {
+    if (!state.actorId || state.actorId === "main") throw new Error("Only a registered worker may become ready");
+    return controller.markReady(state.actorId, params.namespace);
+  }
+  if (method === "comm.wait_ready") {
+    if (state.actorId !== "main") throw new Error("Only Main may wait for readiness");
+    return controller.waitReady(params.namespace, params.actorIds, params.timeoutMs);
   }
   if (method === "comm.broadcast") {
     if (!state.actorId) throw new Error("Registered actor identity required");

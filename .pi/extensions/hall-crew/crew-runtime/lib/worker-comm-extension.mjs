@@ -84,6 +84,7 @@ export default function workerCommExtension(pi) {
   const ensureCommConnected = () => {
     commReady ??= (async () => {
       comm = await connectComm(config.comm);
+      await comm.ready(config.comm.namespace);
       comm.onDelivery((message) => {
         // A kickoff is a shared manifest, not an assignment. Retain it as
         // trusted runtime context and acknowledge it without spending a model turn.

@@ -14,6 +14,9 @@ export class CommController {
   #actors = new Set(["main"]);
   #actorNamespaces = new Map();
   #pendingReplies = new Map();
+  #readyActors = new Set();
+  #readyWaiters = new Set();
+  #actorRoles = new Map();
   #observation = new CommEnvelopeObservation();
   // Raw and typed observer wiring lives in a focused helper.
   #observers = createCommObservers({
@@ -42,11 +45,35 @@ export class CommController {
       new Promise((resolve) => setTimeout(resolve, 2_000)),
     ]);
   }
-  registerActor(actorId) {
+  registerActor(actorId, { role } = {}) {
     if (!actorId || actorId === "main") throw new Error("Cannot register reserved actor");
     this.#actors.add(actorId);
+    if (role) this.#actorRoles.set(actorId, role);
     this.#inbox(actorId);
-    this.#record("actor_registered", { actorId });
+    this.#record("actor_registered", { actorId, role });
+  }
+  markReady(actorId, namespace) {
+    this.#assertNamespace(actorId, namespace);
+    this.#readyActors.add(actorId);
+    this.#record("worker_ready", { actorId, namespace });
+    for (const waiter of this.#readyWaiters) waiter();
+    return { ready: true };
+  }
+  async waitReady(namespace, actorIds, timeoutMs = 30_000) {
+    const ready = () => actorIds.every((id) => this.#readyActors.has(id));
+    if (ready()) return { ready: actorIds };
+    await new Promise((resolve, reject) => {
+      const check = () => ready() && finish(resolve);
+      const timer = setTimeout(() => finish(() => reject(new Error("Worker readiness timed out"))), timeoutMs);
+      const finish = (done) => {
+        clearTimeout(timer);
+        this.#readyWaiters.delete(check);
+        done();
+      };
+      this.#readyWaiters.add(check);
+      check();
+    });
+    return { ready: actorIds };
   }
   emit(from, to, payload, replyRequired = false, replyTo) {
     const request = replyTo && this.#pendingReplies.get(replyTo);
@@ -85,6 +112,8 @@ export class CommController {
   // Deliver recipients in registration order with a fixed gap.
   async broadcast(from, namespace, payload, includeMain = false) {
     this.#assertNamespace(from, namespace);
+    if (from !== "main" && this.#actorRoles.get(from) && this.#actorRoles.get(from) !== "lead")
+      throw new Error("Only the Crew Lead may broadcast");
     const recipients = [...this.#actors].filter(
       (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
     );
@@ -204,6 +233,7 @@ export class CommController {
       if (state.actorId) {
         this.release(state.actorId);
         this.#connections.delete(state.actorId);
+        this.#readyActors.delete(state.actorId);
         this.#observers.release(state.actorId);
         this.#record("worker_disconnected", { actorId: state.actorId });
       }

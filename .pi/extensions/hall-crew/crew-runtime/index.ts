@@ -98,6 +98,16 @@ export default function runtimeExtension(pi: any): void {
     },
   });
   pi.registerTool({
+    name: "runtime_dispatch",
+    label: "Runtime: dispatch Crew roots",
+    description: "Deliver immutable root assignments once after a Crew is ready.",
+    parameters: Type.Object({ runId: Type.String(), idempotencyKey: Type.String() }),
+    async execute(_id, input) {
+      const result = await runtime.dispatchRoots(input.runId, input.idempotencyKey);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
     name: "runtime_request_member",
     label: "Runtime: request member",
     description: "Send a Main request to one member and retain its correlated reply in Main's inbox.",
