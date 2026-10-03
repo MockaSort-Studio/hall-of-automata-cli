@@ -64,6 +64,23 @@ practical minimum is therefore one command and one password prompt, which
 cache to `/etc/nix/nix.custom.conf`, restarts the daemon, and verifies. It never
 runs implicitly; the Crew only reports it (preflight message, host fallback).
 
+## Assessment: Nix inside a Gondolin guest
+
+Not an anti-pattern: a Linux VM running Nix to realize Linux closures is how
+macOS Nix already works (`darwin.linux-builder`, Determinate's native Linux
+builder). Our variant would only fetch from the cache into a host directory,
+never build, so the host needs no Nix, no root, and no client config (we are
+root inside the VM and set the substituters there).
+
+It is probably overkill for us. It trades a one-time install for a permanent
+moving part: a guest image with a static Nix, guest network policy for the cache
+hosts, a writable host mount that preserves symlinks, executable bits, and the
+Nix database, a VM boot on every cache miss, and harder debugging. Tarballs
+(option B) remove Nix from the client with less machinery and need only a CI
+export step plus catalog fields. Choose Nix-in-a-guest only if we want to keep
+Nix semantics (deduplication, signatures, local builds) without a host install,
+and then after a measured spike, not before.
+
 ## Cache policy
 
 - Only CI pushes (hall-armory `packages.yml`, per affected suite, after tests,

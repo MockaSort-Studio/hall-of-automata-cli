@@ -107,6 +107,18 @@ or QEMU state remains. Runtime tools are exposed by
 17. [ ] **Establish quality/performance evidence.** Capture a baseline, run an A/B
     quality gate, and publish three serial-versus-Crew rounds with median/range.
 
+## 6. Setup UX (last)
+
+18. [ ] **Add `/hall-setup`: the entry point for setting up a new machine.** A
+    Pi command that runs `scripts/setup-env.sh` through the OS's graphical
+    elevation (`osascript ... with administrator privileges` on macOS, `pkexec`
+    on Linux), because Pi's TUI owns the terminal and a plain `sudo` prompt
+    cannot work. One native password dialog installs Nix and the Armory cache.
+    It is explicit-only (a Crew never installs anything), pins the Nix installer
+    to a tag, and its preflight message points here. Verify the dialog manually
+    on macOS and Linux; the script itself is covered by `setup-env.test.mjs`.
+    Rationale and alternatives: [armory-distribution-decision.md](armory-distribution-decision.md).
+
 ## Deferred until after Crew release
 
 - Hall CLI state-model port and GitHub adapter contracts.
