@@ -88,6 +88,12 @@ or QEMU state remains. Runtime tools are exposed by
     prove no host suite execution, raw credential artifact, or mutation.
 13. [ ] **Add credential renewal and rotation.** Back `createCredentialVault()` with
     a renewable source; test `secretManager.updateSecret()` and revocation.
+13a. [ ] **Ship the Armory binary cache** (see
+    [armory-distribution-decision.md](armory-distribution-decision.md)): merge
+    hall-armory PR #1, run its `cache-sync` once, move `CACHIX_AUTH_TOKEN` into a
+    `main`-restricted Environment, run `scripts/setup-env.sh`, add a cache
+    preflight (fall back to host with the reason), then run the Gondolin
+    `github_issue_view` canary and record cold/warm time and closure size.
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
     workspace, credential, or live worker state.
