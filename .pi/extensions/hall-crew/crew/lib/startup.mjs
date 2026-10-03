@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
-import { resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
+import { realizeOrFallback } from "./armory-fallback.mjs";
+import { acquireNixGuestSuites, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
@@ -176,9 +177,16 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   roster.status = "launching";
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
-    const resolution = await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment);
     const suiteRequests = config.agents.flatMap((agent) => agent.suiteGrants ?? []);
-    const catalog = resolution.sandbox ? await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)() : undefined;
+    let catalog;
+    const resolution = await realizeOrFallback(
+      await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment),
+      config.environment.microvm,
+      async () => {
+        catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
+        await (dependencies.realizeArmorySuites ?? acquireNixGuestSuites)({ catalog, requests: suiteRequests });
+      },
+    );
     const suiteTools = resolution.sandbox
       ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
       : [];
@@ -192,7 +200,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
         tools,
         environmentProfile,
         ...(resolution.sandbox && environmentProfile.suites.length
-          ? { armory: { catalog: { flake: catalog.flake }, tools: environmentProfile.suites.flatMap((suite) => suite.tools) } }
+          ? { armory: { catalog: { flake: catalog.flake }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
           : {}),
         ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
       };

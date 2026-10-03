@@ -29,3 +29,13 @@ test("suite locator uses the catalog revision and explicit guest output", () => 
 test("catalog source paths cannot escape the Nix source", async () => {
   await assert.rejects(() => readCatalogSuite({ sourcePath: "/nix/store/source" }, "../secret.json", { read }), /non-escaping/);
 });
+
+test("catalog resolution asks Nix to materialize the source (lazy trees off)", async () => {
+  let args;
+  await resolveArmoryCatalogReference({
+    flake: "github:MockaSort-Studio/hall-armory/main",
+    execute: async (_binary, argv) => ((args = argv), { stdout: JSON.stringify(metadata) }),
+    read,
+  });
+  assert.deepEqual(args.slice(args.indexOf("--option"), args.indexOf("--option") + 3), ["--option", "lazy-trees", "false"]);
+});

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { buildNixClosure } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-closure-build.mjs";
+import { buildNixClosure, guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-closure-build.mjs";
 
 const root = "/nix/store/0123456789abcdefghijklmnopqrstuv-gh-2.101.0";
 const dependency = "/nix/store/vutsrqponmlkjihgfedcba9876543210-libc-1";
@@ -36,7 +36,7 @@ test("Env builds an explicit output from an immutable flake locator", async () =
       return args[0] === "build" ? { stdout: `${root}\n` } : { stdout: JSON.stringify({ [root]: {} }) };
     },
   });
-  assert.equal(calls[0][1].at(-1), "github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567?dir=collaboration/github#guest");
+  assert.equal(calls[0][1].at(-1), `github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567?dir=collaboration/github#packages.${guestNixSystem()}.guest`);
 });
 
 test("Env rejects a closure path outside the suite", async () =>
@@ -44,3 +44,8 @@ test("Env rejects a closure path outside the suite", async () =>
     buildNixClosure({ suiteRoot: "/suites/github", closure: "../../outside" }),
     /escapes suite root/,
   ));
+
+test("flake outputs are selected for the Linux guest of the host architecture", () => {
+  assert.equal(guestNixSystem("arm64"), "aarch64-linux");
+  assert.equal(guestNixSystem("x64"), "x86_64-linux");
+});

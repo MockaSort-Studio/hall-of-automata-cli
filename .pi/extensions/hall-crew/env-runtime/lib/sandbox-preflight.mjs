@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { nixBinary } from "./nix-binary.mjs";
 
 const gondolinPackage = "@earendil-works/gondolin";
 const piCacheHome = () => join(homedir(), ".pi", "agent", "cache");
@@ -29,7 +30,7 @@ function verifyQemuImage(binary = "qemu-img") {
 
 // Armory guest suites are Nix flake outputs, so a Gondolin worker needs Nix.
 // Missing Nix makes `auto` fall back to the host; explicit `gondolin` reports it.
-function verifyNix(binary = "nix") {
+function verifyNix(binary = nixBinary()) {
   const result = spawnSync(binary, ["--version"], { stdio: "ignore" });
   if (!result.error && result.status === 0) return;
   throw new Error(

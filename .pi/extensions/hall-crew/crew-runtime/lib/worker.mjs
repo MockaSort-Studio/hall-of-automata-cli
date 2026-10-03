@@ -13,9 +13,9 @@ const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
 
 async function prepareArmory(config) {
-  if (!Array.isArray(config.armory?.tools) || !config.armory.tools.length) return undefined;
+  if (!Array.isArray(config.armory?.requests) || !config.armory.requests.length) return undefined;
   const catalog = await resolveArmoryCatalogReference(config.armory.catalog);
-  const suites = await acquireNixGuestSuites({ catalog, tools: config.armory.tools });
+  const suites = await acquireNixGuestSuites({ catalog, requests: config.armory.requests });
   const credentials = credentialPolicyForSuites(suites.map((suite) => suite.suite));
   return {
     catalogRevision: catalog.revision,

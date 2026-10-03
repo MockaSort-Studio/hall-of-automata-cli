@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { promisify } from "node:util";
+import { nixBinary } from "./nix-binary.mjs";
 
 const exec = promisify(execFile);
 const REVISION = /^[0-9a-f]{40}$/;
@@ -38,7 +39,18 @@ export async function resolveArmoryCatalogReference({
   read = readFile,
 } = {}) {
   const catalogManifest = relativePath(manifest, "catalog manifest path");
-  const { stdout } = await execute("nix", ["flake", "metadata", "--refresh", "--json", flake]);
+  // Lazy trees (Determinate Nix) leave the source virtual; the catalog and suite
+  // manifests are read from a real store path, so materialize it.
+  const { stdout } = await execute(nixBinary(), [
+    "flake",
+    "metadata",
+    "--refresh",
+    "--json",
+    "--option",
+    "lazy-trees",
+    "false",
+    flake,
+  ]);
   const metadata = JSON.parse(stdout);
   const locked = lockedGithub(metadata);
   return {

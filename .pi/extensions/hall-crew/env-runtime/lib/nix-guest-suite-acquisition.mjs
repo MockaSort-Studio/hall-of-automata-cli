@@ -51,7 +51,7 @@ export async function resolveNixGuestSuiteRequests({ catalog, requests, readSuit
   );
 }
 
-export async function acquireNixGuestSuites({ catalog, tools, readSuite = readCatalogSuite, build = buildNixClosure }) {
-  const requests = await resolveNixGuestSuiteRequests({ catalog, tools, readSuite });
-  return Promise.all(requests.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, build })));
+export async function acquireNixGuestSuites({ catalog, requests, readSuite = readCatalogSuite, build = buildNixClosure }) {
+  const resolved = await resolveNixGuestSuiteRequests({ catalog, requests, readSuite });
+  return Promise.all(resolved.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, build })));
 }

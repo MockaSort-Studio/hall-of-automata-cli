@@ -1,8 +1,13 @@
 import { execFile } from "node:child_process";
 import { resolve, sep } from "node:path";
 import { promisify } from "node:util";
+import { nixBinary } from "./nix-binary.mjs";
 
 const exec = promisify(execFile);
+
+// The guest is a Linux VM of the host's architecture, so a flake output must
+// be selected for that system even when the host itself is macOS.
+export const guestNixSystem = (arch = process.arch) => (arch === "arm64" ? "aarch64-linux" : "x86_64-linux");
 const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 
 function closureDirectory(suiteRoot, closure) {
@@ -25,11 +30,12 @@ export async function buildNixClosure({ suiteRoot, closure, output = "default", 
   if (typeof output !== "string" || !output || /\s/.test(output)) throw new Error("Nix suite output is required");
   const directory = flake ? undefined : closureDirectory(suiteRoot, closure);
   const locator = flake ?? `path:${directory}`;
+  const attribute = flake ? `packages.${guestNixSystem()}.${output}` : output;
   if (typeof locator !== "string" || !locator || /\s/.test(locator)) throw new Error("Nix suite flake locator is required");
-  const { stdout: buildOutput } = await execute("nix", ["build", "--no-link", "--print-out-paths", `${locator}#${output}`]);
+  const { stdout: buildOutput } = await execute(nixBinary(), ["build", "--no-link", "--print-out-paths", `${locator}#${attribute}`]);
   const rootPath = buildOutput.trim();
   if (!STORE_PATH.test(rootPath)) throw new Error("Nix closure build did not return one store path");
-  const { stdout: pathInfo } = await execute("nix", [
+  const { stdout: pathInfo } = await execute(nixBinary(), [
     "path-info",
     "--recursive",
     "--json",
