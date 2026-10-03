@@ -7,12 +7,9 @@ import {
   validateRoleTools,
   crewDisciplineModule,
 } from "./automaton-body/lib/index.mjs";
-import { NAMES, getAutomaton } from "./roster.mjs";
+import { getAutomaton } from "./roster.mjs";
 import { assignmentContext } from "./assignment-context.mjs";
 import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
-
-export const SOULS = NAMES;
-export const ROLES = ROLE_NAMES;
 
 export function validateAvailableRoleTools(tools, role) {
   validateRoleTools(tools, role);
@@ -22,7 +19,7 @@ export function assemble(name, role, task, override = {}) {
   const automaton = getAutomaton(name);
   const assignment = String(task || "").trim();
   if (assignment.length > 4000) throw new Error("Crew assignment exceeds 4000 characters");
-  if (!ROLES.includes(role)) throw new Error(`Unknown role "${role}". Available: ${ROLES.join(", ")}`);
+  if (!ROLE_NAMES.includes(role)) throw new Error(`Unknown role "${role}". Available: ${ROLE_NAMES.join(", ")}`);
   const body = createRobot({ id: `${role}-${name}`, name, role })
     .install(safetyModule)
     .install(soulModule, { persona: automaton.persona })

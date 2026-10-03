@@ -15,42 +15,6 @@ function ghWithBody(args, body) {
     rmSync(dir, { recursive: true, force: true });
   }
 }
-function repositoryId(owner, repo) {
-  const query = "query($o:String!,$r:String!){repository(owner:$o,name:$r){id}}";
-  return gh([
-    "api",
-    "graphql",
-    "-f",
-    `query=${query}`,
-    "-f",
-    `o=${owner}`,
-    "-f",
-    `r=${repo}`,
-    "--jq",
-    ".data.repository.id",
-  ]);
-}
-function categoryId(owner, repo, category) {
-  const query =
-    "query($o:String!,$r:String!){repository(owner:$o,name:$r){discussionCategories(first:20){nodes{id name}}}}";
-  const nodes = JSON.parse(
-    gh([
-      "api",
-      "graphql",
-      "-f",
-      `query=${query}`,
-      "-f",
-      `o=${owner}`,
-      "-f",
-      `r=${repo}`,
-      "--jq",
-      ".data.repository.discussionCategories.nodes",
-    ]),
-  );
-  const match = nodes.find((item) => item.name.toLowerCase() === category.toLowerCase());
-  if (!match) throw new Error(`Unknown discussion category \"${category}\"`);
-  return match.id;
-}
 function discussionId(owner, repo, number) {
   const query = "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){discussion(number:$n){id}}}";
   return gh([
@@ -203,31 +167,6 @@ export function markDiscussionClosed(roster, closed) {
     discussionClosed: true,
     discussionClosedAt: closed.closedAt,
   };
-}
-export function createKickoff(roster, title, body, category = "General") {
-  const repo = repositoryId(roster.owner, roster.repo);
-  const categoryNode = categoryId(roster.owner, roster.repo, category);
-  const mutation =
-    "mutation($r:ID!,$c:ID!,$t:String!,$body:String!){createDiscussion(input:{repositoryId:$r,categoryId:$c,title:$t,body:$body}){discussion{number url}}}";
-  return JSON.parse(
-    ghWithBody(
-      [
-        "api",
-        "graphql",
-        "-f",
-        `query=${mutation}`,
-        "-f",
-        `r=${repo}`,
-        "-f",
-        `c=${categoryNode}`,
-        "-f",
-        `t=${title}`,
-        "--jq",
-        ".data.createDiscussion.discussion",
-      ],
-      body,
-    ),
-  );
 }
 export function postComment(roster, body, replyToId) {
   const id = discussionId(roster.owner, roster.repo, roster.discussionNumber);

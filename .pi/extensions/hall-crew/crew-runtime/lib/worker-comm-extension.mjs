@@ -175,11 +175,11 @@ export default function workerCommExtension(pi) {
     pi.registerTool({
       name: "comm_notify_all",
       label: "Communication: notify all",
-      description: "Notify Main and every other Crew member. Lead-only coordination broadcast.",
+      description: "Notify every other Crew member (never Main). Lead-only coordination broadcast.",
       parameters: Type.Object({ payload: Type.Unknown() }),
       execute: (_id, input) =>
         result(
-          requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload, includeMain: true }),
+          requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload }),
         ),
     });
   pi.on("agent_settled", () => settledWaiters.splice(0).forEach((resolve) => resolve()));

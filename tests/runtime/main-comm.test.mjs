@@ -67,7 +67,8 @@ test("broker allows broadcast only from a lead", async () => {
     { handle: "developer-b-00", dependsOn: [], task: "" },
   ]);
   await assert.rejects(comm.broadcast("ns-dev", "ns", {}), /Only the Crew Lead/);
-  await comm.broadcast("ns-lead", "ns", {});
+  const sent = await comm.broadcast("ns-lead", "ns", {});
+  assert.equal(sent.recipients.length, 1, "a Lead broadcast reaches the other Crew member only, never Main");
 });
 
 test("dispatchRoots delivers only root tasks, idempotently and once", async (t) => {

@@ -110,13 +110,12 @@ export class CommController {
     return { accepted: true, id: message.id };
   }
   // Deliver recipients in registration order with a fixed gap.
-  async broadcast(from, namespace, payload, includeMain = false) {
+  async broadcast(from, namespace, payload) {
     this.#assertNamespace(from, namespace);
     if (from !== "main" && this.#actorRoles.get(from) && this.#actorRoles.get(from) !== "lead")
       throw new Error("Only the Crew Lead may broadcast");
-    const recipients = [...this.#actors].filter(
-      (id) => (includeMain && id === "main") || (id.startsWith(`${namespace}-`) && id !== from),
-    );
+    // Broadcasts address the Crew only, never Main.
+    const recipients = [...this.#actors].filter((id) => id.startsWith(`${namespace}-`) && id !== from);
     const ids = [];
     for (const [index, to] of recipients.entries()) {
       if (index > 0 && this.#broadcastStaggerMs > 0) await sleep(this.#broadcastStaggerMs);

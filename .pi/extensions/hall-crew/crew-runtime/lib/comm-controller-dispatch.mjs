@@ -28,7 +28,7 @@ export function dispatchCommRequest(controller, socket, state, request) {
   if (method === "comm.broadcast") {
     if (!state.actorId) throw new Error("Registered actor identity required");
     if (state.actorId !== "main" && !params.namespace) throw new Error("Namespace required");
-    return controller.broadcast(state.actorId, params.namespace, params.payload, params.includeMain);
+    return controller.broadcast(state.actorId, params.namespace, params.payload);
   }
   if (method === "comm.emit") {
     if (!state.actorId) throw new Error("Registered actor identity required");

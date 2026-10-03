@@ -11,7 +11,7 @@ to, task, done, dependsOn[]
 
 Workers execute independent assignments immediately and wait for directed
 completion messages from prerequisites. Completion reaches the Lead and direct
-dependents only. Kickoff does not reach Main; terminal `comm_notify_all` does.
+dependents only. Neither kickoff nor `comm_notify_all` reaches Main; broadcasts address the Crew only.
 
 ## Remaining dependency work
 

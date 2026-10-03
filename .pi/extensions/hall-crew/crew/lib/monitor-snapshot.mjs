@@ -137,10 +137,6 @@ export function crewMonitorSnapshot(
   };
 }
 
-export function isTerminalBucket(bucket) {
-  return bucket === "complete" || bucket === "blocked" || bucket === "failed";
-}
-
 // Re-exported so callers building lifecycleByActor can validate raw values
 // against the same durable vocabulary this projection enforces.
 export { isTerminal };
