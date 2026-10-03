@@ -49,3 +49,19 @@ test("flake outputs are selected for the Linux guest of the host architecture", 
   assert.equal(guestNixSystem("arm64"), "aarch64-linux");
   assert.equal(guestNixSystem("x64"), "x86_64-linux");
 });
+
+test("a GC root keeps the built closure alive and its directory is created", async () => {
+  const calls = [];
+  const gcRoot = `${process.env.TMPDIR ?? "/tmp"}/hall-roots-${process.pid}/suite-aarch64-linux`;
+  await buildNixClosure({
+    flake: "github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567?dir=collaboration/github",
+    output: "guest",
+    gcRoot,
+    execute: async (command, args) => {
+      calls.push(args);
+      return args[0] === "build" ? { stdout: `${root}\n` } : { stdout: JSON.stringify({ [root]: {} }) };
+    },
+  });
+  assert.deepEqual(calls[0].slice(0, 3), ["build", "--out-link", gcRoot]);
+  assert.ok(!calls[0].includes("--no-link"));
+});

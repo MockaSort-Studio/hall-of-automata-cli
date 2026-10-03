@@ -6,8 +6,10 @@
 #   scripts/setup-env.sh [--dry-run] [--yes]
 set -euo pipefail
 
-CACHE_URL="https://hall-armory.cachix.org"
-CACHE_KEY="hall-armory.cachix.org-1:xKu3F2f2lHnVSl9gyFi5Fsk2rs724sILlfdEIHWjWrc="
+# One source of truth for the cache identity, shared with the Crew runtime.
+CACHE_FILE="$(cd "$(dirname "$0")/.." && pwd)/.pi/extensions/hall-crew/env-runtime/armory-cache.json"
+CACHE_URL=$(node -p "require('$CACHE_FILE').substituter")
+CACHE_KEY=$(node -p "require('$CACHE_FILE').publicKey")
 CONF="${NIX_CUSTOM_CONF:-/etc/nix/nix.custom.conf}"
 NIX_DEFAULT="/nix/var/nix/profiles/default/bin/nix"
 INSTALLER="https://install.determinate.systems/nix"

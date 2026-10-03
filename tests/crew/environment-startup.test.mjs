@@ -138,3 +138,30 @@ test("explicit Gondolin rejects before Runtime can create a worker", async () =>
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("auto falls back to the host with the missing-cache hint when suites cannot be realized", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepare(cwd);
+    let launched;
+    await launchPreparedCrew(cwd, prepared, {
+      resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
+      resolveArmoryCatalog: async () => ({ flake: "test" }),
+      realizeArmorySuites: async () => Promise.reject(new Error("Reason: platform mismatch")),
+      explainMissingCache: async (error) => new Error(`Armory cache not configured (run scripts/setup-env.sh); ${error.message}`),
+      runtimeFor: () => ({
+        launchCrew: async (agents) => {
+          launched = agents;
+          return { comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) };
+        },
+        broadcast: async () => {},
+      }),
+    });
+    assert.equal(launched[0].sandbox, undefined);
+    const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.equal(environmentResolution.microvm, "none");
+    assert.match(environmentResolution.fallbackReason, /Armory cache not configured \(run scripts\/setup-env\.sh\)/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

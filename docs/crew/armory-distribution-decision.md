@@ -92,6 +92,20 @@ and then after a measured spike, not before.
 - Cache: `https://hall-armory.cachix.org`, key
   `hall-armory.cachix.org-1:xKu3F2f2lHnVSl9gyFi5Fsk2rs724sILlfdEIHWjWrc=`.
 
+## Measurements (2026-10-03, Apple silicon, `aarch64-linux` guest)
+
+- CI: each system builds in about 30 s. The fetch-only verify (`--max-jobs 0`)
+  passes on Ubuntu and on a macOS runner, so Macs substitute without a builder.
+- Client, true cold start from an empty store: 2 min 59 s. The store grows from
+  154 MB to 836 MB: the suite closure is 325 MB over 67 paths, and about 350 MB
+  is the nixpkgs source Nix fetches only to evaluate the flake.
+- Client, warm: 1.4 s. Each closure is rooted under
+  `~/.cache/hall/armory/roots/<suite>-<system>` so garbage collection cannot
+  force another cold fetch; a newer revision overwrites the link.
+- The remaining avoidable cost is flake evaluation. Publishing the resolved
+  output store path per suite and system lets a client run `nix build <path>`
+  and fetch only the closure.
+
 ## Revisit triggers (move to B, tarballs)
 
 - Several suites make duplicated downloads or disk use material.

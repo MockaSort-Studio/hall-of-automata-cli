@@ -4,6 +4,7 @@ import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
+import { explainMissingCache } from "../../env-runtime/lib/armory-cache.mjs";
 import { acquireNixGuestSuites, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
@@ -183,8 +184,12 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
       await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment),
       config.environment.microvm,
       async () => {
-        catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
-        await (dependencies.realizeArmorySuites ?? acquireNixGuestSuites)({ catalog, requests: suiteRequests });
+        try {
+          catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
+          await (dependencies.realizeArmorySuites ?? acquireNixGuestSuites)({ catalog, requests: suiteRequests });
+        } catch (error) {
+          throw await (dependencies.explainMissingCache ?? explainMissingCache)(error);
+        }
       },
     );
     const suiteTools = resolution.sandbox

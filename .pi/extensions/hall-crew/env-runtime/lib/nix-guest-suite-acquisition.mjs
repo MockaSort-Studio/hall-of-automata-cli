@@ -1,5 +1,6 @@
 import { readCatalogSuite, suiteFlakeLocator } from "./armory-catalog-reference.mjs";
 import { validateArmorySuite } from "./armory-manifest.mjs";
+import { armoryRoot } from "./armory-roots.mjs";
 import { buildNixClosure } from "./nix-closure-build.mjs";
 
 function catalogEntry(catalog, suite) {
@@ -21,7 +22,11 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
   const manifest = await readSuite(catalog, entry.manifest);
   const suite = validateArmorySuite(manifest, request.tools);
   const flake = suiteFlakeLocator(catalog, entry.manifest, suite.native);
-  const artifact = await build({ flake: flake.slice(0, flake.lastIndexOf("#")), output: suite.native.output });
+  const artifact = await build({
+    flake: flake.slice(0, flake.lastIndexOf("#")),
+    output: suite.native.output,
+    gcRoot: armoryRoot(request.suite),
+  });
   return {
     suite: request.suite,
     tools: suite.tools,
