@@ -18,6 +18,7 @@ test("session binding forwards terminal notifications to Pi and tears down", () 
         notify = send;
         return () => detachCount++;
       },
+      attachMainDelivery: () => () => detachCount++,
     };
   };
 
@@ -31,5 +32,5 @@ test("session binding forwards terminal notifications to Pi and tears down", () 
     },
   ]);
   handlers.get("session_shutdown")();
-  assert.equal(detachCount, 1);
+  assert.equal(detachCount, 2);
 });

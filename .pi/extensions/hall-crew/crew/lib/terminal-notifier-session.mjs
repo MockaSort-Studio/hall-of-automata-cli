@@ -3,7 +3,10 @@ export function registerTerminalNotifierSession(pi, runtimeFor) {
   let detach;
   const attach = (ctx) => {
     detach?.();
-    detach = runtimeFor(ctx.cwd).attachTerminalNotifier((message, options) => pi.sendMessage(message, options));
+    const runtime = runtimeFor(ctx.cwd);
+    const send = (message, options) => pi.sendMessage(message, options);
+    const detachers = [runtime.attachTerminalNotifier(send), runtime.attachMainDelivery(send)];
+    detach = () => detachers.forEach((fn) => fn());
   };
   pi.on("session_start", (_event, ctx) => attach(ctx));
   pi.on("session_shutdown", () => {

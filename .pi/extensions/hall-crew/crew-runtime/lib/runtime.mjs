@@ -7,6 +7,7 @@ import { connectComm } from "./comm-client.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
 import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
 import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
+import { createMainDeliveryNotifier } from "./main-delivery-notifier.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const stopProcess = async (child) => {
@@ -29,6 +30,7 @@ export class Runtime {
   #commProcess;
   #commAuthToken;
   #mainDeliveries = [];
+  #mainNotifier;
   #mainInbox = new Map();
   #plans = new Map();
   #dispatches = new Map();
@@ -71,6 +73,21 @@ export class Runtime {
   // becomes the live owner of that run's dependency-ledger status (see
   // comm-state-owner.mjs) -- callers never need to reconstruct that DAG
   // themselves from raw envelopes.
+  // With a Pi session attached, each Main delivery starts a turn instead of
+  // waiting to be polled; it stays pending for reply/acknowledge either way.
+  attachMainDelivery(sendMessage) {
+    this.#mainNotifier = createMainDeliveryNotifier(sendMessage);
+    return () => {
+      this.#mainNotifier = undefined;
+    };
+  }
+
+  #deliverToMain(message) {
+    if (!this.#mainNotifier) return this.#mainDeliveries.push(message);
+    this.#mainInbox.set(message.id, message);
+    this.#mainNotifier(message);
+  }
+
   attachTerminalNotifier(sendMessage) {
     this.#terminalNotifier = createCrewTerminalNotifier(sendMessage);
     return () => {
@@ -107,7 +124,7 @@ export class Runtime {
       this.#commAuthToken = authToken;
       this.#commUrl = `ws://127.0.0.1:${port}`;
       this.#comm = await connectComm({ url: this.#commUrl, actorId: "main", authToken });
-      this.#comm.onDelivery((message) => this.#mainDeliveries.push(message));
+      this.#comm.onDelivery((message) => this.#deliverToMain(message));
     }
     await Promise.all(
       actors.map((actor) =>
