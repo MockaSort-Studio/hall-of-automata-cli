@@ -25,11 +25,12 @@ test("preflight verifies QEMU then downloads verified guest assets into the chos
       environment,
       verifyQemu: (binary) => calls.push(binary),
       verifyQemuImage: () => calls.push("qemu-img"),
+      verifyNix: () => calls.push("nix"),
       gondolin: { ensureGuestAssets: async () => calls.push("assets") },
     },
   );
   assert.match(environment.XDG_CACHE_HOME, /\.pi\/agent\/cache$/);
-  assert.deepEqual(calls, [requiredQemuBinary(), "qemu-img", "assets"]);
+  assert.deepEqual(calls, [requiredQemuBinary(), "qemu-img", "nix", "assets"]);
 });
 
 test("preflight does not download assets if QEMU is unavailable", async () => {
@@ -45,5 +46,22 @@ test("preflight does not download assets if QEMU is unavailable", async () => {
       },
     ),
     /QEMU absent/,
+  );
+});
+
+test("preflight rejects with an install hint, before downloading assets, when Nix is absent", async () => {
+  await assert.rejects(
+    preflightWorkerSandbox(
+      { sandbox: { kind: "gondolin" } },
+      {
+        verifyQemu: () => {},
+        verifyQemuImage: () => {},
+        verifyNix: () => {
+          throw new Error("Gondolin sandbox requires Nix");
+        },
+        gondolin: { ensureGuestAssets: async () => assert.fail("should not download") },
+      },
+    ),
+    /requires Nix/,
   );
 });

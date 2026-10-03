@@ -65,6 +65,7 @@ test("resolved Gondolin is threaded into every worker launch", async () => {
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
+      resolveArmoryCatalog: async () => ({ flake: "test" }),
       resolveArmoryToolSuites: async () => [],
       runtimeFor: () => ({
         launchCrew: async (agents) => {
@@ -96,6 +97,7 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
+      resolveArmoryCatalog: async () => ({ flake: "test" }),
       resolveArmoryToolSuites: async ({ requests }) => requests,
       runtimeFor: () => ({
         launchCrew: async (agents) => {
