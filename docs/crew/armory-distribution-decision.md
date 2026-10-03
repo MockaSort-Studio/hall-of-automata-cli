@@ -11,6 +11,14 @@ A Mac cannot build them (no Linux builder), and evaluating the suite flake
 downloads nixpkgs (about 1 GB of store). Distribution must be cross-OS, fast,
 and light, and a missing artifact must degrade to a host-only Crew, never fail.
 
+## Scope principle
+
+Armory ships the lightest closure that makes a tool functional, relative to the
+guest baseline (Alpine/musl, Node 24, `sh`, `curl`, pinned by the Gondolin
+version). What the tool does at runtime (workspaces, downloads, caches, network)
+is the tool's and the guest policy's concern, not distribution's. Suites are
+sized by what the guest lacks, nothing more.
+
 ## Options considered
 
 | Option | Verdict |
