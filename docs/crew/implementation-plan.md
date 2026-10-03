@@ -93,8 +93,10 @@ or QEMU state remains. Runtime tools are exposed by
     hall-armory builds and pushes per suite and verifies fetch-only on Ubuntu and
     macOS; suite source is content-addressed; clients root closures; a missing
     cache yields an actionable host-fallback reason; `scripts/setup-env.sh`.
-    Remaining: skip client flake evaluation (publish resolved store paths, about
-    350 MB and most of the 3 min cold start), move `CACHIX_AUTH_TOKEN` into a
+    Remaining: profile cold start by phase (evaluation vs the 325 MB closure
+    download) and only then decide whether to publish resolved store paths to
+    skip client flake evaluation; shrink the closure if the guest image can
+    supply node or glibc; move `CACHIX_AUTH_TOKEN` into a
     `main`-restricted Environment, then the Gondolin `github_issue_view` canary.
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a

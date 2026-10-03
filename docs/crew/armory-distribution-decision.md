@@ -96,15 +96,20 @@ and then after a measured spike, not before.
 
 - CI: each system builds in about 30 s. The fetch-only verify (`--max-jobs 0`)
   passes on Ubuntu and on a macOS runner, so Macs substitute without a builder.
-- Client, true cold start from an empty store: 2 min 59 s. The store grows from
-  154 MB to 836 MB: the suite closure is 325 MB over 67 paths, and about 350 MB
-  is the nixpkgs source Nix fetches only to evaluate the flake.
+- Client, true cold start from an empty store: 2 min 59 s. Steady state after
+  it: the store is the Nix install (about 180 MB) plus the 325 MB suite closure
+  (67 paths); `~/.cache/nix` stays under 1 MB.
+- A reading of 836 MB was taken immediately after that run and was gone minutes
+  later without a collection. Its cause is unknown and unverified; it is not
+  attributed to flake evaluation. Profile cold start in phases (evaluation vs
+  closure download) before optimizing either.
 - Client, warm: 1.4 s. Each closure is rooted under
   `~/.cache/hall/armory/roots/<suite>-<system>` so garbage collection cannot
   force another cold fetch; a newer revision overwrites the link.
-- The remaining avoidable cost is flake evaluation. Publishing the resolved
-  output store path per suite and system lets a client run `nix build <path>`
-  and fetch only the closure.
+- The closure is a full Linux userspace: nodejs-slim 90 MB, glibc 47, icu 42,
+  gh 39, npm 13, gcc libs 10. Building instead would need the same closure plus
+  the build tools (a CI verify log showed 126 paths, 260 MiB download and
+  802 MiB unpacked) and a compile, so substituting is the smaller option.
 
 ## Revisit triggers (move to B, tarballs)
 
