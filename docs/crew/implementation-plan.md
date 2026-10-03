@@ -33,8 +33,8 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 - [ ] Lead-run activation: Main sends the task to the Lead; Lead dispatches
   validated roots through the broker (not built; Main currently sends directly).
 - [ ] Verify roster `done` + TUI entry retirement on launch failure.
-- [ ] Stop the Comm/Lifecycle servers when a launch rolls back (only workers are
-  removed today).
+- [x] Stop the Comm/Lifecycle servers when a launch rolls back and no other Crew
+  uses them (`main-comm.test.mjs`).
 - [ ] Restart Pi and verify Main tool registration: `runtime_send_message`,
   `runtime_send_all`, `runtime_request_member`, `runtime_reply_message`,
   `runtime_acknowledge_message`, `runtime_dispatch`.

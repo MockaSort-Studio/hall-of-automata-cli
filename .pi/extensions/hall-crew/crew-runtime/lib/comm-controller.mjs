@@ -243,9 +243,26 @@ export class CommController {
     if (!this.#inboxes.has(actorId)) this.#inboxes.set(actorId, []);
     return this.#inboxes.get(actorId);
   }
+  // Main and the Lead coordinate: they receive every message in order as it
+  // arrives and never block later senders on an earlier unanswered message.
+  // Delivery itself is their acknowledgement. Specialists keep one in-flight
+  // delivery, acknowledged after their turn settles.
+  #queued(actorId) {
+    return actorId === "main" || this.#actorRoles.get(actorId) === "lead";
+  }
   #flush(actorId) {
     const socket = this.#connections.get(actorId);
-    if (!socket || socket.readyState !== 1 || this.#inflight.has(actorId)) return;
+    if (!socket || socket.readyState !== 1) return;
+    if (this.#queued(actorId)) {
+      for (let message; (message = this.#inbox(actorId).shift()); ) {
+        this.#record("message_claimed", this.#metrics(message));
+        this.#record("message_delivered", this.#metrics(message));
+        this.#record("message_acknowledged", this.#metrics(message));
+        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
+      }
+      return;
+    }
+    if (this.#inflight.has(actorId)) return;
     const message = this.claim(actorId);
     if (!message) return;
     this.#record("message_delivered", this.#metrics(message));

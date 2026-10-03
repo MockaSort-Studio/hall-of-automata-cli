@@ -83,3 +83,28 @@ test("dispatchRoots delivers only root tasks, idempotently and once", async (t) 
   assert.equal(got.length, 1);
   assert.equal(got[0].payload.kind, "task");
 });
+
+test("a launch that never becomes ready removes its workers and stops Comm/Lifecycle", async () => {
+  const runtime = new Runtime(process.cwd());
+  const name = "developer-snowball-00";
+  const id = `rollback-${process.pid}`;
+  const plan = { namespace: `crew-${id}`, members: [{ handle: name, dependsOn: [], task: "x" }] };
+  await assert.rejects(
+    runtime.launchCrew([{ name, actorId: id, task: "x", resident: true }], [], plan, { readyTimeoutMs: 1 }),
+    /timed out/,
+  );
+  await assert.rejects(runtime.inspectComm(), /not running/);
+  assert.deepEqual(await runtime.list(), []);
+  await runtime.stop();
+});
+
+test("Main receives later messages without acknowledging earlier ones", async (t) => {
+  const { runtime, worker } = await setup(t);
+  await worker.emit({ to: "main", payload: { n: 1 } });
+  await worker.emit({ to: "main", payload: { n: 2 } });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const first = await runtime.receive("main");
+  const second = await runtime.receive("main");
+  assert.deepEqual([first.payload.n, second.payload.n], [1, 2]);
+  assert.deepEqual(await runtime.acknowledgeMain(first.id), { acknowledged: true });
+});

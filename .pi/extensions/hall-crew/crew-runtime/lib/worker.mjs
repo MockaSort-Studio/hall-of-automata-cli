@@ -110,7 +110,7 @@ child.stdout.on("data", (chunk) => {
 });
 child.stderr.on("data", (chunk) => log({ type: "agent_error", message: boundedError(chunk) }));
 child.once("error", (error) => log({ type: "agent_error", message: error.message }));
-child.once("exit", (code, signal) => {
+child.once("exit", async (code, signal) => {
   log({ type: code === 0 ? "agent_end" : "agent_error", elapsedMs: Date.now() - startedAt, code, signal });
   revokeCredentialLease(credentialLease);
   await revokeVaultLeases(vaultLeases);

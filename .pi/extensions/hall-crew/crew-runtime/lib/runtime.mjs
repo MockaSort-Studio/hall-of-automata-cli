@@ -189,9 +189,10 @@ export class Runtime {
   async acknowledgeMain(messageId) {
     const message = this.#mainInbox.get(messageId);
     if (!message) throw new Error("Unknown Main delivery");
-    const result = await this.#comm.acknowledge(messageId);
-    if (result.acknowledged) this.#mainInbox.delete(messageId);
-    return result;
+    // Main deliveries are acknowledged by the broker on delivery; this only
+    // retires the local pending entry.
+    this.#mainInbox.delete(messageId);
+    return { acknowledged: true };
   }
 
   async replyFromMain(messageId, payload) {
@@ -219,7 +220,7 @@ export class Runtime {
     return this.#comm.observeRaw(handler);
   }
 
-  async launchCrew(agents, adapters = [], plan) {
+  async launchCrew(agents, adapters = [], plan, { readyTimeoutMs = 30_000 } = {}) {
     const actorIds = agents.map((agent) => agent.actorId).filter(Boolean);
     if (new Set(actorIds).size !== actorIds.length) throw new Error("Crew agent actor IDs must be unique.");
     const members = Object.fromEntries(agents.map((agent) => [agent.name, agent.actorId]));
@@ -236,7 +237,7 @@ export class Runtime {
     try {
       for (const agent of agents) launched.push(await this.spawn(agent));
       if (plan?.namespace && agents.every((agent) => agent.resident))
-        await this.#comm.waitReady(plan.namespace, actorIds, 30_000);
+        await this.#comm.waitReady(plan.namespace, actorIds, readyTimeoutMs);
       return { comm, agents: launched };
     } catch (error) {
       // Preserve worker evidence outside the run directory before rollback.
@@ -250,6 +251,8 @@ export class Runtime {
         ),
       );
       await Promise.allSettled(launched.map((agent) => this.remove(agent.id)));
+      // A failed launch owns its servers unless another Crew still uses them.
+      if (!(await this.list().catch(() => [])).length) await this.stop();
       throw error;
     }
   }
