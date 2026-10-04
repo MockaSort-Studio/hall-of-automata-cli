@@ -65,7 +65,7 @@ test("resolved Gondolin is threaded into every worker launch", async () => {
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
-      resolveArmoryCatalog: async () => ({ flake: "test" }),
+      resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
       realizeArmorySuites: async () => [],
       resolveArmoryToolSuites: async () => [],
       runtimeFor: () => ({
@@ -98,7 +98,7 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
-      resolveArmoryCatalog: async () => ({ flake: "test" }),
+      resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
       realizeArmorySuites: async () => [],
       resolveArmoryToolSuites: async ({ requests }) => requests,
       runtimeFor: () => ({
@@ -146,7 +146,7 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
     let launched;
     await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
-      resolveArmoryCatalog: async () => ({ flake: "test" }),
+      resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
       realizeArmorySuites: async () => Promise.reject(new Error("Reason: platform mismatch")),
       explainMissingCache: async (error) => new Error(`Armory cache not configured (run scripts/setup-env.sh); ${error.message}`),
       runtimeFor: () => ({

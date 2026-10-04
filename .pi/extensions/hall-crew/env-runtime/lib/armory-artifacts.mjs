@@ -1,5 +1,4 @@
 import { armoryCache } from "./armory-cache.mjs";
-import { resolveArmoryCatalogReference } from "./armory-catalog-reference.mjs";
 
 export const ARMORY_REPOSITORY = "MockaSort-Studio/hall-armory";
 export const LATEST_RELEASE_URL = `https://github.com/${ARMORY_REPOSITORY}/releases/latest/download/artifacts.json`;
@@ -44,10 +43,9 @@ export async function fetchArtifactCatalog({ url = LATEST_RELEASE_URL, fetchImpl
 }
 
 // A catalog reference that needs no Nix to resolve: manifests are embedded and the
-// artifact paths are known. `flake` is the same revision, kept for the slow path.
+// artifact paths are known.
 export function referenceFromArtifacts(doc) {
   return {
-    flake: `github:${ARMORY_REPOSITORY}/${doc.revision}`,
     revision: doc.revision,
     manifest: "manifest.json",
     catalog: doc.catalog,
@@ -57,16 +55,16 @@ export function referenceFromArtifacts(doc) {
   };
 }
 
-// Prefer the released catalog. A pinned `flake` without a `release` means the launch
-// already fell back, so the worker must not drift to a newer release.
-export async function resolveArmoryCatalog({ release, flake, fetchImpl, cache, ...flakeOptions } = {}) {
-  if (release || !flake) {
-    try {
-      return referenceFromArtifacts(await fetchArtifactCatalog({ url: release, fetchImpl, cache }));
-    } catch (error) {
-      const reference = await resolveArmoryCatalogReference({ flake, ...flakeOptions });
-      return { ...reference, artifactsError: String(error?.message ?? error) };
-    }
-  }
-  return resolveArmoryCatalogReference({ flake, ...flakeOptions });
+// The release is the single source of Armory suites. A launch resolves the latest
+// release; a worker re-resolves the exact release its launch pinned.
+export async function resolveArmoryCatalog({ release, fetchImpl, cache } = {}) {
+  return referenceFromArtifacts(await fetchArtifactCatalog({ url: release, fetchImpl, cache }));
+}
+
+export function readCatalogSuite(reference, manifestPath) {
+  if (typeof manifestPath !== "string" || !manifestPath || manifestPath.startsWith("/") || manifestPath.split("/").includes(".."))
+    throw new Error("Armory suite manifest path must be a non-escaping relative path");
+  const manifest = reference.manifests?.[manifestPath];
+  if (!manifest) throw new Error(`Armory suite manifest is not in the release: ${manifestPath}`);
+  return structuredClone(manifest);
 }

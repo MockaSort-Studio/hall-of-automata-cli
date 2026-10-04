@@ -113,9 +113,13 @@ and full closure list.
   configured by `scripts/setup-env.sh`. Enable immutable releases in the
   repository settings so a published catalog cannot be altered. A build
   provenance attestation is a possible later hardening.
-- **Fallback.** If the release is unreachable or invalid, or a published closure
-  fails verification, the client evaluates the flake at the same revision (the
-  previous, slower path) and records why.
+- **One entrypoint.** The release is the only source of Armory suites. There is
+  no second path through the repository's flake: an unreachable or invalid
+  release, a suite it does not carry for this system, or a closure that fails
+  verification all make the Crew fall back to host-only workers (`auto`) or
+  report the error (explicit `gondolin`), with the reason. A suite under
+  development is exercised by publishing a release, not by pointing a client at
+  a branch.
 - **Opacity.** The host never loads suite code. Bundling the extension into
   `runner.mjs` does not change the contract: the worker proxy registers only
   operations the guest `armory-suite` executable describes and approves, and

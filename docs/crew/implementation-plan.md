@@ -95,8 +95,8 @@ or QEMU state remains. Runtime tools are exposed by
     cache yields an actionable host-fallback reason; `scripts/setup-env.sh`.
     Done: slim 39-42 MB closure on the guest's Node with a static `gh`; the
     resolved artifact catalog released by hall-armory after the cache is complete;
-    client resolution and fetch by store path with verification and flake
-    fallback (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
+    client resolution from the release as the single entrypoint and fetch by
+    store path with verification (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
     `main`-restricted Environment, enable immutable releases, then the Gondolin
     `github_issue_view` canary through Crew (restart Pi first).
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently

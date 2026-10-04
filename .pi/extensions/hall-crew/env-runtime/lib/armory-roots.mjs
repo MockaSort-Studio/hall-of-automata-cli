@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { guestNixSystem } from "./nix-closure-build.mjs";
+import { guestNixSystem } from "./guest-system.mjs";
 
 // Nix garbage collection deletes any store path without a root. A suite closure
 // is expensive to fetch cold, so each is rooted here, one link per suite and

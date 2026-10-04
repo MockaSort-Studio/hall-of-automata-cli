@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fetchPublishedClosure } from "../../.pi/extensions/hall-crew/env-runtime/lib/published-closure.mjs";
 import { acquireNixGuestSuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-guest-suite-acquisition.mjs";
-import { guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-closure-build.mjs";
+import { guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-system.mjs";
 
 const cache = { substituter: "https://cache.example", publicKey: "k" };
 const root = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-suite";
@@ -78,35 +78,32 @@ const catalog = (artifacts) => ({
 });
 const request = { suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] };
 
-test("a published artifact for this system is used and the flake is never evaluated", async () => {
-  let built = false;
+test("a published artifact for this system is fetched by store path", async () => {
   const result = await acquireNixGuestSuite({
     catalog: catalog({ [request.suite]: { [guestNixSystem()]: artifact } }),
     request,
-    fetchPublished: async () => ({ rootPath: root, paths: [root, dep] }),
-    build: async () => ((built = true), {}),
+    fetchPublished: async ({ artifact: wanted, cache: used }) => {
+      assert.equal(wanted.storePath, root);
+      assert.match(used.substituter, /^https:\/\/hall-armory\.cachix\.org$/);
+      return { rootPath: root, paths: [root, dep] };
+    },
   });
-  assert.equal(result.source, "published");
   assert.equal(result.rootPath, root);
-  assert.equal(built, false);
+  assert.deepEqual(result.tools, ["github_issue_view"]);
 });
 
-test("an unusable published closure falls back to evaluating the flake and says why", async () => {
-  const result = await acquireNixGuestSuite({
-    catalog: catalog({ [request.suite]: { [guestNixSystem()]: artifact } }),
-    request,
-    fetchPublished: async () => Promise.reject(new Error("cache offline\nmore")),
-    build: async () => ({ rootPath: root, paths: [root] }),
-  });
-  assert.match(result.source, /^flake \(published closure unusable: cache offline\)$/);
-  assert.equal(result.rootPath, root);
+test("an unusable published closure is an error, with no flake fallback", async () => {
+  await assert.rejects(
+    acquireNixGuestSuite({
+      catalog: catalog({ [request.suite]: { [guestNixSystem()]: artifact } }),
+      request,
+      fetchPublished: async () => Promise.reject(new Error("cache offline")),
+    }),
+    /cache offline/,
+  );
 });
 
-test("without a published artifact the flake is evaluated as before", async () => {
-  const result = await acquireNixGuestSuite({
-    catalog: catalog(undefined),
-    request,
-    build: async () => ({ rootPath: root, paths: [root] }),
-  });
-  assert.equal(result.source, "flake");
+test("a suite the release does not carry for this system is an error", async () => {
+  await assert.rejects(acquireNixGuestSuite({ catalog: catalog({ [request.suite]: {} }), request }), /no (aarch64|x86_64)-linux artifact/);
+  await assert.rejects(acquireNixGuestSuite({ catalog: catalog(undefined), request }), /no .* artifact/);
 });

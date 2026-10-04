@@ -205,7 +205,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
         tools,
         environmentProfile,
         ...(resolution.sandbox && environmentProfile.suites.length
-          ? { armory: { catalog: { flake: catalog.flake, release: catalog.release }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
+          ? { armory: { catalog: { release: catalog.release }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
           : {}),
         ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
       };

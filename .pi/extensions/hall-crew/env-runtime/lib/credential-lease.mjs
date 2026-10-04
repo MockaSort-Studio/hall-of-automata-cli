@@ -16,8 +16,9 @@ export function consumeCredentialLease(fd = 3) {
   try {
     lease = JSON.parse(readFileSync(fd, "utf8"));
   } catch (error) {
-    // Standalone Gondolin use has no worker credential descriptor.
-    if (error?.code === "EBADF" || error?.code === "EINVAL") return { id: undefined, credentials: new Map() };
+    // Standalone Gondolin use has no worker credential descriptor. An unopened
+    // descriptor is EBADF or EINVAL on Linux but ENXIO on macOS.
+    if (["EBADF", "EINVAL", "ENXIO"].includes(error?.code)) return { id: undefined, credentials: new Map() };
     throw new Error("Invalid worker credential lease.");
   }
   if (!lease || typeof lease.id !== "string" || !lease.credentials || typeof lease.credentials !== "object")

@@ -1,8 +1,8 @@
-import { readCatalogSuite, suiteFlakeLocator } from "./armory-catalog-reference.mjs";
+import { readCatalogSuite } from "./armory-artifacts.mjs";
 import { validateArmorySuite } from "./armory-manifest.mjs";
 import { armoryCache } from "./armory-cache.mjs";
 import { armoryRoot } from "./armory-roots.mjs";
-import { buildNixClosure, guestNixSystem } from "./nix-closure-build.mjs";
+import { guestNixSystem } from "./guest-system.mjs";
 import { fetchPublishedClosure } from "./published-closure.mjs";
 
 function catalogEntry(catalog, suite) {
@@ -14,48 +14,21 @@ function catalogEntry(catalog, suite) {
   return entry;
 }
 
-// The Nix-only replacement for legacy package/native guest materialization.
-// It derives the exact flake from the already-resolved catalog revision, builds
-// its named guest output, and returns only immutable mount paths plus approved
-// operation names for the worker lease.
-export async function acquireNixGuestSuite({
-  catalog,
-  request,
-  readSuite = readCatalogSuite,
-  build = buildNixClosure,
-  fetchPublished = fetchPublishedClosure,
-}) {
+// Fetches one suite's published closure for this guest system. The release is the
+// only source: there is no flake evaluation, and a suite the release does not
+// carry for this system is an error the caller degrades from.
+export async function acquireNixGuestSuite({ catalog, request, readSuite = readCatalogSuite, fetchPublished = fetchPublishedClosure }) {
   if (!request?.suite) throw new Error("Nix guest suite request requires a suite");
   const entry = catalogEntry(catalog.catalog, request.suite);
-  const manifest = await readSuite(catalog, entry.manifest);
-  const suite = validateArmorySuite(manifest, request.tools);
-  const flake = suiteFlakeLocator(catalog, entry.manifest, suite.native);
-  const gcRoot = armoryRoot(request.suite);
-  // A published closure is fetched by store path with no flake evaluation. If it
-  // is absent or fails verification, evaluate the flake instead (slower).
-  const published = catalog.artifacts?.[request.suite]?.[guestNixSystem()];
-  let artifact;
-  let source = "flake";
-  if (published) {
-    try {
-      artifact = await fetchPublished({ artifact: published, cache: armoryCache, gcRoot });
-      source = "published";
-    } catch (error) {
-      artifact = undefined;
-      source = `flake (published closure unusable: ${String(error?.message ?? error).split("\n")[0]})`;
-    }
-  }
-  artifact ??= await build({
-    flake: flake.slice(0, flake.lastIndexOf("#")),
-    output: suite.native.output,
-    gcRoot,
-  });
+  const suite = validateArmorySuite(await readSuite(catalog, entry.manifest), request.tools);
+  const system = guestNixSystem();
+  const published = catalog.artifacts?.[request.suite]?.[system];
+  if (!published) throw new Error(`The Armory release has no ${system} artifact for ${request.suite}`);
+  const artifact = await fetchPublished({ artifact: published, cache: armoryCache, gcRoot: armoryRoot(request.suite) });
   return {
-    source,
     suite: request.suite,
     tools: suite.tools,
     network: suite.network,
-    flake,
     rootPath: artifact.rootPath,
     paths: artifact.paths,
   };
@@ -80,7 +53,7 @@ export async function resolveNixGuestSuiteRequests({ catalog, requests, readSuit
   );
 }
 
-export async function acquireNixGuestSuites({ catalog, requests, readSuite = readCatalogSuite, build = buildNixClosure }) {
+export async function acquireNixGuestSuites({ catalog, requests, readSuite = readCatalogSuite, fetchPublished }) {
   const resolved = await resolveNixGuestSuiteRequests({ catalog, requests, readSuite });
-  return Promise.all(resolved.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, build })));
+  return Promise.all(resolved.map((request) => acquireNixGuestSuite({ catalog, request, readSuite, fetchPublished })));
 }

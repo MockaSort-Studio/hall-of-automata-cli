@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { armoryRoot, armoryRootsDir } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-roots.mjs";
+import { guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-system.mjs";
 import { armoryCache, explainMissingCache } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-cache.mjs";
 
 test("roots are keyed by suite and system, never by revision, so a new revision replaces the old root", () => {
@@ -28,4 +29,9 @@ test("with the cache configured the original error passes through", async () => 
 test("if configuration cannot be read, the original error is kept", async () => {
   const error = new Error("boom");
   assert.equal(await explainMissingCache(error, { configured: async () => Promise.reject(new Error("no nix")) }), error);
+});
+
+test("the guest system follows the host architecture", () => {
+  assert.equal(guestNixSystem("arm64"), "aarch64-linux");
+  assert.equal(guestNixSystem("x64"), "x86_64-linux");
 });
