@@ -93,12 +93,12 @@ or QEMU state remains. Runtime tools are exposed by
     hall-armory builds and pushes per suite and verifies fetch-only on Ubuntu and
     macOS; suite source is content-addressed; clients root closures; a missing
     cache yields an actionable host-fallback reason; `scripts/setup-env.sh`.
-    Done: slim 39-42 MB closure on the guest's Node with a static `gh`, checked
-    in CI on both architectures and locally in a real Gondolin guest.
-    Remaining: publish resolved store paths so clients fetch the closure without
-    evaluating the flake (evaluation is 44 s and 330 MB against a 9 s, 37 MB
-    fetch), move `CACHIX_AUTH_TOKEN` into a `main`-restricted Environment, then
-    the Gondolin `github_issue_view` canary through Crew.
+    Done: slim 39-42 MB closure on the guest's Node with a static `gh`; the
+    resolved artifact catalog released by hall-armory after the cache is complete;
+    client resolution and fetch by store path with verification and flake
+    fallback (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
+    `main`-restricted Environment, enable immutable releases, then the Gondolin
+    `github_issue_view` canary through Crew (restart Pi first).
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
     workspace, credential, or live worker state.

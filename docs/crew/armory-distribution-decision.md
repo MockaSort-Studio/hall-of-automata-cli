@@ -89,6 +89,43 @@ export step plus catalog fields. Choose Nix-in-a-guest only if we want to keep
 Nix semantics (deduplication, signatures, local builds) without a host install,
 and then after a measured spike, not before.
 
+## Artifact catalog (implemented)
+
+One immutable document, `artifacts.json`, is attached to a GitHub Release of
+hall-armory. It holds the git revision, the pinned cache identity, every suite
+manifest verbatim, and per suite and guest system the exact store path, `narHash`
+and full closure list.
+
+- **Release gate.** `publish-artifacts.yml` runs after a green `main` run, builds
+  the document with local builds forbidden (`--max-jobs 0`), and creates the
+  release `armory-<sha>` only if every artifact is fetchable from the cache.
+  Unchanged suites publish nothing. A revision therefore becomes visible only
+  when complete, so a client never asks the cache for a path that is not there.
+  This is the structural fix for the daemon's cached-miss problem.
+- **Channel.** Clients read `releases/latest/download/artifacts.json`: no API, no
+  rate limit, no Nix. A worker re-fetches the exact tag it was launched with, so
+  it cannot drift to a newer release.
+- **Fetch.** The client runs `nix copy --from <cache> <storePath>`, which asks the
+  cache directly and bypasses the daemon's miss cache, then checks the installed
+  closure and every `narHash` against the document, then roots it.
+- **Trust.** The client refuses a catalog that names a cache other than the one
+  pinned in `armory-cache.json`; Nix still verifies signatures against the keys
+  configured by `scripts/setup-env.sh`. Enable immutable releases in the
+  repository settings so a published catalog cannot be altered. A build
+  provenance attestation is a possible later hardening.
+- **Fallback.** If the release is unreachable or invalid, or a published closure
+  fails verification, the client evaluates the flake at the same revision (the
+  previous, slower path) and records why.
+- **Opacity.** The host never loads suite code. Bundling the extension into
+  `runner.mjs` does not change the contract: the worker proxy registers only
+  operations the guest `armory-suite` executable describes and approves, and
+  invokes them through it. The same source (`githubOperationDescriptors`) still
+  backs the static Pi extension, so both modes share one implementation.
+
+Measured from a true cold start (Apple silicon): 0.7 s to resolve the release,
+9 s to fetch, +38 MB in the store, in total 10 s, against 3 min and about 690 MB
+by evaluating the flake. The closure survives a garbage collection.
+
 ## Cache policy
 
 - Only CI pushes (hall-armory `packages.yml`, per affected suite, after tests,

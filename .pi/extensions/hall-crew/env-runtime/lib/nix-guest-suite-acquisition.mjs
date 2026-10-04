@@ -1,7 +1,9 @@
 import { readCatalogSuite, suiteFlakeLocator } from "./armory-catalog-reference.mjs";
 import { validateArmorySuite } from "./armory-manifest.mjs";
+import { armoryCache } from "./armory-cache.mjs";
 import { armoryRoot } from "./armory-roots.mjs";
-import { buildNixClosure } from "./nix-closure-build.mjs";
+import { buildNixClosure, guestNixSystem } from "./nix-closure-build.mjs";
+import { fetchPublishedClosure } from "./published-closure.mjs";
 
 function catalogEntry(catalog, suite) {
   if (catalog?.format !== "hall.armory/v1" || !Array.isArray(catalog.lockers))
@@ -16,18 +18,40 @@ function catalogEntry(catalog, suite) {
 // It derives the exact flake from the already-resolved catalog revision, builds
 // its named guest output, and returns only immutable mount paths plus approved
 // operation names for the worker lease.
-export async function acquireNixGuestSuite({ catalog, request, readSuite = readCatalogSuite, build = buildNixClosure }) {
+export async function acquireNixGuestSuite({
+  catalog,
+  request,
+  readSuite = readCatalogSuite,
+  build = buildNixClosure,
+  fetchPublished = fetchPublishedClosure,
+}) {
   if (!request?.suite) throw new Error("Nix guest suite request requires a suite");
   const entry = catalogEntry(catalog.catalog, request.suite);
   const manifest = await readSuite(catalog, entry.manifest);
   const suite = validateArmorySuite(manifest, request.tools);
   const flake = suiteFlakeLocator(catalog, entry.manifest, suite.native);
-  const artifact = await build({
+  const gcRoot = armoryRoot(request.suite);
+  // A published closure is fetched by store path with no flake evaluation. If it
+  // is absent or fails verification, evaluate the flake instead (slower).
+  const published = catalog.artifacts?.[request.suite]?.[guestNixSystem()];
+  let artifact;
+  let source = "flake";
+  if (published) {
+    try {
+      artifact = await fetchPublished({ artifact: published, cache: armoryCache, gcRoot });
+      source = "published";
+    } catch (error) {
+      artifact = undefined;
+      source = `flake (published closure unusable: ${String(error?.message ?? error).split("\n")[0]})`;
+    }
+  }
+  artifact ??= await build({
     flake: flake.slice(0, flake.lastIndexOf("#")),
     output: suite.native.output,
-    gcRoot: armoryRoot(request.suite),
+    gcRoot,
   });
   return {
+    source,
     suite: request.suite,
     tools: suite.tools,
     network: suite.network,

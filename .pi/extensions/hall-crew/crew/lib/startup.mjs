@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
-import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
+import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
 import { explainMissingCache } from "../../env-runtime/lib/armory-cache.mjs";
 import { acquireNixGuestSuites, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
@@ -185,7 +185,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
       config.environment.microvm,
       async () => {
         try {
-          catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalogReference)();
+          catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalog)();
           await (dependencies.realizeArmorySuites ?? acquireNixGuestSuites)({ catalog, requests: suiteRequests });
         } catch (error) {
           throw await (dependencies.explainMissingCache ?? explainMissingCache)(error);
@@ -205,7 +205,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
         tools,
         environmentProfile,
         ...(resolution.sandbox && environmentProfile.suites.length
-          ? { armory: { catalog: { flake: catalog.flake }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
+          ? { armory: { catalog: { flake: catalog.flake, release: catalog.release }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
           : {}),
         ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
       };

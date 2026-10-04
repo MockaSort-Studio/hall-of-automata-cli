@@ -64,6 +64,7 @@ export async function resolveArmoryCatalogReference({
 
 export async function readCatalogSuite(reference, manifestPath, { read = readFile } = {}) {
   const path = relativePath(manifestPath, "suite manifest path");
+  if (reference.manifests?.[path]) return structuredClone(reference.manifests[path]);
   return jsonFile(join(reference.sourcePath, path), read);
 }
 

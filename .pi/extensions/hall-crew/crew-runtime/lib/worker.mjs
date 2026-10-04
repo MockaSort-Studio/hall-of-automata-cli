@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { boundedText, mapWorkerEvent } from "./worker-events.mjs";
-import { resolveArmoryCatalogReference } from "../../env-runtime/lib/armory-catalog-reference.mjs";
+import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
 import { acquireNixGuestSuites } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
 import { revokeCredentialLease } from "../../env-runtime/lib/credential-lease.mjs";
 import { createCredentialVault, revokeVaultLeases } from "../../env-runtime/lib/credential-vault.mjs";
@@ -14,7 +14,7 @@ const config = JSON.parse(readFileSync(configPath, "utf8"));
 
 async function prepareArmory(config) {
   if (!Array.isArray(config.armory?.requests) || !config.armory.requests.length) return undefined;
-  const catalog = await resolveArmoryCatalogReference(config.armory.catalog);
+  const catalog = await resolveArmoryCatalog(config.armory.catalog);
   const suites = await acquireNixGuestSuites({ catalog, requests: config.armory.requests });
   const credentials = credentialPolicyForSuites(suites.map((suite) => suite.suite));
   return {
