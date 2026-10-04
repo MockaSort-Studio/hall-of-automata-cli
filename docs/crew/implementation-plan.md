@@ -1,6 +1,6 @@
 # Crew and Armory implementation plan
 
-Updated: 2026-10-04 (reconciled against the code and live runs). This is the sole active TODO list. `follow-ups.md` and
+Updated: 2026-10-04 (reconciled against the code and live runs). This is the sole active TODO list. Current status: [alpha-status.md](alpha-status.md). `follow-ups.md` and
 `armory-implementation-todo.md` retain completed evidence and historical context;
 they do not define additional work.
 
