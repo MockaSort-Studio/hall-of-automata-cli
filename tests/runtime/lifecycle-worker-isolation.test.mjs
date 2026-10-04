@@ -37,26 +37,3 @@ test("a spawned worker's environment carries no host .pi/runtime discovery varia
     rmSync(cwd, { recursive: true, force: true });
   }
 });
-
-test("worker secrets reach only that worker's process environment, never disk or the agent record", async () => {
-  const cwd = gitRepo();
-  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
-  try {
-    const agent = await controller.spawn({ actorId: "secret", name: "secret", task: "DUMP_ENV", secretEnv: { GITHUB_TOKEN: "gho_secret" } });
-    await once(agent.child, "exit");
-    assert.equal(JSON.parse(readFileSync(join(agent.worktree, "env.json"), "utf8")).GITHUB_TOKEN, "gho_secret");
-    assert.doesNotMatch(readFileSync(join(cwd, ".pi", "runtime", "runs", "secret", "worker.json"), "utf8"), /gho_secret/);
-    assert.doesNotMatch(JSON.stringify(await controller.list()), /gho_secret/);
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("secret names cannot override process-control variables", async () => {
-  const { validatedSecretEnv } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs");
-  for (const name of ["PATH", "HOME", "PI_CREW_ROOT", "NODE_OPTIONS", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "lower", "1X"])
-    assert.throws(() => validatedSecretEnv({ [name]: "v" }), /Refusing/);
-  assert.throws(() => validatedSecretEnv({ GITHUB_TOKEN: "" }), /Invalid value/);
-  assert.deepEqual(validatedSecretEnv({ GITHUB_TOKEN: "t" }), { GITHUB_TOKEN: "t" });
-  assert.deepEqual(validatedSecretEnv(undefined), {});
-});

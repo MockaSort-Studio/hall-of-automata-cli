@@ -317,7 +317,6 @@ export class Runtime {
     crewLead,
     sandbox,
     armory,
-    secretEnv,
   }) {
     await this.#ensureLifecycle();
     const bundle = resolveBundles(this.cwd, bundles);
@@ -349,7 +348,6 @@ export class Runtime {
       crewLead,
       sandbox,
       armory,
-      secretEnv,
     });
   }
 

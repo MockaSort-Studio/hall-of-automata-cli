@@ -100,9 +100,11 @@ or QEMU state remains. Runtime tools are exposed by
     store path with verification (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
     `main`-restricted Environment, enable immutable releases, then the Gondolin
     `github_issue_view` canary through Crew (restart Pi first).
-13b. [x] **Credentials at launch.** Consent-gated `gh` login token, per-worker
-    in-memory delivery, and a launch warning when a credential is missing. Live
-    check: a credentialed `github_issue_view` canary through a Crew.
+13b. [x] **Credentials at launch.** A dedicated `HALL_GITHUB_TOKEN`, minted
+    deliberately and stored by `scripts/setup-github-token.sh`; a launch warning
+    with minting instructions when it is missing. Open: a credentialed
+    `github_issue_view` canary through a Crew, and capturing then deleting the
+    variable from Pi's environment at extension load.
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
     workspace, credential, or live worker state.

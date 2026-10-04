@@ -133,25 +133,32 @@ by evaluating the flake. The closure survives a garbage collection.
 ## Credentials
 
 The GitHub suite's `gh` refuses to run without a token, even for public data. The
-host-owned policy (`credential-policy.mjs`) names the host variable
-(`GITHUB_TOKEN`) and the login that may supply it (`gh auth token`). At launch,
-`collectLaunchCredentials` decides, per credential:
+host-owned policy (`credential-policy.mjs`) binds the guest's `GITHUB_TOKEN` to the
+host variable `HALL_GITHUB_TOKEN`. The variable is Hall-specific on purpose: a
+`GITHUB_TOKEN` exported for other tools is never handed to workers by accident.
 
-1. **The environment variable is set:** used as is, no prompt.
-2. **Otherwise, with explicit consent:** Pi asks once (`ctx.ui.confirm`, remembered
-   for the session once approved) before reading the `gh` login token. The token is
-   never read without that answer, because it carries the full access of the login;
-   the prompt says so and points to a fine-grained `GITHUB_TOKEN` as the safer way.
-3. **Otherwise:** the gap is a launch warning (in the tool result and the roster's
-   `environmentResolution`), and the Crew still starts.
+Hall never reads a `gh` login or keyring on its own. The token is minted
+deliberately and handed over through the environment:
 
-The secret is held in memory and delivered per worker, only to workers whose own
-suites need it, through that worker process's environment (`secretEnv`). It is
-never written to `worker.json`, the launch config, the roster, or the agent record;
-the worker's vault removes it from its environment before Pi starts, and the guest
-sees only a placeholder that Gondolin substitutes at `api.github.com` and
-`github.com`. Names are validated so a caller cannot override process-control
-variables.
+- **Mint:** a fine-grained token at
+  https://github.com/settings/personal-access-tokens/new, limited to the
+  repositories a Crew needs (read access to Issues, Pull requests, Contents and
+  Metadata unless workers must write). Reusing the `gh` login is possible with
+  `scripts/setup-github-token.sh --from-gh`, but that token carries the full access
+  of the login.
+- **Store:** `scripts/setup-github-token.sh` verifies the token with GitHub (and
+  names a broad classic token's scopes), writes `export HALL_GITHUB_TOKEN=...` to
+  `~/.config/hall/env` with mode 600, and adds one guarded `source` line to the
+  shell profile. Start Pi from a shell that has it.
+- **Missing:** the Crew still starts; the launch result and the roster's
+  `environmentResolution` carry a warning with the link and the script, and
+  `github_*` calls fail at call time with `gh`'s auth message until it is set.
+
+The worker parent leases the value in memory and removes it from its environment
+before Pi starts; the guest sees only a placeholder that Gondolin substitutes at
+`api.github.com` and `github.com`. Only presence, never a value, is recorded. Known
+property: Pi's own environment holds the variable, so tools the Main agent runs
+inherit it; capturing and deleting it at extension load would close that.
 
 ## Cache policy
 

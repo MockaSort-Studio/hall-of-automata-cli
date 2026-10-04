@@ -166,84 +166,56 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
   }
 });
 
-async function launchGithubCrew(cwd, dependencies) {
+async function launchGithubCrew(cwd) {
   const prepared = await prepareCrew(
     { getAllTools: () => [] },
-    {
-      members: [
-        { name: "snowball", role: "reviewer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] },
-        { name: "tomashco", role: "advisor", tools: [{ suite: "system", operations: ["read"] }] },
-      ],
-    },
+    { members: [{ name: "snowball", role: "reviewer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] }] },
     { cwd },
     ".pi",
   );
-  let launched;
   const result = await launchPreparedCrew(cwd, prepared, {
     resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
     resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
     realizeArmorySuites: async () => [],
     resolveArmoryToolSuites: async ({ requests }) => requests,
     runtimeFor: () => ({
-      launchCrew: async (agents) => ((launched = agents), { comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) }),
+      launchCrew: async (agents) => ({ comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) }),
       broadcast: async () => {},
     }),
-    ...dependencies,
   });
-  return { prepared, launched, result };
+  return { prepared, result };
 }
 
-test("a consented login token reaches only the worker that needs it and is never written down", async () => {
-  const saved = process.env.GITHUB_TOKEN;
-  delete process.env.GITHUB_TOKEN;
+async function withToken(value, action) {
+  const saved = process.env.HALL_GITHUB_TOKEN;
+  if (value === undefined) delete process.env.HALL_GITHUB_TOKEN;
+  else process.env.HALL_GITHUB_TOKEN = value;
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
-    const asked = [];
-    const { prepared, launched, result } = await launchGithubCrew(cwd, {
-      confirmCredential: async (request) => (asked.push(request), true),
-      runLogin: async () => "gho_secret",
-    });
-    assert.deepEqual(asked, [{ label: "GitHub CLI login", variable: "GITHUB_TOKEN" }]);
-    const byRole = Object.fromEntries(launched.map((agent) => [agent.role, agent.secretEnv]));
-    assert.deepEqual(byRole, { reviewer: { GITHUB_TOKEN: "gho_secret" }, advisor: undefined });
+    await action(cwd);
+  } finally {
+    if (saved === undefined) delete process.env.HALL_GITHUB_TOKEN;
+    else process.env.HALL_GITHUB_TOKEN = saved;
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+test("a missing token is a launch warning with minting instructions, and the Crew still starts", () =>
+  withToken(undefined, async (cwd) => {
+    const { prepared, result } = await launchGithubCrew(cwd);
+    assert.equal(result.status, "started");
+    assert.match(result.warnings[0], /HALL_GITHUB_TOKEN is not set.*personal-access-tokens\/new/s);
+    const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.equal(environmentResolution.credentials.HALL_GITHUB_TOKEN, "missing");
+    assert.deepEqual(environmentResolution.warnings, result.warnings);
+  }));
+
+test("a present token produces no warning and its value is never written down", () =>
+  withToken("gho_secret_value", async (cwd) => {
+    const { prepared, result } = await launchGithubCrew(cwd);
+    assert.equal(result.warnings, undefined);
     for (const path of [prepared.configFile, prepared.rosterFile, prepared.selectedCrewFile])
-      assert.doesNotMatch(readFileSync(join(cwd, path), "utf8"), /gho_secret/);
+      assert.doesNotMatch(readFileSync(join(cwd, path), "utf8"), /gho_secret_value/);
     const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.equal(environmentResolution.credentials.GITHUB_TOKEN, "GitHub CLI login (consented)");
-    assert.equal(result.warnings, undefined);
-  } finally {
-    if (saved !== undefined) process.env.GITHUB_TOKEN = saved;
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("a missing credential is a launch warning, recorded without any secret", async () => {
-  const saved = process.env.GITHUB_TOKEN;
-  delete process.env.GITHUB_TOKEN;
-  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
-  try {
-    const { prepared, launched, result } = await launchGithubCrew(cwd, { confirmCredential: async () => false });
-    assert.match(result.warnings.join(" "), /GITHUB_TOKEN is not available/);
-    assert.deepEqual(launched.map((agent) => agent.secretEnv), [undefined, undefined]);
-    const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.equal(environmentResolution.credentials.GITHUB_TOKEN, "missing");
-    assert.match(environmentResolution.warnings[0], /GITHUB_TOKEN/);
-  } finally {
-    if (saved !== undefined) process.env.GITHUB_TOKEN = saved;
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("an environment token needs no prompt and no warning", async () => {
-  const saved = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = "from-env";
-  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
-  try {
-    const { result } = await launchGithubCrew(cwd, { confirmCredential: async () => assert.fail("must not prompt") });
-    assert.equal(result.warnings, undefined);
-  } finally {
-    if (saved === undefined) delete process.env.GITHUB_TOKEN;
-    else process.env.GITHUB_TOKEN = saved;
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
+    assert.equal(environmentResolution.credentials.HALL_GITHUB_TOKEN, "environment");
+  }));

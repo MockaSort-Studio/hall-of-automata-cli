@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
-import { collectLaunchCredentials, secretEnvFor } from "../../env-runtime/lib/launch-credentials.mjs";
+import { checkLaunchCredentials } from "../../env-runtime/lib/launch-credentials.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
 import { explainMissingCache } from "../../env-runtime/lib/armory-cache.mjs";
 import { acquireNixGuestSuites, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
@@ -210,11 +210,9 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
         ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
       };
     });
-    // Secrets stay in memory. Only their sources and any warnings are recorded.
+    // Only whether each credential is present is recorded, never its value.
     const suiteIds = [...new Set(config.agents.flatMap((agent) => agent.environmentProfile.suites.map((suite) => suite.suite)))];
-    const credentials = resolution.sandbox
-      ? await collectLaunchCredentials({ suiteIds, confirm: dependencies.confirmCredential, run: dependencies.runLogin })
-      : { secrets: {}, status: {}, warnings: [] };
+    const credentials = resolution.sandbox ? checkLaunchCredentials({ suiteIds }) : { status: {}, warnings: [] };
     config.environmentResolution = {
       ...resolution,
       ...(Object.keys(credentials.status).length ? { credentials: credentials.status } : {}),
@@ -225,14 +223,10 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
     writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
     const runtime = (dependencies.runtimeFor ?? runtimeFor)(cwd);
     const namespace = config.agents[0]?.namespace;
-    const launched = await runtime.launchCrew(
-      config.agents.map((agent) => ({ ...agent, secretEnv: secretEnvFor(agent, credentials.secrets) })),
-      config.adapters,
-      {
-        namespace,
-        members: config.plan ?? [],
-      },
-    );
+    const launched = await runtime.launchCrew(config.agents, config.adapters, {
+      namespace,
+      members: config.plan ?? [],
+    });
     if (config.kickoff) await runtime.broadcast(config.agents[0].namespace, config.kickoff);
     const lead = launched.agents.find(
       (agent) => config.agents.find((item) => item.actorId === agent.id)?.role === "lead",
