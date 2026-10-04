@@ -86,8 +86,21 @@ reply and acknowledges the request.
    evidence, stop spawned resources, mark dispatch control `failed`, and remove
    the active TUI roster entry.
 
-Dependency scheduling is intentionally outside this first dispatch command:
-Main may dispatch roots only; the future lifecycle scheduler releases dependents.
+## Dependent release (implemented)
+
+`runtime_dispatch` delivers the root tasks. Every other member waits, and the
+Runtime sends its task exactly once, the moment the typed ledger marks it `ready`
+(every prerequisite `complete`); the payload carries its `prerequisites`. The
+ledger owns the rest: a prerequisite that fails or blocks moves every transitive
+dependent to `blocked` itself, so those members are never released and the Crew
+still reaches a terminal state and reports it. A prerequisite that finished before
+the subscription is covered by an initial snapshot.
+
+A Lead is an ordinary member for dispatch: a root receives its task at once, a
+Lead that depends on its specialists receives its task when they are done. This
+holds for leadless Crews unchanged. Lead-run activation (Main briefs only the Lead,
+which assigns work through the broker) is deferred; it is not needed for a Crew to
+run to completion.
 
 ## Implementation seams
 

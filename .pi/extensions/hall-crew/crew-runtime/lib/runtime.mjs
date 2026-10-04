@@ -8,6 +8,7 @@ import { connectLifecycle } from "./lifecycle-client.mjs";
 import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
 import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
 import { createMainDeliveryNotifier } from "./main-delivery-notifier.mjs";
+import { createDependentRelease } from "./dependent-release.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const stopProcess = async (child) => {
@@ -39,6 +40,7 @@ export class Runtime {
   #lifecycleAuthToken;
   #terminalNotifier;
   #stateUnsubscribers = new Map();
+  #releaseUnsubscribers = new Map();
 
   constructor(cwd) {
     this.cwd = cwd;
@@ -183,9 +185,31 @@ export class Runtime {
         })),
       })),
     );
-    const result = { dispatched: true, recipients: deliveries };
+    const release = createDependentRelease({
+      members,
+      released: roots.map((member) => member.handle),
+      send: (member) =>
+        this.sendMember(runId, member.handle, {
+          kind: "task",
+          phase: "assignment",
+          runId,
+          task: member.task,
+          prerequisites: member.dependsOn,
+        }),
+    });
+    await this.#releaseDependents(namespace, release);
+    const result = { dispatched: true, recipients: deliveries, held: release.held() };
     this.#dispatches.set(namespace, { key: idempotencyKey, result });
     return result;
+  }
+
+  // After the roots are dispatched, each dependent receives its task the moment the
+  // ledger marks it ready; the snapshot covers a prerequisite that already finished.
+  async #releaseDependents(namespace, release) {
+    const unsubscribe = this.#comm.observeState(namespace, (nodes) => release.observe(nodes).catch(() => {}));
+    this.#releaseUnsubscribers.set(namespace, unsubscribe);
+    const snapshot = await this.#comm.getStateSnapshot(namespace);
+    if (snapshot) await release.observe(snapshot.nodes);
   }
 
   async broadcast(namespace, payload) {
@@ -293,6 +317,7 @@ export class Runtime {
     crewLead,
     sandbox,
     armory,
+    secretEnv,
   }) {
     await this.#ensureLifecycle();
     const bundle = resolveBundles(this.cwd, bundles);
@@ -324,6 +349,7 @@ export class Runtime {
       crewLead,
       sandbox,
       armory,
+      secretEnv,
     });
   }
 
@@ -364,6 +390,8 @@ export class Runtime {
     this.#mainDeliveries = [];
     for (const unsubscribe of this.#stateUnsubscribers.values()) unsubscribe();
     this.#stateUnsubscribers.clear();
+    for (const unsubscribe of this.#releaseUnsubscribers.values()) unsubscribe();
+    this.#releaseUnsubscribers.clear();
     return {
       removals: removals.map((result) =>
         result.status === "fulfilled" ? result.value : { removed: false, error: String(result.reason) },

@@ -3,7 +3,7 @@
 const policies = new Map([
   [
     "collaboration/pi-github-tools",
-    [{ slot: "github-api", environment: "GITHUB_TOKEN", guestEnvironment: "GITHUB_TOKEN", hosts: ["api.github.com", "github.com"], source: "environment:GITHUB_TOKEN" }],
+    [{ slot: "github-api", environment: "GITHUB_TOKEN", guestEnvironment: "GITHUB_TOKEN", hosts: ["api.github.com", "github.com"], source: "environment:GITHUB_TOKEN", login: { label: "GitHub CLI login", command: ["gh", "auth", "token"] } }],
   ],
 ]);
 

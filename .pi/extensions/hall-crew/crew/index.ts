@@ -49,6 +49,21 @@ const parameters = Type.Object({
   ),
 });
 
+// A login (e.g. `gh auth token`) can supply a missing credential only with the
+// person's explicit consent. An approval is remembered for this Pi session.
+let credentialConsent = false;
+async function confirmCredential(ctx: any, binding: any): Promise<boolean> {
+  if (credentialConsent) return true;
+  if (!ctx.hasUI) return false;
+  credentialConsent = await ctx.ui.confirm(
+    `Crew needs ${binding.label}`,
+    `Workers in this Crew are granted GitHub operations and need a token. Use the token from your ${binding.label}?\n\n` +
+      "It stays in memory, goes only to workers that need it, and the guest sees a placeholder that works only at api.github.com and github.com. " +
+      "It has the same access as your login; to limit it, set GITHUB_TOKEN to a fine-grained token in Pi's environment instead.",
+  );
+  return credentialConsent;
+}
+
 export default function crewExtension(pi: ExtensionAPI) {
   const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
   installCrewDispatchArming(pi);
@@ -108,8 +123,11 @@ export default function crewExtension(pi: ExtensionAPI) {
       }
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
       monitor.activate(ctx, prepared.rosterFile);
-      const launched = await launchPreparedCrew(ctx.cwd, prepared);
-      return output({ ...prepared, ...launched, launchRequired: false }, queuedMessage(prepared));
+      const launched = await launchPreparedCrew(ctx.cwd, prepared, {
+        confirmCredential: (binding: any) => confirmCredential(ctx, binding),
+      });
+      const warnings = launched.warnings?.length ? `\n\nWarnings:\n${launched.warnings.map((line: string) => `- ${line}`).join("\n")}` : "";
+      return output({ ...prepared, ...launched, launchRequired: false }, `${queuedMessage(prepared)}${warnings}`);
     },
   });
 }

@@ -27,6 +27,20 @@ const waitForExit = (child, ms) =>
     });
   });
 
+// Credentials for one worker, delivered through its process environment only: they
+// are never written to worker.json or the agent record, and the worker's vault
+// removes them from its environment before it starts Pi. Names are restricted so a
+// caller cannot override process-control variables.
+const SECRET_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const RESERVED = /^(PI_|NODE_|LD_|DYLD_)|^(PATH|HOME|USER|SHELL|TMPDIR)$/;
+export function validatedSecretEnv(secretEnv = {}) {
+  for (const [name, value] of Object.entries(secretEnv)) {
+    if (!SECRET_NAME.test(name) || RESERVED.test(name)) throw new Error(`Refusing to set worker environment variable ${name}`);
+    if (typeof value !== "string" || !value || value.length > 8192 || value.includes("\0")) throw new Error(`Invalid value for worker secret ${name}`);
+  }
+  return secretEnv;
+}
+
 export class LifecycleController {
   #agents = new Map();
   // Metrics survive remove(): once a worker's events.jsonl and worktree are
@@ -99,7 +113,7 @@ export class LifecycleController {
         cwd: worktree,
         detached: true,
         stdio: "ignore",
-        env: { ...hostEnv, PI_SDK_ACTOR_ID: id },
+        env: { ...hostEnv, ...validatedSecretEnv(config.secretEnv), PI_SDK_ACTOR_ID: id },
       });
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);

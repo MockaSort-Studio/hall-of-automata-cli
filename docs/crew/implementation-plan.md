@@ -30,7 +30,8 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 
 ### Resume here (dispatch control plane leftovers)
 
-- [ ] Lead-run activation: Main sends the task to the Lead; Lead dispatches
+- [x] Dependent release: the Runtime releases each dependent when the ledger marks it ready; failures block dependents (`dependent-release.test.mjs`).
+- [ ] (Deferred, not needed to run) Lead-run activation: Main sends the task to the Lead; Lead dispatches
   validated roots through the broker (not built; Main currently sends directly).
 - [ ] Verify roster `done` + TUI entry retirement on launch failure.
 - [x] Stop the Comm/Lifecycle servers when a launch rolls back and no other Crew
@@ -99,11 +100,9 @@ or QEMU state remains. Runtime tools are exposed by
     store path with verification (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
     `main`-restricted Environment, enable immutable releases, then the Gondolin
     `github_issue_view` canary through Crew (restart Pi first).
-13b. [ ] **Warn at launch when a granted suite's credential is missing.** A
-    Gondolin worker without `GITHUB_TOKEN` loads, registers `github_*`, and then
-    fails at call time. Report the missing binding in the launch result and the
-    roster's `environmentResolution`, then run the credentialed canary
-    (`github_issue_view` against a public issue) through a Crew.
+13b. [x] **Credentials at launch.** Consent-gated `gh` login token, per-worker
+    in-memory delivery, and a launch warning when a credential is missing. Live
+    check: a credentialed `github_issue_view` canary through a Crew.
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
     workspace, credential, or live worker state.

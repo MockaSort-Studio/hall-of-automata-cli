@@ -2,10 +2,6 @@
 // prose, worker settlement, or process state; callers provide Comm snapshots.
 const TERMINAL = new Set(["complete", "blocked", "failed"]);
 
-// Follow-up turns raised by a terminal notification may immediately dispatch a
-// replacement Crew, so retain the same launch/kickoff contract as user input.
-export const dispatchProtocol = `\n\n## CREW DISPATCH PROTOCOL\nIf dispatching a Crew: use only \`start_crew\`; its successful launch broadcasts one non-turn-triggering \`kind: "kickoff"\` manifest to registered Crew recipients. It does not assign specialist work; use Main dispatch controls for directed tasks. Do not send a second kickoff.`;
-
 function nodesOf(snapshot) {
   return Array.isArray(snapshot?.nodes) ? snapshot.nodes : [];
 }
@@ -25,7 +21,7 @@ function terminalMessage(namespace, nodes) {
     .join(", ");
   return {
     customType: "crew-terminal",
-    content: `Crew ${namespace} reached terminal lifecycle state (${summary}).${dispatchProtocol}`,
+    content: `Crew ${namespace} reached terminal lifecycle state (${summary}).`,
     display: true,
     details: { namespace, counts },
   };

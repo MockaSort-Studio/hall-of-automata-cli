@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
+import { collectLaunchCredentials, secretEnvFor } from "../../env-runtime/lib/launch-credentials.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
 import { explainMissingCache } from "../../env-runtime/lib/armory-cache.mjs";
 import { acquireNixGuestSuites, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/nix-guest-suite-acquisition.mjs";
@@ -195,7 +196,6 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
     const suiteTools = resolution.sandbox
       ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
       : [];
-    config.environmentResolution = resolution;
     config.agents = config.agents.map((agent) => {
       const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
       const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
@@ -210,15 +210,29 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
         ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
       };
     });
-    roster.environmentResolution = resolution;
+    // Secrets stay in memory. Only their sources and any warnings are recorded.
+    const suiteIds = [...new Set(config.agents.flatMap((agent) => agent.environmentProfile.suites.map((suite) => suite.suite)))];
+    const credentials = resolution.sandbox
+      ? await collectLaunchCredentials({ suiteIds, confirm: dependencies.confirmCredential, run: dependencies.runLogin })
+      : { secrets: {}, status: {}, warnings: [] };
+    config.environmentResolution = {
+      ...resolution,
+      ...(Object.keys(credentials.status).length ? { credentials: credentials.status } : {}),
+      ...(credentials.warnings.length ? { warnings: credentials.warnings } : {}),
+    };
+    roster.environmentResolution = config.environmentResolution;
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
     const runtime = (dependencies.runtimeFor ?? runtimeFor)(cwd);
     const namespace = config.agents[0]?.namespace;
-    const launched = await runtime.launchCrew(config.agents, config.adapters, {
-      namespace,
-      members: config.plan ?? [],
-    });
+    const launched = await runtime.launchCrew(
+      config.agents.map((agent) => ({ ...agent, secretEnv: secretEnvFor(agent, credentials.secrets) })),
+      config.adapters,
+      {
+        namespace,
+        members: config.plan ?? [],
+      },
+    );
     if (config.kickoff) await runtime.broadcast(config.agents[0].namespace, config.kickoff);
     const lead = launched.agents.find(
       (agent) => config.agents.find((item) => item.actorId === agent.id)?.role === "lead",
@@ -242,6 +256,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
       leadId: lead?.id,
       memberIds: launched.agents.map((agent) => agent.id),
       comm: launched.comm,
+      ...(credentials.warnings.length ? { warnings: credentials.warnings } : {}),
     };
   } catch (error) {
     roster.status = "done";

@@ -133,18 +133,25 @@ by evaluating the flake. The closure survives a garbage collection.
 ## Credentials
 
 The GitHub suite's `gh` refuses to run without a token, even for public data. The
-host-owned policy (`credential-policy.mjs`) sources it from the `GITHUB_TOKEN`
-environment variable of the Pi process; the worker parent leases it in memory
-and the guest sees only a placeholder that Gondolin substitutes at
-`api.github.com` and `github.com`. Without the variable, `github_*` operations in
-a Gondolin worker fail with `gh`'s "gh auth login" message (found by the first
-live canary). The vault deliberately does not read `gh`'s keyring token: that
-token usually carries broad scopes, so handing it to workers must be an explicit
-choice. Prefer a fine-grained token scoped to the repositories a Crew needs:
+host-owned policy (`credential-policy.mjs`) names the host variable
+(`GITHUB_TOKEN`) and the login that may supply it (`gh auth token`). At launch,
+`collectLaunchCredentials` decides, per credential:
 
-```bash
-GITHUB_TOKEN=<fine-grained token> pi
-```
+1. **The environment variable is set:** used as is, no prompt.
+2. **Otherwise, with explicit consent:** Pi asks once (`ctx.ui.confirm`, remembered
+   for the session once approved) before reading the `gh` login token. The token is
+   never read without that answer, because it carries the full access of the login;
+   the prompt says so and points to a fine-grained `GITHUB_TOKEN` as the safer way.
+3. **Otherwise:** the gap is a launch warning (in the tool result and the roster's
+   `environmentResolution`), and the Crew still starts.
+
+The secret is held in memory and delivered per worker, only to workers whose own
+suites need it, through that worker process's environment (`secretEnv`). It is
+never written to `worker.json`, the launch config, the roster, or the agent record;
+the worker's vault removes it from its environment before Pi starts, and the guest
+sees only a placeholder that Gondolin substitutes at `api.github.com` and
+`github.com`. Names are validated so a caller cannot override process-control
+variables.
 
 ## Cache policy
 

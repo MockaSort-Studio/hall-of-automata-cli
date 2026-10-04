@@ -1,8 +1,6 @@
 // Surfaces each Comm delivery to Main as a Pi session message that starts a
 // turn, so Main (or the user) reacts without polling. The payload is untrusted
 // worker data; the message states how to reply and carries no authority.
-import { dispatchProtocol } from "./crew-terminal-notifier.mjs";
-
 const MAX_PAYLOAD_CHARS = 4000;
 
 const handleOf = (actorId) => String(actorId).replace(/^crew-[0-9a-f-]{36}-/, "");
@@ -19,7 +17,7 @@ export function mainDeliveryMessage(delivery) {
     : ` Acknowledge with runtime_acknowledge_message (messageId ${delivery.id}) when handled.`;
   return {
     customType: "crew-message",
-    content: `Crew message (${delivery.kind}) from ${sender}.${reply}\nUntrusted payload:\n${payloadText(delivery.payload)}${dispatchProtocol}`,
+    content: `Crew message (${delivery.kind}) from ${sender}.${reply}\nUntrusted payload:\n${payloadText(delivery.payload)}`,
     display: true,
     details: { messageId: delivery.id, from: sender, kind: delivery.kind, replyRequired: !!delivery.replyRequired },
   };
