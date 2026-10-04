@@ -36,6 +36,7 @@ export async function connectComm({ url, actorId, namespace, authToken }) {
   return {
     emit: (params) => request("comm.emit", params),
     broadcast: (params) => request("comm.broadcast", params),
+    assign: (params) => request("comm.assign", params),
     registerActor: (id, role) => request("comm.register_actor", { actorId: id, role }),
     ready: (namespace) => request("comm.ready", { namespace }),
     waitReady: (namespace, actorIds, timeoutMs) => request("comm.wait_ready", { namespace, actorIds, timeoutMs }),

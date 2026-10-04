@@ -21,7 +21,7 @@ for (const [name, role] of Object.entries(catalog)) {
   if (
     !Array.isArray(role.commTools) ||
     new Set(role.commTools).size !== role.commTools.length ||
-    !role.commTools.every((tool) => ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"].includes(tool))
+    !role.commTools.every((tool) => ["comm_notify", "comm_notify_all", "comm_request", "comm_reply", "crew_assign"].includes(tool))
   )
     throw new Error(`Invalid role Comm tools: ${name}`);
 }

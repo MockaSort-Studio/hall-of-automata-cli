@@ -31,7 +31,8 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 ### Resume here (dispatch control plane leftovers)
 
 - [x] Dependent release: the Runtime releases each dependent when the ledger marks it ready; failures block dependents (`dependent-release.test.mjs`).
-- [ ] (Deferred, not needed to run) Lead-run activation: Main sends the task to the Lead; Lead dispatches
+- [x] Lead-led dispatch: Main briefs the Lead, which assigns members with broker-validated `crew_assign` (`lead-led-dispatch.test.mjs`). Superseded text follows:
+  Lead-run activation: Main sends the task to the Lead; Lead dispatches
   validated roots through the broker (not built; Main currently sends directly).
 - [ ] Verify roster `done` + TUI entry retirement on launch failure.
 - [x] Stop the Comm/Lifecycle servers when a launch rolls back and no other Crew

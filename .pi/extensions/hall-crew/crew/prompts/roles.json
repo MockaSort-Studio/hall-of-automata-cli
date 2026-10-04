@@ -3,7 +3,7 @@
     "prompt": "lead.md",
     "tools": [],
     "thinking": "medium",
-    "commTools": ["comm_notify", "comm_notify_all", "comm_request", "comm_reply"],
+    "commTools": ["comm_notify", "comm_notify_all", "crew_assign", "comm_request", "comm_reply"],
     "discipline": "Integrate work, delegate through ordinary Crew Comm, and report acceptance."
   },
   "architect": {

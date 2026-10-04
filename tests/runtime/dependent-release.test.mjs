@@ -7,20 +7,20 @@ import { createDependentRelease } from "../../.pi/extensions/hall-crew/crew-runt
 const members = [
   { handle: "developer-a-00", dependsOn: [], task: "A" },
   { handle: "developer-b-00", dependsOn: ["developer-a-00"], task: "B" },
-  { handle: "lead-c-00", dependsOn: ["developer-a-00", "developer-b-00"], task: "C" },
+  { handle: "developer-c-00", dependsOn: ["developer-a-00", "developer-b-00"], task: "C" },
 ];
 
 test("only ready dependents are sent, each exactly once, and roots are never re-sent", async () => {
   const sent = [];
   const release = createDependentRelease({ members, released: ["developer-a-00"], send: async (m) => sent.push(m.handle) });
-  assert.deepEqual(release.held(), ["developer-b-00", "lead-c-00"]);
+  assert.deepEqual(release.held(), ["developer-b-00", "developer-c-00"]);
   await release.observe([{ handle: "developer-a-00", status: "ready" }, { handle: "developer-b-00", status: "waiting" }]);
   assert.deepEqual(sent, []);
   const nodes = [{ handle: "developer-b-00", status: "ready" }];
   await Promise.all([release.observe(nodes), release.observe(nodes)]);
   await release.observe(nodes);
   assert.deepEqual(sent, ["developer-b-00"]);
-  assert.deepEqual(release.held(), ["lead-c-00"]);
+  assert.deepEqual(release.held(), ["developer-c-00"]);
 });
 
 test("a failed send is reported and never retried into a duplicate", async () => {
@@ -65,25 +65,25 @@ async function crew(t) {
 }
 const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
 
-test("a dependent receives its task when its prerequisites complete, in order", async (t) => {
+test("a dependent receives its task when its prerequisites complete, in order (leadless)", async (t) => {
   const { runtime, workers, received } = await crew(t);
   const result = await runtime.dispatchRoots(runId, "k1");
-  assert.deepEqual(result.held, ["developer-b-00", "lead-c-00"]);
+  assert.deepEqual(result.held, ["developer-b-00", "developer-c-00"]);
   await settle();
   assert.deepEqual(received["developer-a-00"].map((m) => m.payload.task), ["A"]);
-  assert.deepEqual([received["developer-b-00"].length, received["lead-c-00"].length], [0, 0]);
+  assert.deepEqual([received["developer-b-00"].length, received["developer-c-00"].length], [0, 0]);
 
   await workers["developer-a-00"].lifecycleUpdate(namespace, "running");
   await workers["developer-a-00"].lifecycleUpdate(namespace, "complete");
   await settle();
   assert.deepEqual(received["developer-b-00"].map((m) => m.payload.task), ["B"]);
   assert.deepEqual(received["developer-b-00"][0].payload.prerequisites, ["developer-a-00"]);
-  assert.equal(received["lead-c-00"].length, 0, "the Lead waits for every prerequisite");
+  assert.equal(received["developer-c-00"].length, 0, "the integrator waits for every prerequisite");
 
   await workers["developer-b-00"].lifecycleUpdate(namespace, "running");
   await workers["developer-b-00"].lifecycleUpdate(namespace, "complete");
   await settle();
-  assert.deepEqual(received["lead-c-00"].map((m) => m.payload.task), ["C"]);
+  assert.deepEqual(received["developer-c-00"].map((m) => m.payload.task), ["C"]);
   assert.deepEqual(received["developer-b-00"].length, 1, "released exactly once");
 });
 
@@ -93,10 +93,10 @@ test("a failed prerequisite blocks its dependents instead of releasing them", as
   await workers["developer-a-00"].lifecycleUpdate(namespace, "running");
   await workers["developer-a-00"].lifecycleUpdate(namespace, "failed");
   await settle();
-  assert.deepEqual([received["developer-b-00"].length, received["lead-c-00"].length], [0, 0]);
+  assert.deepEqual([received["developer-b-00"].length, received["developer-c-00"].length], [0, 0]);
   const snapshot = await workers["developer-a-00"].getStateSnapshot(namespace);
   const status = Object.fromEntries(snapshot.nodes.map((node) => [node.handle, node.status]));
-  assert.deepEqual(status, { "developer-a-00": "failed", "developer-b-00": "blocked", "lead-c-00": "blocked" });
+  assert.deepEqual(status, { "developer-a-00": "failed", "developer-b-00": "blocked", "developer-c-00": "blocked" });
 });
 
 test("a prerequisite that finished before the subscription still releases its dependent", async (t) => {

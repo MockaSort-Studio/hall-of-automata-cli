@@ -218,7 +218,7 @@ test("no role, including a Lead, starts a turn at launch; every task arrives thr
       {
         task: "Integrate",
         members: [
-          { name: "old-major", role: "lead", dependsOn: ["developer-snowball-00"], task: "Integrate after snowball" },
+          { name: "old-major", role: "lead", task: "Integrate" },
           { name: "snowball", role: "developer", task: "Build" },
         ],
       },
@@ -230,6 +230,23 @@ test("no role, including a Lead, starts a turn at launch; every task arrives thr
       ["lead", "first-delivery", undefined],
       ["developer", "first-delivery", undefined],
     ]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a Lead cannot depend on other members: it assigns their work and integrates", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        { members: [{ name: "old-major", role: "lead", dependsOn: ["developer-snowball-00"] }, { name: "snowball", role: "developer" }] },
+        { cwd },
+        ".pi",
+      ),
+      /Lead .* cannot depend on other members/,
+    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

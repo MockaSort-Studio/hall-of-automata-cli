@@ -100,11 +100,29 @@ No role starts a turn at launch. A Lead once did (`initialTurn: startup`), which
 let a Lead with dependencies run its task text before dispatch and its
 prerequisites; every role now waits for its first delivery.
 
-A Lead is an ordinary member for dispatch: a root receives its task at once, a
-Lead that depends on its specialists receives its task when they are done. This
-holds for leadless Crews unchanged. Lead-run activation (Main briefs only the Lead,
-which assigns work through the broker) is deferred; it is not needed for a Crew to
-run to completion.
+## Lead-led dispatch (implemented)
+
+A Crew with a Lead is Lead-led: **Main briefs the Lead, and the Lead hands out the
+work.** `runtime_dispatch` sends the Lead alone a briefing (the objective, and the
+plan: each member's planned task and prerequisites); every other member waits. The
+Lead calls `crew_assign` once per member, and the broker validates each call against
+the registered plan:
+
+- only the Lead of that Crew may assign, and never itself or anyone outside the plan;
+- the member receives the plan's own task (a Lead cannot substitute another), with an
+  optional bounded `note` from the Lead and a `reportTo` naming the Lead;
+- a member whose prerequisites are not all `complete`, one already assigned, and one
+  already terminal are refused, so each member is assigned at most once and a failed
+  prerequisite still blocks its dependents through the ledger.
+
+Members report to the Lead, which reports the outcome to Main. There is no automatic
+release in a Lead-led Crew; the Lead owns the order. The Lead is the entry point and
+cannot depend on other members (rejected at launch).
+
+A leadless Crew is unchanged: Main dispatches the roots and the Runtime releases each
+dependent when its prerequisites complete. No role starts a turn at launch (a Lead once
+did, which let a Lead run its task text before dispatch); every role waits for its
+first delivery.
 
 ## Implementation seams
 

@@ -182,6 +182,16 @@ export default function workerCommExtension(pi) {
           requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload }),
         ),
     });
+  if (granted.has("crew_assign"))
+    pi.registerTool({
+      name: "crew_assign",
+      label: "Crew: assign",
+      description:
+        "Lead-only. Send a Crew member its planned task (from the plan Main briefed you with), optionally with a short note. The broker refuses a member whose prerequisites are not complete, one already assigned, or anyone not in the plan.",
+      parameters: Type.Object({ to: Type.String(), note: Type.Optional(Type.String()) }),
+      execute: (_id, input) =>
+        result(requireComm().assign({ namespace: config.comm.namespace, to: String(input.to).replace(`${config.comm.namespace}-`, ""), note: input.note })),
+    });
   pi.on("agent_settled", () => settledWaiters.splice(0).forEach((resolve) => resolve()));
   pi.on("session_start", () => ensureCommConnected());
   // Only a real process-ending shutdown ever closes the Comm socket. A

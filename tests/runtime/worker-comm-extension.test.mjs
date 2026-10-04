@@ -263,3 +263,10 @@ test("agent_start records content-free static-context token counts exactly once"
     "only token counts are recorded, never prompt text",
   );
 });
+
+test("only a Lead-granted worker receives crew_assign", async (t) => {
+  const { pi: specialist } = await setup(t, ["comm_notify", "comm_request", "comm_reply"]);
+  assert.ok(!specialist.tools.has("crew_assign"));
+  const { pi: lead } = await setup(t, ["comm_notify", "crew_assign", "comm_request", "comm_reply"]);
+  assert.ok(lead.tools.has("crew_assign"));
+});

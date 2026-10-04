@@ -81,6 +81,9 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     const own = actors[index].handle;
     if (dependsOn.some((name) => !handles.has(name) || name === own))
       throw new Error(`Crew member ${own} has an invalid dependsOn reference.`);
+    // The Lead is the entry point that hands out the others' work, so it cannot wait on them.
+    if (actors[index].role === "lead" && dependsOn.length)
+      throw new Error(`The Lead ${own} cannot depend on other members: it assigns their work and integrates their results.`);
   });
   const directory = actors.map((actor) => `- ${actor.handle} (${actor.role})`).join("\n");
   const agents = actors.map((actor) => ({

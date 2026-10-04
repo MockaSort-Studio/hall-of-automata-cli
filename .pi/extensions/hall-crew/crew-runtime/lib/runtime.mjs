@@ -9,6 +9,7 @@ import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs"
 import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
 import { createMainDeliveryNotifier } from "./main-delivery-notifier.mjs";
 import { createDependentRelease } from "./dependent-release.mjs";
+import { isLead, leadBriefing } from "./lead-briefing.mjs";
 
 const defaultTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const stopProcess = async (child) => {
@@ -173,32 +174,28 @@ export class Runtime {
     if (prior) throw new Error("Initial Crew dispatch already exists");
     const members = this.#plans.get(namespace);
     if (!members) throw new Error("Unknown Crew dispatch plan");
-    const roots = members.filter((member) => !member.dependsOn?.length);
+    const lead = members.find(isLead);
+    const initial = lead ? [lead] : members.filter((member) => !member.dependsOn?.length);
     const deliveries = await Promise.all(
-      roots.map(async (member) => ({
+      initial.map(async (member) => ({
         to: member.handle,
-        ...(await this.sendMember(runId, member.handle, {
-          kind: "task",
-          phase: "assignment",
-          runId,
-          task: member.task,
-        })),
+        ...(await this.sendMember(runId, member.handle, lead ? leadBriefing(runId, lead, members) : { kind: "task", phase: "assignment", runId, task: member.task })),
       })),
     );
-    const release = createDependentRelease({
-      members,
-      released: roots.map((member) => member.handle),
-      send: (member) =>
-        this.sendMember(runId, member.handle, {
-          kind: "task",
-          phase: "assignment",
-          runId,
-          task: member.task,
-          prerequisites: member.dependsOn,
-        }),
-    });
-    await this.#releaseDependents(namespace, release);
-    const result = { dispatched: true, recipients: deliveries, held: release.held() };
+    let held;
+    if (lead) held = members.filter((member) => member !== lead).map((member) => member.handle);
+    else {
+      // Leadless: the Runtime releases each dependent when its prerequisites complete.
+      const release = createDependentRelease({
+        members,
+        released: initial.map((member) => member.handle),
+        send: (member) =>
+          this.sendMember(runId, member.handle, { kind: "task", phase: "assignment", runId, task: member.task, prerequisites: member.dependsOn }),
+      });
+      await this.#releaseDependents(namespace, release);
+      held = release.held();
+    }
+    const result = { dispatched: true, recipients: deliveries, held, ...(lead ? { leadLed: true } : {}) };
     this.#dispatches.set(namespace, { key: idempotencyKey, result });
     return result;
   }

@@ -67,4 +67,5 @@ test("only the lead role is granted the party-wide broadcast tool", () => {
   }
   const lead = roleModule({ role: "lead", override: {} });
   assert.ok(lead.commTools.includes("comm_notify_all"));
+  assert.ok(lead.commTools.includes("crew_assign"), "the Lead hands out the plan with crew_assign");
 });

@@ -11,6 +11,7 @@ export class CommController {
   #connections = new Map();
   #inboxes = new Map();
   #inflight = new Map();
+  #assigned = new Set();
   #actors = new Set(["main"]);
   #actorNamespaces = new Map();
   #pendingReplies = new Map();
@@ -108,6 +109,35 @@ export class CommController {
     this.#publish(message);
     this.#flush(to);
     return { accepted: true, id: message.id };
+  }
+  // The Lead hands out the plan's work. The broker validates the target against the
+  // registered plan, so a Lead can neither invent an assignment nor skip a
+  // prerequisite: it sends the member's planned task (plus an optional short note),
+  // only once, and only when every prerequisite is complete.
+  assign(from, namespace, handle, note) {
+    this.#assertNamespace(from, namespace);
+    if (this.#actorRoles.get(from) !== "lead") throw new Error("Only the Crew Lead may assign work");
+    const nodes = this.#observers.stateSnapshot(namespace)?.nodes ?? [];
+    const node = nodes.find((item) => item.handle === handle);
+    if (!node) throw new Error(`Unknown Crew member: ${handle}`);
+    const leadHandle = from.slice(`${namespace}-`.length);
+    if (handle === leadHandle) throw new Error("The Lead cannot assign work to itself");
+    const key = `${namespace}/${handle}`;
+    if (this.#assigned.has(key)) throw new Error(`${handle} has already been assigned`);
+    if (["complete", "blocked", "failed"].includes(node.status)) throw new Error(`${handle} is already ${node.status}`);
+    const unmet = node.dependsOn.filter((name) => nodes.find((item) => item.handle === name)?.status !== "complete");
+    if (unmet.length) throw new Error(`${handle} must wait for ${unmet.join(", ")} to complete`);
+    const sent = this.emit(from, `${namespace}-${handle}`, {
+      kind: "task",
+      phase: "assignment",
+      runId: namespace.replace(/^crew-/, ""),
+      task: node.task,
+      prerequisites: node.dependsOn,
+      reportTo: leadHandle,
+      ...(note ? { note: String(note).slice(0, 2000) } : {}),
+    });
+    this.#assigned.add(key);
+    return sent;
   }
   // Deliver recipients in registration order with a fixed gap.
   async broadcast(from, namespace, payload) {
