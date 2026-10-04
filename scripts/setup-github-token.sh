@@ -39,6 +39,7 @@ if [ "$verify" = 1 ]; then
   code=$(curl -s -o /dev/null -D "$headers" -w '%{http_code}' -H "Authorization: Bearer $token" https://api.github.com/user || true)
   [ "$code" = 200 ] || { echo "GitHub rejected the token (HTTP $code)." >&2; exit 1; }
   scopes=$(tr -d '\r' < "$headers" | sed -n 's/^[Xx]-[Oo]auth-[Ss]copes: //p')
+  scopes=${scopes// /}
   echo "Token accepted${scopes:+; classic scopes: $scopes}." >&2
   case ",$scopes," in *,repo,*|*,workflow,*) echo "Note: this token can write to repositories. A fine-grained token with read access is safer." >&2 ;; esac
 fi

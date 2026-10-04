@@ -14,6 +14,12 @@ function sandbox() {
   spawnSync("mkdir", ["-p", bin]);
   writeFileSync(join(bin, "gh"), `#!/bin/sh\necho ${token}_fromgh\n`);
   chmodSync(join(bin, "gh"), 0o755);
+  // A stand-in for GitHub: records the scopes header GitHub sends for a classic token.
+  writeFileSync(
+    join(bin, "curl"),
+    `#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = "-D" ] && out="$2"; shift; done\nprintf 'x-oauth-scopes: gist, repo, workflow\\r\\n' > "$out"\necho 200\n`,
+  );
+  chmodSync(join(bin, "curl"), 0o755);
   return {
     dir,
     envFile: join(dir, "config", "hall", "env"),
@@ -72,6 +78,18 @@ test("input that is not a token, and unknown options, are refused", () => {
     assert.notEqual(box.run(["--no-verify"], "not a token with spaces\n").status, 0);
     assert.notEqual(box.run(["--bogus"]).status, 0);
     assert.equal(existsSync(box.envFile), false);
+  } finally {
+    rmSync(box.dir, { recursive: true, force: true });
+  }
+});
+
+test("a broad classic token is accepted but flagged, matching GitHub's comma-and-space scope list", () => {
+  const box = sandbox();
+  try {
+    const result = box.run([], `${token}\n`);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /classic scopes: gist,repo,workflow/);
+    assert.match(result.stderr, /can write to repositories/);
   } finally {
     rmSync(box.dir, { recursive: true, force: true });
   }
