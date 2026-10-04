@@ -46,30 +46,74 @@ will not run; Docker-based actions and `services:` containers cannot run; third-
 need `github.com` allowed and were not tested; there are no secrets. A fast pre-push check, not a
 replacement for CI.
 
-## Todo, in order
+## Target state
 
-- [ ] **S1. CI run inspection** (typed; extends `collaboration/pi-github-tools`). Tools
-  `github_workflow_runs_list`, `github_run_view` (job and step status), `github_run_failed_log`
-  (failed steps, bounded tail). The suite has `github_pull_request_checks` but nothing to see why a
-  run failed; raw run logs run to tens of thousands of lines. Read-only, same `gh` and token (needs
-  `actions:read`). No new closure.
-- [ ] **S2. `ci/workflow-lint`** (typed; actionlint, about 5 MB). `workflow_lint` returns structured
-  findings, with shellcheck's checks for `run:` scripts. A workflow is otherwise verified by pushing
-  and waiting minutes. No network, no credential.
-- [ ] **S3. `ci/workflow-run`** (typed; `act`, about 19 MB, needs an exception to the 10 MB limit).
-  `workflow_run` (workflow, job, event) returns per-step status and a bounded failed-step tail, and
-  writes the full log to a workspace file; it drops the repeated git warnings. `workflow_list`.
-- [ ] **S4. `dev/format`** (prettier, about 3 MB, bundled). First decide what `format:check` is for:
-  it fails on 57 files today and CI does not run it. Either run `prettier --write` once and enforce
-  it, or drop the gate. Build only after that; expose on `PATH`, with a typed `format_check` only
-  for roles without `bash`.
-- [ ] **S5. `dev/yaml`** (`yq`, about 5 MB). `PATH` only. Trigger: a role must edit workflow or
-  config YAML structurally; the guest has no YAML parser in `node` or `python3`.
-- [ ] **S6. `dev/json`** (`jq`, about 1 MB). `PATH` only. Trigger: a role needs structured JSON and
-  cannot use `node` or `python3`. Weak: both are in the guest.
-- [ ] **S7. `PATH` exposure in the suite manifest** (`binaries`), validated by the client and put
-  on the guest `PATH` for `bash`. Needed only when S4 to S6 are built; typed-only suites (S1 to S3)
-  do not need it.
+Roles get **complete suites and no `bash` by default**. `bash` becomes an explicit grant for a role
+that needs it, not a baseline. What this buys: least privilege (a role can do exactly what it was
+granted), compact results, no arbitrary code in a prompt-injected worker, and no wrong-flag mistakes.
+What it costs is catalog completeness: a missing operation makes a worker report `blocked`, so each
+step below removes `bash` only after the suites that replace it exist and the release path is cheap
+enough to keep them complete.
+
+## Todo
+
+Status: `[x]` done, `[ ]` todo.
+
+### Foundation (done)
+
+- [x] GitHub suite: 38 typed tools over a static `gh`, 39 MB, scoped credential and hosts.
+- [x] Released, hash-pinned catalog; verified fetch by store path (10 s cold); Ubuntu and macOS CI.
+- [x] Per-role tool grants; the baseline profile has no `bash`, `edit` or `write`.
+- [x] Measured: tool-schema cost, raw output sizes, `act` in the guest, guest egress, role tool sets.
+
+### Suites
+
+- [ ] **S1. CI run inspection** (typed; extends the GitHub suite). `github_workflow_runs_list`,
+  `github_run_view`, `github_run_failed_log` (failed steps, bounded tail). No new closure; needs
+  `actions:read`.
+- [ ] **S2. `ci/workflow-lint`** (typed; actionlint, about 5 MB). `workflow_lint`, structured findings.
+- [ ] **S3. `ci/workflow-run`** (typed; `act` in host mode, about 19 MB, size exception). `workflow_run`
+  returns per-step status and a bounded failed-step tail, full log to a workspace file; drops the
+  repeated git warnings. `workflow_list`.
+- [ ] **S4. `dev/tasks`** (typed). `task_list` and `task_run(name)`: runs only tasks the project
+  declares (`package.json` scripts, a task file), in the guest with network denied. One suite for any
+  ecosystem, which is what lets a developer drop `bash`. Design risk to settle first: a worker with
+  `edit` could rewrite a task and run it, so task definitions must come from the base commit or be
+  approved, not read from the worktree.
+- [ ] **S5. `dev/format`** (prettier, about 3 MB, bundled). First decide what `format:check` is for: it
+  fails on 57 files and CI does not run it. Format once and enforce it, or drop the gate. Then build.
+- [ ] **S6. `dev/yaml`** (`yq`) and **S7. `dev/json`** (`jq`). Typed or on `PATH` only on a
+  demonstrated need; the guest has `node` and `python3` for JSON, and no YAML parser.
+- [ ] **S8. `PATH` exposure** (`binaries` in the manifest) only if a suite is exposed that way.
+
+### Network control
+
+- [ ] **N1. Default-deny egress for every worker.** Measured: a default guest reaches the open web
+  (200 from example.com); `allowedHosts` blocks it (403). The allowlist is the union of its suites'
+  `allowedHosts`. Applies to `bash` too.
+- [ ] **N2. A test** that a worker cannot reach a host outside its allowlist, with and without a
+  credential (not measured with the credential attached; our code sets no global policy today).
+- [ ] **N3. Open-web roles are an explicit grant** (a researcher, a web-fetch suite), never the default.
+- [ ] **N4. Log denied requests** in worker events (host only), so a blocked step is diagnosable.
+
+### `bash` policy
+
+- [ ] **B1. Log the first word of each `bash` command** in worker events (never the arguments), to
+  learn what roles actually run before deciding what to proxy.
+- [ ] **B2. Drop `bash` from `reviewer`** (it has `bash` and no `edit`/`write`) once S1 to S4 exist.
+- [ ] **B3. Trial a `bash`-less `developer` and `integrator`** with S4 and S5; keep `bash` as an
+  explicit, per-assignment grant where the trial shows a gap.
+
+### Hall Armory release (lowers the cost of keeping suites complete)
+
+- [ ] **R1. Measure the release lead time**, from merged PR to a usable catalog (not measured today).
+- [ ] **R2. A suite scaffold:** one command creating the directory, manifest, flake, size guard and
+  guest-compat test, so a suite is not copied from the GitHub one.
+- [ ] **R3. A local suite harness:** run a suite's `describe` and `invoke` in a Gondolin VM before
+  opening a PR.
+- [ ] **R4. Per-suite release:** a change to one suite should not rebuild or re-publish the others.
+- [ ] **R5. A client check that the catalog's suites cover a role's grants**, so a missing operation
+  fails at launch rather than as a `blocked` worker.
 
 ## Deferred or rejected, with the trigger
 
