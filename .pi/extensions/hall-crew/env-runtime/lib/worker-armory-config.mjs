@@ -20,7 +20,9 @@ export function workerArmoryConfig(config) {
     )
   )
     throw new Error("Worker Armory config has invalid suite operation grants");
-  if (network && (!Array.isArray(network.allowedHosts) || !Array.isArray(network.credentials) || network.allowedHosts.some((host) => typeof host !== "string" || !host) || network.credentials.some((credential) => typeof credential?.environment !== "string" || !credential.environment || !Array.isArray(credential.hosts))))
+  // The network policy is the host-owned credential policy (credential-policy.mjs):
+  // credential bindings only. Suite manifests' own host lists are not passed here.
+  if (network && (!Array.isArray(network.credentials) || network.credentials.some((credential) => typeof credential?.environment !== "string" || !credential.environment || !Array.isArray(credential.hosts))))
     throw new Error("Worker Armory config has invalid network policy");
   return { paths, suites: suites.map((suite) => ({ rootPath: suite.rootPath, tools: [...new Set(suite.tools)] })), network };
 }
