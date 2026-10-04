@@ -1,25 +1,25 @@
-import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { CommEnvelopeObservation, projectEnvelope } from "./comm-envelope-observation.mjs";
 import { createCommObservers } from "./comm-controller-observers.mjs";
-import { dispatchCommRequest } from "./comm-controller-dispatch.mjs";
+import { attachCommSocket } from "./comm-controller-dispatch.mjs";
+import { CommAccess } from "./comm-access.mjs";
+import { Mailbox, buildEnvelope, deliveryMetrics } from "./comm-mailbox.mjs";
+import { planAssignment } from "./lead-assignment.mjs";
+import { ReadyBarrier } from "./comm-readiness.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class CommController {
   #server;
   #connections = new Map();
-  #inboxes = new Map();
-  #inflight = new Map();
+  #mailbox = new Mailbox();
   #assigned = new Set();
   #actors = new Set(["main"]);
-  #actorNamespaces = new Map();
+  #access = new CommAccess();
   #pendingReplies = new Map();
-  #readyActors = new Set();
-  #readyWaiters = new Set();
+  #ready = new ReadyBarrier();
   #actorRoles = new Map();
   #observation = new CommEnvelopeObservation();
-  // Raw and typed observer wiring lives in a focused helper.
   #observers = createCommObservers({
     observeRaw: (handler) => this.observeRaw(handler),
     getSocket: (actorId) => this.#connections.get(actorId),
@@ -34,11 +34,10 @@ export class CommController {
   async start(port = 0) {
     this.#server = new WebSocketServer({ port });
     await new Promise((resolve) => this.#server.once("listening", resolve));
-    this.#server.on("connection", (socket) => this.#attach(socket));
+    this.#server.on("connection", (socket) => attachCommSocket(this, socket));
     return this.#server.address().port;
   }
-  // Terminate every socket, including unregistered clients, then bound
-  // server close so a dead peer cannot keep the Comm child alive.
+  // Terminate every socket, then bound the close, so a dead peer cannot keep Comm alive.
   async stop() {
     for (const socket of this.#server.clients) socket.terminate();
     await Promise.race([
@@ -50,98 +49,52 @@ export class CommController {
     if (!actorId || actorId === "main") throw new Error("Cannot register reserved actor");
     this.#actors.add(actorId);
     if (role) this.#actorRoles.set(actorId, role);
-    this.#inbox(actorId);
+    this.#mailbox.queue(actorId);
     this.#record("actor_registered", { actorId, role });
   }
   markReady(actorId, namespace) {
-    this.#assertNamespace(actorId, namespace);
-    this.#readyActors.add(actorId);
+    this.#access.assertNamespace(actorId, namespace);
+    this.#ready.mark(actorId);
     this.#record("worker_ready", { actorId, namespace });
-    for (const waiter of this.#readyWaiters) waiter();
     return { ready: true };
   }
-  async waitReady(namespace, actorIds, timeoutMs = 30_000) {
-    const ready = () => actorIds.every((id) => this.#readyActors.has(id));
-    if (ready()) return { ready: actorIds };
-    await new Promise((resolve, reject) => {
-      const check = () => ready() && finish(resolve);
-      const timer = setTimeout(() => finish(() => reject(new Error("Worker readiness timed out"))), timeoutMs);
-      const finish = (done) => {
-        clearTimeout(timer);
-        this.#readyWaiters.delete(check);
-        done();
-      };
-      this.#readyWaiters.add(check);
-      check();
-    });
-    return { ready: actorIds };
+  waitReady(namespace, actorIds, timeoutMs) {
+    return this.#ready.wait(actorIds, timeoutMs);
   }
   emit(from, to, payload, replyRequired = false, replyTo) {
     const request = replyTo && this.#pendingReplies.get(replyTo);
     if (replyTo && !request) throw new Error("Unknown reply request");
     if (request && request.to !== from) throw new Error("Only the request recipient may reply");
     if (!this.#actors.has(to)) throw new Error(`Unknown recipient: ${to}`);
-    this.#assertPeerAccess(from, to);
-    const queuedAt = Date.now();
-    const message = {
-      v: 1,
-      id: randomUUID(),
-      kind: replyTo ? "reply" : replyRequired ? "request" : "notify",
-      from,
-      to,
-      payload,
-      replyRequired,
-      replyTo,
-      createdAt: new Date(queuedAt).toISOString(),
-      queuedAt,
-    };
-    this.#inbox(to).push(message);
+    this.#access.assertPeer(from, to);
+    const message = buildEnvelope(from, to, payload, replyRequired, replyTo);
+    this.#mailbox.push(to, message);
     if (replyRequired) this.#pendingReplies.set(message.id, message);
     if (replyTo) {
       this.#pendingReplies.delete(replyTo);
       this.#record("message_replied", {
-        ...this.#metrics(message),
+        ...deliveryMetrics(message),
         replyTo,
         replyLatencyMs: Date.now() - request.queuedAt,
       });
     }
-    this.#record("message_emitted", this.#metrics(message));
-    this.#publish(message);
+    this.#record("message_emitted", deliveryMetrics(message));
+    this.#observation.publish(message);
     this.#flush(to);
     return { accepted: true, id: message.id };
   }
-  // The Lead hands out the plan's work. The broker validates the target against the
-  // registered plan, so a Lead can neither invent an assignment nor skip a
-  // prerequisite: it sends the member's planned task (plus an optional short note),
-  // only once, and only when every prerequisite is complete.
   assign(from, namespace, handle, note) {
-    this.#assertNamespace(from, namespace);
+    this.#access.assertNamespace(from, namespace);
     if (this.#actorRoles.get(from) !== "lead") throw new Error("Only the Crew Lead may assign work");
     const nodes = this.#observers.stateSnapshot(namespace)?.nodes ?? [];
-    const node = nodes.find((item) => item.handle === handle);
-    if (!node) throw new Error(`Unknown Crew member: ${handle}`);
-    const leadHandle = from.slice(`${namespace}-`.length);
-    if (handle === leadHandle) throw new Error("The Lead cannot assign work to itself");
-    const key = `${namespace}/${handle}`;
-    if (this.#assigned.has(key)) throw new Error(`${handle} has already been assigned`);
-    if (["complete", "blocked", "failed"].includes(node.status)) throw new Error(`${handle} is already ${node.status}`);
-    const unmet = node.dependsOn.filter((name) => nodes.find((item) => item.handle === name)?.status !== "complete");
-    if (unmet.length) throw new Error(`${handle} must wait for ${unmet.join(", ")} to complete`);
-    const sent = this.emit(from, `${namespace}-${handle}`, {
-      kind: "task",
-      phase: "assignment",
-      runId: namespace.replace(/^crew-/, ""),
-      task: node.task,
-      prerequisites: node.dependsOn,
-      reportTo: leadHandle,
-      ...(note ? { note: String(note).slice(0, 2000) } : {}),
-    });
-    this.#assigned.add(key);
+    const { to, payload } = planAssignment({ from, namespace, handle, note, nodes, assigned: this.#assigned });
+    const sent = this.emit(from, to, payload);
+    this.#assigned.add(`${namespace}/${handle}`);
     return sent;
   }
   // Deliver recipients in registration order with a fixed gap.
   async broadcast(from, namespace, payload) {
-    this.#assertNamespace(from, namespace);
+    this.#access.assertNamespace(from, namespace);
     if (from !== "main" && this.#actorRoles.get(from) && this.#actorRoles.get(from) !== "lead")
       throw new Error("Only the Crew Lead may broadcast");
     // Broadcasts address the Crew only, never Main.
@@ -154,128 +107,74 @@ export class CommController {
     return { accepted: true, recipients: ids };
   }
   claim(actorId) {
-    if (this.#inflight.has(actorId)) return undefined;
-    const message = this.#inbox(actorId).shift();
-    if (message) {
-      this.#inflight.set(actorId, message);
-      this.#record("message_claimed", this.#metrics(message));
-    }
+    const message = this.#mailbox.claim(actorId);
+    if (message) this.#record("message_claimed", deliveryMetrics(message));
     return message;
   }
   acknowledge(actorId, messageId) {
-    const message = this.#inflight.get(actorId);
-    if (!message || message.id !== messageId) return { acknowledged: false };
-    this.#inflight.delete(actorId);
-    this.#record("message_acknowledged", this.#metrics(message));
+    const message = this.#mailbox.acknowledge(actorId, messageId);
+    if (!message) return { acknowledged: false };
+    this.#record("message_acknowledged", deliveryMetrics(message));
     this.#flush(actorId);
     return { acknowledged: true };
   }
   release(actorId) {
-    const message = this.#inflight.get(actorId);
-    if (!message) return;
-    this.#inflight.delete(actorId);
-    this.#inbox(actorId).unshift(message);
-    this.#record("message_requeued", this.#metrics(message));
+    const message = this.#mailbox.release(actorId);
+    if (message) this.#record("message_requeued", deliveryMetrics(message));
   }
-  events() {
-    return this.#observation.events();
-  }
+  events = () => this.#observation.events();
   subscribe(handler) {
     return this.#observation.observe((envelope) => {
       const projected = projectEnvelope(envelope);
       if (projected) return handler(projected);
     });
   }
-  observeRaw(handler) {
-    return this.#observation.observe(handler);
-  }
-  injectHuman({ to, body, author, externalId }) {
-    return this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
-  }
+  observeRaw = (handler) => this.#observation.observe(handler);
+  injectHuman = ({ to, body, author, externalId }) =>
+    this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   registerConnection(actorId, socket, namespace, authToken) {
     if (this.#authToken && authToken !== this.#authToken) throw new Error("Comm authentication required");
     if (actorId === "main" && this.#connections.has("main")) throw new Error("Main is already connected");
-    const knownNamespace = this.#actorNamespaces.get(actorId);
+    const knownNamespace = this.#access.namespaceOf(actorId);
     const isObserver = actorId === `observer-${namespace}` && namespace;
     if (!this.#actors.has(actorId) && !isObserver) throw new Error("Actor is not authorized");
     if (knownNamespace && namespace !== knownNamespace) throw new Error("Cross-Crew namespace access is forbidden");
     if (this.#connections.has(actorId)) throw new Error("Actor already connected");
-    if (isObserver) this.#actorNamespaces.set(actorId, namespace);
+    if (isObserver) this.#access.assign(actorId, namespace);
     this.#connections.set(actorId, socket);
     this.#record("worker_registered", { actorId });
     setImmediate(() => this.#flush(actorId));
   }
   observeRawOverSocket(actorId) {
-    return this.#observers.observeRawOverSocket(actorId, (envelope) => this.#canObserve(actorId, envelope));
+    return this.#observers.observeRawOverSocket(actorId, (envelope) => this.#access.canObserve(actorId, envelope));
   }
   registerPlan(namespace, members) {
     const result = this.#observers.registerPlan(namespace, members);
     for (const actorId of this.#actors)
-      if (actorId.startsWith(`${namespace}-`)) this.#actorNamespaces.set(actorId, namespace);
+      if (actorId.startsWith(`${namespace}-`)) this.#access.assign(actorId, namespace);
     return result;
   }
   lifecycleUpdate(actorId, namespace, state) {
-    this.#assertNamespace(actorId, namespace);
+    this.#access.assertNamespace(actorId, namespace);
     return this.#observers.lifecycleUpdate(actorId, namespace, state);
   }
   stateSnapshot(actorId, namespace) {
-    this.#assertNamespace(actorId, namespace);
+    this.#access.assertNamespace(actorId, namespace);
     return this.#observers.stateSnapshot(namespace);
   }
   observeStateOverSocket(actorId, namespace) {
-    this.#assertNamespace(actorId, namespace);
+    this.#access.assertNamespace(actorId, namespace);
     return this.#observers.observeStateOverSocket(actorId, namespace);
   }
-  #canObserve(actorId, envelope) {
-    if (actorId === "main") return true;
-    const namespace = this.#actorNamespaces.get(actorId);
-    if (namespace) return [envelope.from, envelope.to].some((id) => this.#actorNamespaces.get(id) === namespace);
-    return envelope.from === actorId || envelope.to === actorId;
+  disconnect(actorId) {
+    this.release(actorId);
+    this.#connections.delete(actorId);
+    this.#ready.clear(actorId);
+    this.#observers.release(actorId);
+    this.#record("worker_disconnected", { actorId });
   }
-  #assertSender(actorId) {
-    if (actorId === "human:github-discussion") return;
-    if (!actorId || !this.#actors.has(actorId)) throw new Error("Registered actor identity required");
-  }
-  #assertPeerAccess(from, to) {
-    if (from === "main" || to === "main" || from === "human:github-discussion") return;
-    const fromNs = this.#actorNamespaces.get(from),
-      toNs = this.#actorNamespaces.get(to);
-    if (fromNs && toNs && fromNs !== toNs) throw new Error("Cross-Crew routing is forbidden");
-  }
-  #assertNamespace(actorId, namespace) {
-    if (actorId === "main") return;
-    if (!actorId || !namespace || this.#actorNamespaces.get(actorId) !== namespace)
-      throw new Error("Cross-Crew namespace access is forbidden");
-  }
-  #attach(socket) {
-    const state = { actorId: undefined };
-    socket.on("message", async (raw) => {
-      const request = JSON.parse(String(raw));
-      try {
-        const result = await dispatchCommRequest(this, socket, state, request);
-        this.#reply(socket, request.id, result);
-      } catch (error) {
-        socket.send(JSON.stringify({ jsonrpc: "2.0", id: request.id, error: { message: String(error) } }));
-      }
-    });
-    socket.once("close", () => {
-      if (state.actorId) {
-        this.release(state.actorId);
-        this.#connections.delete(state.actorId);
-        this.#readyActors.delete(state.actorId);
-        this.#observers.release(state.actorId);
-        this.#record("worker_disconnected", { actorId: state.actorId });
-      }
-    });
-  }
-  #inbox(actorId) {
-    if (!this.#inboxes.has(actorId)) this.#inboxes.set(actorId, []);
-    return this.#inboxes.get(actorId);
-  }
-  // Main and the Lead coordinate: they receive every message in order as it
-  // arrives and never block later senders on an earlier unanswered message.
-  // Delivery itself is their acknowledgement. Specialists keep one in-flight
-  // delivery, acknowledged after their turn settles.
+  // Main and the Lead receive every message in order as it arrives; delivery is their
+  // acknowledgement. Specialists keep one in-flight delivery, acknowledged after their turn.
   #queued(actorId) {
     return actorId === "main" || this.#actorRoles.get(actorId) === "lead";
   }
@@ -283,36 +182,19 @@ export class CommController {
     const socket = this.#connections.get(actorId);
     if (!socket || socket.readyState !== 1) return;
     if (this.#queued(actorId)) {
-      for (let message; (message = this.#inbox(actorId).shift()); ) {
-        this.#record("message_claimed", this.#metrics(message));
-        this.#record("message_delivered", this.#metrics(message));
-        this.#record("message_acknowledged", this.#metrics(message));
-        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
+      for (let message; (message = this.#mailbox.queue(actorId).shift()); ) {
+        this.#record("message_claimed", deliveryMetrics(message));
+        for (const type of ["message_delivered", "message_acknowledged"]) this.#record(type, deliveryMetrics(message));
+        this.#deliver(socket, message);
       }
       return;
     }
-    if (this.#inflight.has(actorId)) return;
+    if (this.#mailbox.hasInflight(actorId)) return;
     const message = this.claim(actorId);
     if (!message) return;
-    this.#record("message_delivered", this.#metrics(message));
-    socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
+    this.#record("message_delivered", deliveryMetrics(message));
+    this.#deliver(socket, message);
   }
-  #metrics(message) {
-    return {
-      messageId: message.id,
-      from: message.from,
-      to: message.to,
-      payloadBytes: Buffer.byteLength(JSON.stringify(message.payload)),
-      latencyMs: Date.now() - message.queuedAt,
-    };
-  }
-  #publish(envelope) {
-    this.#observation.publish(envelope);
-  }
-  #record(type, details) {
-    this.#observation.record(type, details);
-  }
-  #reply(socket, id, result) {
-    socket.send(JSON.stringify({ jsonrpc: "2.0", id, result }));
-  }
+  #deliver = (socket, message) => socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
+  #record = (type, details) => this.#observation.record(type, details);
 }

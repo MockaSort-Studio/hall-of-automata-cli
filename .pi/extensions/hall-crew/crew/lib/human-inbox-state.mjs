@@ -3,7 +3,7 @@ const MAX_PENDING = 32;
 const MAX_HANDLED = 128;
 const MAX_SEEN = 2048;
 
-export function isCrewComment(roster, comment) {
+function isCrewComment(roster, comment) {
   const members = [roster.lead, ...(roster.members || [])].filter(Boolean);
   return members.some((member) => comment.body?.includes(`\n---\n@${member.name}\n`));
 }

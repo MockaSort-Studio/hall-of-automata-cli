@@ -148,10 +148,16 @@ or QEMU state remains. Runtime tools are exposed by
     no QEMU install needed on those hosts. Measured against the OS footprint, not RSS.
 25. [x] **Compact the isolation layer**: 22 files to 14 (Nix helpers, credentials, guest runner
     merged), dead modules removed.
-26. [ ] **Policy decision for a human:** an active sandboxed worker is about 350 MB (Pi about
-    200 MB, VM 100 MB). Going lower means sharing a VM across workers or running read-only roles
-    without one, which weakens isolation. The remaining cheaper lever is the sandboxed Pi
-    itself (about 80 MB above a host Pi), which is our extension and its imports.
+26. [x] **Core files under 200 lines**: `runtime.mjs` 418 to 166 (`main-comm`, `main-inbox`,
+    `server-process`, `crew-launch`, `root-dispatch`), `comm-controller.mjs` 318 to 200
+    (`comm-access`, `comm-mailbox`, `comm-readiness`, `lead-assignment`, socket wiring into the
+    dispatcher), `startup.mjs` 265 to 193 (`launch-files`, `launch-environment`, `suite-grants`),
+    two borderline files trimmed, observer sockets merged, unused exports removed.
+27. [x] **Sandboxed Pi footprint measured**: the extra over a host Pi is live VM client state that
+    is freed on idle release, not the SDK import; lazy-loading would save nothing. Not built.
+28. [ ] **Policy decision for a human:** an active sandboxed worker is about 295 MB (libkrun).
+    Going lower means sharing a VM across workers or running read-only roles without one, which
+    weakens isolation.
 
 ## Deferred until after Crew release
 

@@ -1,15 +1,14 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
-import { crewEnvironment, resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
-import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
-import { checkLaunchCredentials } from "../../env-runtime/lib/credentials.mjs";
-import { realizeOrFallback } from "./armory-fallback.mjs";
-import { acquireNixGuestSuites, explainMissingCache, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/armory-nix.mjs";
+import { crewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
+import { suiteGrants } from "./suite-grants.mjs";
+import { writeLaunchFiles } from "./launch-files.mjs";
+import { resolveLaunchEnvironment } from "./launch-environment.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -21,22 +20,6 @@ export function crewPaths(configDir, runId) {
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
 const runtimeIdentity = (name, directory) =>
   `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.\n\n## CREW DIRECTORY\n${directory}`;
-const suiteGrants = (tools) => {
-  if (tools === undefined) return { system: undefined, suites: [] };
-  if (!Array.isArray(tools)) throw new Error("Crew tools must be suite grants.");
-  const seen = new Set();
-  for (const grant of tools) {
-    if (!grant || typeof grant.suite !== "string" || !grant.suite || !Array.isArray(grant.operations) || !grant.operations.length)
-      throw new Error("Crew suite grants require a suite and operations.");
-    if (seen.has(grant.suite) || new Set(grant.operations).size !== grant.operations.length || grant.operations.some((item) => typeof item !== "string" || !item))
-      throw new Error("Crew suite grants must be unique and non-empty.");
-    seen.add(grant.suite);
-  }
-  return {
-    system: tools.find((grant) => grant.suite === "system")?.operations,
-    suites: tools.filter((grant) => grant.suite !== "system").map(({ suite, operations }) => ({ suite, tools: operations })),
-  };
-};
 const workerTask = (actor, runId, topic, directory) =>
   `${actor.instructions}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 export function queuedMessage(prepared) {
@@ -132,46 +115,23 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);
-  try {
-    writeFileSync(join(ctx.cwd, paths.selected), JSON.stringify(selected, null, 2));
-    writeFileSync(
-      join(ctx.cwd, paths.roster),
-      JSON.stringify(
-        { runId, topic, runtime: "sdk", status: "queued", environment, members: [], selectedCrew: paths.selected },
-        null,
-        2,
-      ),
-    );
-    writeFileSync(
-      join(ctx.cwd, paths.config),
-      JSON.stringify(
-        {
-          runId,
-          topic,
-          environment,
-          rosterFile: paths.roster,
-          agents,
-          // Static plan shape (handle/dependsOn/task), threaded through to
-          // Runtime.launchCrew so the Comm server can register it as the
-          // live owner of this run's dependency-ledger status -- see
-          // comm-state-owner.mjs and launchPreparedCrew below.
-          plan: selected.members.map((member) => ({
-            handle: member.handle,
-            dependsOn: member.dependsOn,
-            task: member.task,
-          })),
-          kickoff,
-          // External discussion adapters are deferred until after Crew release.
-          adapters: [],
-        },
-        null,
-        2,
-      ),
-    );
-  } catch (error) {
-    for (const path of Object.values(paths)) rmSync(join(ctx.cwd, path), { force: true });
-    throw error;
-  }
+  writeLaunchFiles(ctx.cwd, paths, {
+    selected,
+    roster: { runId, topic, runtime: "sdk", status: "queued", environment, members: [], selectedCrew: paths.selected },
+    config: {
+      runId,
+      topic,
+      environment,
+      rosterFile: paths.roster,
+      agents,
+      // Static plan shape (handle/dependsOn/task): the Comm server registers it as the live
+      // owner of this run's dependency-ledger status.
+      plan: selected.members.map(({ handle, dependsOn, task }) => ({ handle, dependsOn, task })),
+      kickoff,
+      // External discussion adapters are deferred until after Crew release.
+      adapters: [],
+    },
+  });
   return { runId, topic, rosterFile: paths.roster, configFile: paths.config, selectedCrewFile: paths.selected, agents };
 }
 export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
@@ -183,40 +143,8 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   roster.status = "launching";
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
-    const suiteRequests = config.agents.flatMap((agent) => agent.suiteGrants ?? []);
-    let catalog;
-    const resolution = await realizeOrFallback(
-      await (dependencies.resolveEnvironment ?? resolveCrewEnvironment)(config.environment),
-      config.environment.microvm,
-      async () => {
-        try {
-          catalog = await (dependencies.resolveArmoryCatalog ?? resolveArmoryCatalog)();
-          await (dependencies.realizeArmorySuites ?? acquireNixGuestSuites)({ catalog, requests: suiteRequests });
-        } catch (error) {
-          throw await (dependencies.explainMissingCache ?? explainMissingCache)(error);
-        }
-      },
-    );
-    const suiteTools = resolution.sandbox
-      ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
-      : [];
-    config.agents = config.agents.map((agent) => {
-      const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
-      const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
-      const environmentProfile = compileActorProfile({ tools, commTools: agent.commTools ?? [], suites });
-      return {
-        ...agent,
-        tools,
-        environmentProfile,
-        ...(resolution.sandbox && environmentProfile.suites.length
-          ? { armory: { catalog: { release: catalog.release }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
-          : {}),
-        ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
-      };
-    });
-    // Only whether each credential is present is recorded, never its value.
-    const suiteIds = [...new Set(config.agents.flatMap((agent) => agent.environmentProfile.suites.map((suite) => suite.suite)))];
-    const credentials = resolution.sandbox ? checkLaunchCredentials({ suiteIds }) : { status: {}, warnings: [] };
+    const { resolution, agents, credentials } = await resolveLaunchEnvironment(config, dependencies);
+    config.agents = agents;
     config.environmentResolution = {
       ...resolution,
       ...(Object.keys(credentials.status).length ? { credentials: credentials.status } : {}),

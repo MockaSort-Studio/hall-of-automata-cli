@@ -4,7 +4,7 @@
 // of comm.* methods themselves. `state` is the one mutable per-socket slot
 // (`actorId`, assigned by comm.register) that both this dispatcher and the
 // caller's close handler need to see.
-export function dispatchCommRequest(controller, socket, state, request) {
+function dispatchCommRequest(controller, socket, state, request) {
   const { method, params } = request;
   if (method === "comm.register") {
     if (state.actorId) throw new Error("Actor already registered");
@@ -57,4 +57,21 @@ export function dispatchCommRequest(controller, socket, state, request) {
   if (method === "comm.state_snapshot") return controller.stateSnapshot(state.actorId, params.namespace);
   if (method === "comm.observe_state") return controller.observeStateOverSocket(state.actorId, params.namespace);
   return undefined;
+}
+
+// One Comm WebSocket: each request is dispatched and answered; closing releases the actor.
+export function attachCommSocket(controller, socket) {
+  const state = { actorId: undefined };
+  const respond = (body) => socket.send(JSON.stringify({ jsonrpc: "2.0", ...body }));
+  socket.on("message", async (raw) => {
+    const request = JSON.parse(String(raw));
+    try {
+      respond({ id: request.id, result: await dispatchCommRequest(controller, socket, state, request) });
+    } catch (error) {
+      respond({ id: request.id, error: { message: String(error) } });
+    }
+  });
+  socket.once("close", () => {
+    if (state.actorId) controller.disconnect(state.actorId);
+  });
 }

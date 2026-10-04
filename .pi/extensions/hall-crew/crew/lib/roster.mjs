@@ -27,13 +27,13 @@ for (const [name, automaton] of Object.entries(catalog.automata)) {
     throw new Error(`Invalid persona tools for automaton: ${name}`);
 }
 export const AUTOMATA = Object.freeze(catalog.automata);
-export const NAMES = Object.freeze(Object.keys(AUTOMATA));
+const NAMES = Object.freeze(Object.keys(AUTOMATA));
 export function getAutomaton(name) {
   const value = AUTOMATA[name];
   if (!value) throw new Error(`Unknown automaton "${name}". Available: ${NAMES.join(", ")}`);
   return { name, ...value };
 }
-export function listAutomata() {
+function listAutomata() {
   return NAMES.map(getAutomaton);
 }
 export function rankAutomata(text) {

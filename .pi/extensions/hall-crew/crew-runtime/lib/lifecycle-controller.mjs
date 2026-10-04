@@ -1,18 +1,18 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
+import { syncWorkingTree } from "./worktree-sync.mjs";
 import { preflightWorkerSandbox } from "../../env-runtime/lib/sandbox-preflight.mjs";
 
 const exec = promisify(execFile);
 const GIT_TIMEOUT = 30_000;
 
-// A worker that exits while its record is "stopping" was terminated by an
-// intentional remove(), not a natural completion: its terminal state is
-// "removed", regardless of the exit code or signal that ended the process.
+// A worker that exits while "stopping" was ended by remove(), not by completing: "removed",
+// whatever its exit code or signal.
 export const terminalStatus = (previousStatus, code) =>
   previousStatus === "stopping" ? "removed" : code === 0 ? "completed" : "failed";
 const runGit = (cwd, args) =>
@@ -29,9 +29,8 @@ const waitForExit = (child, ms) =>
 
 export class LifecycleController {
   #agents = new Map();
-  // Metrics survive remove(): once a worker's events.jsonl and worktree are
-  // deleted, this is the only place its final telemetry, including session
-  // context percent, is still readable from.
+  // Metrics survive remove(): once events.jsonl and the worktree are deleted, this is the only
+  // place a worker's final telemetry is still readable.
   #retainedMetrics = new Map();
   constructor({ cwd, workerModule, preflight = preflightWorkerSandbox }) {
     this.cwd = cwd;
@@ -52,20 +51,7 @@ export class LifecycleController {
       await mkdir(root, { recursive: true });
       await runGit(this.cwd, ["worktree", "add", "--detach", worktree, "HEAD"]);
       worktreeAdded = true;
-      const patch = await exec("git", ["diff", "--binary", "HEAD"], { cwd: this.cwd, maxBuffer: 4 * 1024 * 1024 });
-      if (patch.stdout) {
-        const patchFile = join(root, "working-tree.patch");
-        await writeFile(patchFile, patch.stdout);
-        await exec("git", ["apply", patchFile], { cwd: worktree, timeout: GIT_TIMEOUT });
-      }
-      const untracked = await exec("git", ["ls-files", "--others", "--exclude-standard"], { cwd: this.cwd });
-      await Promise.all([
-        ...untracked.stdout
-          .split("\n")
-          .filter(Boolean)
-          .map((path) => cp(join(this.cwd, path), join(worktree, path), { recursive: true })),
-        cp(join(this.cwd, ".pi", "extensions"), join(worktree, ".pi", "extensions"), { recursive: true }),
-      ]);
+      await syncWorkingTree(this.cwd, root, worktree);
       await writeFile(
         configFile,
         JSON.stringify({

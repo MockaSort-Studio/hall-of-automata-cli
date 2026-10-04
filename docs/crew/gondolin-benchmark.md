@@ -13,7 +13,7 @@ Memory below is the macOS **physical footprint** (dirty plus compressed pages), 
 pressures RAM. RSS also counts reclaimable file-backed pages and overstated a QEMU VM by
 about 2x (301 MB RSS against 157 MB footprint at idle). An earlier version of this document
 quoted RSS and said an active Gondolin worker cost 600-880 MB; the real figure is about
-460 MB with QEMU and about 350 MB with libkrun.
+400 MB with QEMU and about 295 MB with libkrun.
 
 ## Model usage
 
@@ -27,14 +27,17 @@ tokens (+1.7%), $0.0160 versus $0.0164, identical turns and tool calls. **Not a 
 | Shared per Crew: comm + lifecycle servers | 41-67 MB |
 | `worker.mjs` | 17 MB |
 | Pi, host worker | 117 MB |
-| Pi, sandboxed worker (our extension and its imports) | about 190-220 MB |
+| Pi, sandboxed worker, VM up (libkrun run) | 167 MB |
+| Pi, sandboxed worker, VM released | about 113 MB, the same as a host Pi |
 | VM, libkrun: idle / after a real workload | 55 / 100 MB |
 | VM, QEMU: idle / after a real workload | 151 / 212 MB |
 | Guest RAM allotment (1 GiB, 512 MiB, 256 MiB) | no difference (212-216 MB) |
 
-So an active sandboxed worker (Pi, `worker.mjs` and VM) is about 350 MB with libkrun or 460 MB
-with QEMU, plus its share of the servers; a host worker is about 134 MB; a worker whose VM was
-released is about 180-220 MB. Pi is now the largest part of a sandboxed worker.
+So an active sandboxed worker (Pi, `worker.mjs` and VM) is about 295 MB with libkrun (about 400
+MB with QEMU), plus its share of the servers (64 MB per Crew); a host worker is about 134 MB;
+a worker whose VM was released is about 140 MB. The 54 MB by which a sandboxed Pi exceeds a host
+Pi is the live VM client's state, not the imported SDK: it disappears when the VM is released, so
+lazy-loading the SDK would save nothing (and `session_start` boots the VM anyway).
 
 The guest itself is not the cost. Idle and booted, it uses about 80 MB of its 990 MB (its only
 processes are `sandboxd`, 84 kB, and `rngd`); the rootfs is a 279 MB disk image (qcow2
@@ -54,6 +57,7 @@ virtio devices only. The difference between VMMs is the hypervisor, not the imag
 | A swallowed `session_start` error left a worker ready but without its tools | Extension ends the worker; a launch fails once any worker exits before ready | under 1 s instead of a 30 s timeout |
 | Preflight re-ran per worker | Reuse a success for 30 s | 110 ms saved per extra worker |
 | Dead code and scattered tiny modules | Removed a second `main`-branch Armory entrypoint and unused modules; merged the Nix helpers (6 files into `armory-nix.mjs`), credentials (3 into `credentials.mjs`), guest runner and proxies (2 into `guest-suite.mjs`) | isolation layer 22 files to 14 while gaining VMM selection, idle release and warm-up |
+| Five core files over the 200-line ceiling | Split along real seams (see the code-compaction pass in the plan) | none over 200 lines |
 
 Also fixed on the way: a worker built its credential lease as a plain object and then called
 `Map.clear()` on it in its exit handler, which would have thrown.
@@ -84,7 +88,7 @@ booted VM executes in 2 ms, launch costs 0.5-1.5 s over the host, teardown is 45
 residue.
 
 **Scalable: RAM-bound for active workers only.** Idle workers cost host-level memory; an active
-sandboxed worker is about 350 MB with libkrun (460 MB with QEMU).
+sandboxed worker is about 295 MB with libkrun (about 400 MB with QEMU).
 
 **Over-engineered: the code no, the chain yes.** The isolation layer is 14 files and about 1,020
 lines, none over 200 (before: 22 files). The weight is the dependency chain (Nix, a VMM,

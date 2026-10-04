@@ -6,34 +6,19 @@ import { isDegenerateTurn } from "./degenerate-turn.mjs";
 import { RESOLVED_MODEL_MARKER, STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
 let comm;
-// A resident worker's own startup sends a `new_session` RPC command right
-// after spawn (see worker.mjs), which fires session_shutdown -> reload ->
-// session_start again in this same process, before this handler's first
-// connectComm() call has even resolved. Without this guard, the second
-// session_start would race a second `comm.register` for the same actorId
-// against the first, and the server correctly rejects one of them with
-// "Actor already connected". commReady makes the whole connect+subscribe
-// sequence idempotent for the lifetime of this process, no matter how many
-// times session_start fires.
+// A resident worker's own startup sends `new_session` (see worker.mjs), which fires
+// session_shutdown -> reload -> session_start again in this process, possibly before the first
+// connectComm() resolved. Without a guard, two `comm.register` calls for one actorId would race
+// and the server would reject one. commReady makes connect+subscribe idempotent per process.
 let commReady;
-// A resident worker's own new_session call also replaces `pi`/ctx with a
-// fresh instance on every reload (pi's documented contract: a captured pi
-// from before ctx.reload()/new_session is stale and must not be used
-// afterward). The onDelivery listener below is registered exactly once, so
-// it must always call through this module-level pointer -- updated at the
-// top of every workerCommExtension(pi) invocation -- rather than close over
-// whichever `pi` happened to be current the one time it was registered.
+// new_session also replaces `pi`/ctx on every reload, and a captured one goes stale. The
+// onDelivery listener is registered once, so it calls through this pointer, updated on each
+// workerCommExtension(pi) invocation, never through a captured `pi`.
 let activePi;
-// Shared across every reload for the same reason: turn_end fires against
-// whichever `pi` is currently active, but the once-registered onDelivery
-// listener below is the only reader, so both sides must agree on one
-// instance of this state instead of each reload getting its own.
+// Shared across reloads for the same reason: turn_end writes it, the once-registered listener reads it.
 let staticContextReported = false;
-// sawTurnEnd distinguishes "a turn_end fired and it was empty" (degenerate,
-// worth retrying) from "no turn_end fired at all before settling" (a
-// legitimate completion path, e.g. reply-driven -- must NOT be treated as
-// degenerate, or every such delivery would trigger a retry that awaits a
-// settle event that may never come again).
+// sawTurnEnd separates "a turn_end fired and it was empty" (degenerate, retry) from "none fired
+// before settling" (a legitimate reply-driven completion that must not trigger a retry).
 let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
 let replyContext;
 let kickoffManifest;
@@ -71,11 +56,8 @@ export default function workerCommExtension(pi) {
       .map(({ name, parameters }) => ({ name, parameters }));
     const tokens = staticContextTokens(ctx.getSystemPrompt(), tools);
     ctx.ui.notify(`${STATIC_CONTEXT_MARKER}${JSON.stringify(tokens)}`, "info");
-    // Relay the worker's own actually-resolved model id: a worker launched
-    // without an explicit --model flag inherits whatever default `pi
-    // --mode rpc` resolves to, which the launch config never captures.
-    // ctx.model is the one place that resolution is actually knowable, per
-    // docs/extensions.md's `ctx.model` ("the active model").
+    // Relay the resolved model id: a worker started without --model inherits Pi's default,
+    // which the launch config never captures; ctx.model is where it is knowable.
     const modelId = ctx.model?.provider && ctx.model?.id ? `${ctx.model.provider}/${ctx.model.id}` : ctx.model?.id;
     const modelWindow = Number.isFinite(ctx.model?.contextWindow) ? ctx.model.contextWindow : undefined;
     if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");

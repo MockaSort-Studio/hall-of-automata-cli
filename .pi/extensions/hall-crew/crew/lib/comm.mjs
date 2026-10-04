@@ -34,7 +34,7 @@ function discussionId(owner, repo, number) {
 }
 export const readRoster = (path) => JSON.parse(readFileSync(path, "utf8"));
 export const writeRoster = (path, roster) => writeFileSync(path, JSON.stringify(roster, null, 2), "utf8");
-export const assertLead = (roster, from) => {
+const assertLead = (roster, from) => {
   if (roster.lead?.name !== canonicalHandle(from)) throw new Error("Only the Crew Lead may perform this operation.");
   assertActorOwnsSender(roster, from);
 };
