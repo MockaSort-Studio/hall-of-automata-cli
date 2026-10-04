@@ -132,6 +132,18 @@ or QEMU state remains. Runtime tools are exposed by
     on macOS and Linux; the script itself is covered by `setup-env.test.mjs`.
     Rationale and alternatives: [armory-distribution-decision.md](armory-distribution-decision.md).
 
+## 7. Gondolin hardening (from [gondolin-benchmark.md](gondolin-benchmark.md))
+
+19. [ ] **Fail closed.** A worker with a sandbox must exit, and the launch fail fast, when
+    its sandbox extension fails to load; today it reports ready and keeps host built-ins.
+20. [ ] **Guest-local copy of large closure binaries** on first use, from the suite wrapper
+    (`gh` 736 ms to 93 ms per call).
+21. [ ] **Boot the VM on first use**, not at worker start: embed tool descriptors in the
+    release catalog so idle Armory workers hold no VM.
+22. [ ] **Right-size the guest** (1 GiB allotted, 290-510 MB used) and run preflight once
+    per Crew.
+23. [ ] **`doctor` check** for dependencies, Nix, the cache and the token.
+
 ## Deferred until after Crew release
 
 - Hall CLI state-model port and GitHub adapter contracts.
