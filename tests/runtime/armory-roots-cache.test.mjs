@@ -1,8 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { armoryRoot, armoryRootsDir } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-roots.mjs";
-import { guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-system.mjs";
-import { armoryCache, explainMissingCache } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-cache.mjs";
+import { armoryRoot, armoryRootsDir, explainMissingCache, guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
+import { armoryCache } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
 
 test("roots are keyed by suite and system, never by revision, so a new revision replaces the old root", () => {
   const root = armoryRoot("collaboration/pi-github-tools", "aarch64-linux", "/home/u");

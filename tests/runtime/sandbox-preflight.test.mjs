@@ -23,6 +23,7 @@ test("preflight verifies QEMU then downloads verified guest assets into the chos
     { sandbox: { kind: "gondolin" } },
     {
       environment,
+      vmm: "qemu",
       verifyQemu: (binary) => calls.push(binary),
       verifyQemuImage: () => calls.push("qemu-img"),
       verifyNix: () => calls.push("nix"),
@@ -38,6 +39,7 @@ test("preflight does not download assets if QEMU is unavailable", async () => {
     preflightWorkerSandbox(
       { sandbox: { kind: "gondolin" } },
       {
+        vmm: "qemu",
         verifyQemu: () => {
           throw new Error("QEMU absent");
         },
@@ -75,4 +77,20 @@ test("a Crew's later workers reuse a recent successful preflight instead of re-s
   const started = performance.now();
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
   assert.ok(performance.now() - started < 20, `second preflight took ${Math.round(performance.now() - started)} ms`);
+});
+
+test("libkrun needs no QEMU: its absence is never checked", async () => {
+  const calls = [];
+  await preflightWorkerSandbox(
+    { sandbox: { kind: "gondolin" } },
+    {
+      environment: {},
+      vmm: "krun",
+      verifyQemu: () => assert.fail("QEMU must not be required for libkrun"),
+      verifyQemuImage: () => assert.fail("qemu-img must not be required for libkrun"),
+      verifyNix: () => calls.push("nix"),
+      gondolin: { ensureGuestAssets: async () => calls.push("assets") },
+    },
+  );
+  assert.deepEqual(calls, ["nix", "assets"]);
 });

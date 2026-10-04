@@ -20,8 +20,9 @@ import {
 import { bashOperations } from "./gondolin-worker-shell.mjs";
 import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
-import { consumeCredentialLease, revokeCredentialLease } from "./credential-lease.mjs";
-import { lazyGuest, registerArmoryWorkerProxies } from "./armory-worker-proxies.mjs";
+import { consumeCredentialLease, revokeCredentialLease } from "./credentials.mjs";
+import { lazyGuest, registerArmoryWorkerProxies } from "./guest-suite.mjs";
+import { chooseVmm } from "./guest-vmm.mjs";
 
 // A resident worker's own new_session call fires session_shutdown -> reload ->
 // session_start again in this process, re-invoking this factory with a fresh `pi`.
@@ -79,6 +80,7 @@ async function startVm(localCwd) {
   const network = Object.keys(secrets).length ? createHttpHooks({ secrets }) : undefined;
   secretManager = network?.secretManager;
   const created = await VM.create({
+    sandbox: { vmm: chooseVmm() },
     sessionLabel: `crew worker ${process.env.PI_SDK_ACTOR_ID ?? "unknown"}`,
     ...(network ? { httpHooks: network.httpHooks, env: network.env } : {}),
     vfs: {

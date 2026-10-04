@@ -1,5 +1,7 @@
-import { armoryCache } from "./armory-cache.mjs";
+import { readFileSync } from "node:fs";
 
+// The one binary cache this client trusts; a catalog naming any other is refused.
+export const armoryCache = JSON.parse(readFileSync(new URL("../armory-cache.json", import.meta.url), "utf8"));
 const ARMORY_REPOSITORY = "MockaSort-Studio/hall-armory";
 const LATEST_RELEASE_URL = `https://github.com/${ARMORY_REPOSITORY}/releases/latest/download/artifacts.json`;
 export const pinnedReleaseUrl = (revision) =>

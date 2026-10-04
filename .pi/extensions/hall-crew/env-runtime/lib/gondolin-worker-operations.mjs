@@ -1,6 +1,6 @@
 import path from "node:path";
 import { DEFAULT_MAX_BYTES, formatSize, truncateHead, truncateLine } from "@earendil-works/pi-coding-agent";
-import { GUEST_WORKSPACE, matchesGlob, shouldSkipEntry, toGuestPath } from "./gondolin-worker-paths.mjs";
+import { matchesGlob, shouldSkipEntry, toGuestPath } from "./gondolin-worker-paths.mjs";
 
 const DEFAULT_GREP_LIMIT = 100;
 const mimeType = (filePath) => {
@@ -25,15 +25,17 @@ export const writeOperations = (vm, cwd) => ({
 
 export const editOperations = (vm, cwd) => ({ ...readOperations(vm, cwd), ...writeOperations(vm, cwd) });
 
+const existsOperation = (vm, cwd) => async (filePath) => {
+  try {
+    await vm.fs.access(toGuestPath(cwd, filePath));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const lsOperations = (vm, cwd) => ({
-  exists: async (filePath) => {
-    try {
-      await vm.fs.access(toGuestPath(cwd, filePath));
-      return true;
-    } catch {
-      return false;
-    }
-  },
+  exists: existsOperation(vm, cwd),
   stat: (filePath) => vm.fs.stat(toGuestPath(cwd, filePath)),
   readdir: (dirPath) => vm.fs.listDir(toGuestPath(cwd, dirPath)),
 });
@@ -64,14 +66,7 @@ async function walk(vm, root, visit, signal) {
 }
 
 export const findOperations = (vm, cwd) => ({
-  exists: async (filePath) => {
-    try {
-      await vm.fs.access(toGuestPath(cwd, filePath));
-      return true;
-    } catch {
-      return false;
-    }
-  },
+  exists: existsOperation(vm, cwd),
   glob: async (pattern, searchPath, { limit }) => {
     const results = [];
     await walk(vm, toGuestPath(cwd, searchPath), async (guestPath, relativePath) => {
@@ -152,5 +147,3 @@ export async function executeGrep(vm, cwd, params, signal) {
     details: Object.keys(details).length ? details : undefined,
   };
 }
-
-export const workspace = GUEST_WORKSPACE;

@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { nixBinary } from "./nix-binary.mjs";
+import { chooseVmm } from "./guest-vmm.mjs";
+import { nixBinary } from "./armory-nix.mjs";
 
 const gondolinPackage = "@earendil-works/gondolin";
 const piCacheHome = () => join(homedir(), ".pi", "agent", "cache");
@@ -51,9 +52,11 @@ export async function preflightWorkerSandbox(config, dependencies = {}) {
   if (memoize && Date.now() - verifiedAt < VERIFIED_FOR_MS) return;
   const environment = dependencies.environment ?? process.env;
   environment.XDG_CACHE_HOME ??= gondolinCacheHome(environment);
-  const binary = requiredQemuBinary();
-  (dependencies.verifyQemu ?? verifyQemu)(binary);
-  (dependencies.verifyQemuImage ?? verifyQemuImage)();
+  // QEMU is only required when it is the chosen VMM; libkrun needs nothing installed.
+  if ((dependencies.vmm ?? chooseVmm()) === "qemu") {
+    (dependencies.verifyQemu ?? verifyQemu)(requiredQemuBinary());
+    (dependencies.verifyQemuImage ?? verifyQemuImage)();
+  }
   (dependencies.verifyNix ?? verifyNix)();
   try {
     const gondolin = dependencies.gondolin ?? (await import(gondolinPackage));

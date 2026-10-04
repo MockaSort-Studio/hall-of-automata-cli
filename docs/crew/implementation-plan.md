@@ -143,9 +143,15 @@ or QEMU state remains. Runtime tools are exposed by
     rejected.
 23. [x] **No separate `doctor`**: launch-time checks already report dependencies, Nix, the
     cache and the token, with a fallback; a second tool would be more code to drift.
-24. [ ] **Policy decision for a human:** active memory per worker is now QEMU's floor
-    (about 450-510 MB after use). Lowering it means sharing a VM across workers or running
-    read-only roles without one, both of which weaken isolation.
+24. [x] **Lighter VM: libkrun by default** where Gondolin ships its runner (macOS arm64,
+    Linux x64), QEMU as the fallback, `HALL_VMM` to force one: VM footprint 212 to 100 MB,
+    no QEMU install needed on those hosts. Measured against the OS footprint, not RSS.
+25. [x] **Compact the isolation layer**: 22 files to 14 (Nix helpers, credentials, guest runner
+    merged), dead modules removed.
+26. [ ] **Policy decision for a human:** an active sandboxed worker is about 350 MB (Pi about
+    200 MB, VM 100 MB). Going lower means sharing a VM across workers or running read-only roles
+    without one, which weakens isolation. The remaining cheaper lever is the sandboxed Pi
+    itself (about 80 MB above a host Pi), which is our extension and its imports.
 
 ## Deferred until after Crew release
 

@@ -3,9 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { fetchPublishedClosure } from "../../.pi/extensions/hall-crew/env-runtime/lib/published-closure.mjs";
-import { acquireNixGuestSuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/nix-guest-suite-acquisition.mjs";
-import { guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-system.mjs";
+import { acquireNixGuestSuite, fetchPublishedClosure, guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
 
 const cache = { substituter: "https://cache.example", publicKey: "k" };
 const root = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-suite";
