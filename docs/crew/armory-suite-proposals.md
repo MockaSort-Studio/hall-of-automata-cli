@@ -29,7 +29,30 @@ A wrapper that merely mirrors `bash tool args` fails all three tests.
 | 3 | **`dev/format`** (prettier) | `format_check`, `format_write` | `format:check` is a gate in this repo's `package.json`, and a sandboxed worker has no `node_modules` (hidden on purpose) so it cannot run it. Bundled into one runner with no network. | about 3 MB, bundled |
 | 4 | **`dev/json`** (jq) | `json_query` | Weak case: the guest already has `node` and `python3`. Worth it only for roles with no shell. | about 1 MB |
 
-Order: 1, then 2, then 3. Build 4 only when a bash-less role needs structured JSON.
+| 5 | **`ci/workflow-run`** (`act` in host mode) | `workflow_run` (workflow, job, event) returning per-step status and a bounded failed-step tail; `workflow_list` | Runs the repo's real workflows before a push. Measured below. | about 19 MB, pinned static binary (over the 10 MB checklist limit; needs an explicit exception) |
+
+Order: 1, then 2, then 5, then 3. Build 4 only when a bash-less role needs structured JSON.
+
+## `act` inside the microVM: measured
+
+An earlier version of this document rejected `act` as needing Docker. That was wrong: `act` has a
+host mode (`-P ubuntu-latest=-self-hosted`) that runs steps directly on the machine it is on, and
+here that machine is the worker's VM, which is already the isolation boundary. Containers inside it
+would be redundant, and are not available anyway: the guest has no container runtime, no mounted
+cgroups, and 86 MB of free disk.
+
+Run on libkrun (M1) with the pinned `act` 0.2.89 linux/arm64 binary (19 MB):
+
+| Run | Result |
+| --- | --- |
+| A three-step workflow (`run:` steps, `node`, `$GITHUB_WORKSPACE`) | Job succeeded |
+| This repo's real `ci.yml`, job `validate`, on a copy of the repo | Job succeeded, 56 + 10 + 5 checks pass, 3.9 s |
+
+Limits, so the tool is described honestly: the guest is Alpine/musl with Node 24, not an Ubuntu
+runner, so steps that assume `apt` or glibc tools fail; Docker-based actions and `services:`
+containers cannot run; third-party `uses:` actions need `github.com` in the suite's allowed hosts
+and were not tested; there are no secrets, so steps that need them fail by design. It is a fast
+pre-push check, not a replacement for CI.
 
 ## Deferred or rejected, with the trigger
 
@@ -38,7 +61,6 @@ Order: 1, then 2, then 3. Build 4 only when a bash-less role needs structured JS
 | TypeScript (`tsc`) | Defer | This repo has no `tsconfig` and no type-check gate. Build when a repo adds one. |
 | `rg` | Measure first | Pi's grep already runs through the VM filesystem. Count "command not found" bash turns in worker logs; build only if frequent. |
 | Workflow dispatch (trigger a run) | Defer | A mutation. Build after 1 and 2 prove value, behind an explicit grant. |
-| `act` (run workflows locally) | Reject | Needs Docker; a microVM has no nested container runtime. Test workflows with lint plus a real run on a branch. |
 | `git` in the guest | Reject | A worktree's `.git` points at a host path outside the mount; making it work breaks the isolation. Commits stay on the host. |
 | Project dependencies (`npm install`, `node_modules`) | Reject | Project state, not a tool; the npm cache was rejected for Env on the same ground. |
 | `shellcheck`, `yamllint` alone | Reject | actionlint covers workflow scripts and syntax; no other gate in CI. |
