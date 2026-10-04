@@ -41,7 +41,7 @@ export class MainComm {
 
   async startComm(actors = [], adapters = [], plan) {
     if (!this.comm) {
-      const { child, info } = await startServer(join(import.meta.dirname, "comm-server.mjs"), { adapters });
+      const { child, info } = await startServer(join(import.meta.dirname, "comm-server.mjs"), { adapters, hostPid: process.pid });
       this.commProcess = child;
       const { port, authToken } = info;
       this.commAuthToken = authToken;

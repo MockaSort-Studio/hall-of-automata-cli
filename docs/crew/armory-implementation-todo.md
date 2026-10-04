@@ -20,9 +20,8 @@ historical notes, not a second backlog.
 ## Immutable suite source identity
 
 - [x] Add explicit `native.output` to suite manifests and a root Armory flake.
-- [x] Resolve a catalog channel once through Nix to its immutable Git revision,
-  then derive suite flake locators from that revision, manifest path, closure,
-  and output.
+- [x] Resolve the catalog once to its immutable revision. (Superseded: the released
+  `artifacts.json` is now the only entrypoint; there is no flake path.)
 - [x] Record the resolved catalog revision in each launched Armory worker
   configuration before Pi starts.
 
@@ -83,20 +82,16 @@ historical notes, not a second backlog.
 - [x] Narrow operation grants per assignment. Each `tools` grant names an
   exact Armory suite and operations; reserved suite `system` narrows native
   role tools. Direct suite grants avoid reverse-searching operation ownership.
-- [~] Add per-worker credential leases. Raw policy credential variables are
-  removed before Pi starts; the worker receives an in-memory lease bound to
-  allowed hosts and revokes it on VM teardown. A renewable external credential
-  source/rotation service is still required; absent tokens remain
-  unauthenticated.
-- [~] Lifecycle now shuts workers down on `SIGTERM`/`SIGINT`, closes active
-  clients, and watches its Main owner PID. Unit coverage passes; a canonical
-  `start_crew` owner-death/QEMU-cleanup integration test remains.
-- Historical unresolved item (canonical plan): Profile the ~4.8 s GitHub guest `describe` path. Cached Nix realization
+- [x] Per-worker credential leases: the raw variable is removed before Pi starts, the worker
+  receives an in-memory lease bound to allowed hosts, revoked on exit. (Renewal and rotation: plan item 13.)
+- [x] Lifecycle and Comm servers shut down on `SIGTERM`/`SIGINT` and when their Main owner dies
+  (`parent-watch.mjs`, covered by unit tests; a real `start_crew` owner-death run is plan item 9).
+- Resolved (plan item 14): the ~4.8 s GitHub guest `describe` path. Cached Nix realization
   (~188 ms) and filtered VM creation (~43 ms) are not the startup bottleneck.
-- Historical unresolved item (canonical plan): Preserve and inspect leadless-audit worker event logs before cleanup.
+- Resolved: a failed launch archives worker evidence before rollback (`preserveEvidence`). Leadless-audit worker event logs.
   The first audit run had two failed agents (7/14/2 and 8/21/1
   turns/tool-calls/errors) but removal discarded detailed failure evidence.
-- Historical unresolved item (canonical plan): Add a canonical `start_crew` two-worker integration test. It must prove
+- Resolved by live runs (plan item 10): a canonical `start_crew` two-worker integration. It must prove
   guest proxy registration, shared immutable closure identity, distinct
   workspaces, Main isolation, and normal plus owner-death teardown.
 

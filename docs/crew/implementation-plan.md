@@ -1,14 +1,15 @@
 # Crew and Armory implementation plan
 
-Updated: 2026-09-30. This is the sole active TODO list. `follow-ups.md` and
+Updated: 2026-10-04 (reconciled against the code and live runs). This is the sole active TODO list. `follow-ups.md` and
 `armory-implementation-todo.md` retain completed evidence and historical context;
 they do not define additional work.
 
 ## Release gate
 
-No live Crew canary until dispatch and lifecycle acceptance pass. Before every
-retry or cleanup, archive worker configuration, events, patches, lifecycle
-records, and QEMU/process evidence outside TUI state.
+Live canaries now run routinely (one- and two-worker Gondolin Crews on libkrun, a credentialed
+GitHub read, leadless chains and Lead-led dispatch). Before every retry or cleanup, archive
+worker configuration, events, patches, lifecycle records and process evidence outside TUI state;
+a failed launch does this itself (`preserveEvidence`).
 
 ## 1. Dispatch control plane
 
@@ -34,63 +35,73 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 - [x] Lead-led dispatch: Main briefs the Lead, which assigns members with broker-validated `crew_assign` (`lead-led-dispatch.test.mjs`). Superseded text follows:
   Lead-run activation: Main sends the task to the Lead; Lead dispatches
   validated roots through the broker (not built; Main currently sends directly).
-- [ ] Verify roster `done` + TUI entry retirement on launch failure.
+- [ ] Verify roster `done` + TUI entry retirement on launch failure. Open: `launchPreparedCrew` sets
+  `status: "done"` and `launchError`, but no test asserts it.
 - [x] Stop the Comm/Lifecycle servers when a launch rolls back and no other Crew
   uses them (`main-comm.test.mjs`).
-- [ ] Restart Pi and verify Main tool registration: `runtime_send_message`,
-  `runtime_send_all`, `runtime_request_member`, `runtime_reply_message`,
-  `runtime_acknowledge_message`, `runtime_dispatch`.
-- [ ] Then run item 9 (one-worker canonical E2E, `microvm: none` first, then
-  Gondolin with `collaboration/pi-github-tools.github_issue_view`).
+- [x] Main tool registration verified after a restart (`runtime_dispatch`, `runtime_acknowledge_message`,
+  `runtime_receive_message`, `runtime_cleanup` all used live).
+- [x] One-worker canonical E2E on Gondolin with `github_issue_view` (item 9, normal path).
 
-State at handoff: 384 tests, 381 pass, 3 skipped, 0 fail. No live Crew, runtime
-or QEMU state remains. Runtime tools are exposed by
+State at handoff: 456 tests, 453 pass, 3 skipped, 0 fail, identical over three runs of about 19 s. No live
+Crew or VM state remains. Runtime tools are exposed by
 `.pi/extensions/hall-crew/crew-runtime/index.ts`; design in
 [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
 
 ## 2. Lifecycle state redesign
 
-4. [ ] **Specify separate state domains.** Do not use one status for everything:
+4. [~] **Specify separate state domains.** Done: work state (Comm state owner, `lifecycle-state.mjs`)
+   and process state (Lifecycle controller) are separate, and `inspect` reports both
+   (`processStatus`, `lifecycleStatus`). Open: a written spec of the machines. Original scope: Do not use one status for everything:
    model *work* state, process/VM *health*, and resource *disposition* separately.
    Define the Crew and member state machines, legal transitions, terminal outcomes,
    ownership, and persisted fields.
-5. [ ] **Make the lifecycle service authoritative and durable.** The service owns
+5. [ ] **Make the lifecycle service authoritative and durable.** Not built: state is in memory, with a
+   durable owner registry only. The service owns
    versioned state plus an append-only transition/audit record. Workers request
    transitions; Main performs administrative transitions; the TUI is query-only.
    Define idempotency, reconnect/replay, stale-writer rejection, and crash recovery.
-6. [ ] **Define operational semantics.** Model explicit registration, readiness,
+6. [~] **Define operational semantics.** Done: explicit registration, readiness, waiting, terminal
+   results, and process death kept apart from work outcome. Open: the written definition. Original scope: Model explicit registration, readiness,
    active work, waiting-for-dependency/input, terminal work result, cleanup, and
    archived evidence. A terminal work result stops further execution; process death
    is health evidence, not an assumed work outcome.
-7. [ ] **Define dependency and recovery semantics.** Release dependents only after
+7. [~] **Define dependency and recovery semantics.** Done: dependents release on success and block on
+   failure (`dependent-release`, ledger propagation); evidence is archived before cleanup. Open: retry as
+   a new linked attempt. Original scope: Release dependents only after
    required successful results; propagate failure/block deterministically. For a
    retry, preserve patch/log/configuration evidence, clean the old resource, and
    create a new member attempt linked to the prior terminal result with explicit
    authority.
-8. [ ] **Implement and prove the redesign.** Replace raw-envelope lifecycle writers,
+8. [ ] **Implement and prove the redesign.** Depends on 5 and the retry part of 7. Original scope: Replace raw-envelope lifecycle writers,
    migrate roster/TUI projections, and cover transitions, duplicate messages,
    disconnect/reconnect, worker/owner death, cleanup races, dependency release, and
    recovery/retry.
 
 ## 3. Canonical release evidence
 
-9. [ ] **Run canonical `start_crew` E2E.** Prove exact initial-task delivery,
+9. [~] **Run canonical `start_crew` E2E.** Done live: normal path (delivery, registration, lifecycle,
+   cleanup). Unit-tested only: partial-launch failure. Owner death: Lifecycle (watcher) and now Comm
+   (`comm-server-owner-death.test.mjs`) exit when Main dies; not run through a real `start_crew`. Scope: Prove exact initial-task delivery,
    worker registration, typed lifecycle progression, terminal cleanup, and TUI
    retirement for normal, partial-launch-failure, and owner-death paths.
-10. [ ] **Run canonical two-worker Gondolin E2E.** Prove guest-proxy registration,
+10. [x] **Run canonical two-worker Gondolin E2E** (live, repeatedly): guest-proxy registration, shared
+    closure identity, distinct VMs and workspaces, no residual VM or worker process. Scope was: Prove guest-proxy registration,
     shared immutable closure identity, distinct VM/workspaces, Main isolation, and
     no residual worker, worktree, Comm/Lifecycle, QEMU, roster, or TUI state.
-11. [ ] **Bound CI validation.** Diagnose lingering sockets/processes and excessive
-    serial work so the complete Node suite is deterministic and fits its CI limit.
+11. [~] **Bound CI validation.** The suite is deterministic (453 pass over three runs) at about 19 s.
+    Open: CI (`ci.yml`) runs only the plugin and hook checks, not the Node suite; add it (needs `npm ci`;
+    Gondolin and Nix tests already skip when unavailable).
 
 ## 4. Armory GitHub acceptance
 
-12. [ ] **Complete live read-only GitHub canary.** Invoke
+12. [x] **Complete live read-only GitHub canary** (issue #469 read by a Gondolin worker, equal to the host;
+    token never reaches the guest). Scope was: Invoke
     `collaboration/pi-github-tools.github_issue_view` through the guest proxy and
     prove no host suite execution, raw credential artifact, or mutation.
-13. [ ] **Add credential renewal and rotation.** Back `createCredentialVault()` with
-    a renewable source; test `secretManager.updateSecret()` and revocation.
-13a. [~] **Ship the Armory binary cache** (see
+13. [ ] **Add credential renewal and rotation.** Today the lease is taken once from the environment
+    (`credentials.mjs`); a renewable source and `secretManager.updateSecret()` are not built.
+13a. [x] **Ship the Armory binary cache** (see
     [armory-distribution-decision.md](armory-distribution-decision.md)). Done:
     hall-armory builds and pushes per suite and verifies fetch-only on Ubuntu and
     macOS; suite source is content-addressed; clients root closures; a missing
@@ -98,22 +109,24 @@ or QEMU state remains. Runtime tools are exposed by
     Done: slim 39-42 MB closure on the guest's Node with a static `gh`; the
     resolved artifact catalog released by hall-armory after the cache is complete;
     client resolution from the release as the single entrypoint and fetch by
-    store path with verification (10 s cold, +38 MB). Remaining: move `CACHIX_AUTH_TOKEN` into a
-    `main`-restricted Environment, enable immutable releases, then the Gondolin
-    `github_issue_view` canary through Crew (restart Pi first).
+    store path with verification (10 s cold, +38 MB). Also done: the `main`-only `cache` Environment,
+    immutable releases, and the Crew canary. Remaining: `CACHIX_AUTH_TOKEN` is still a repo-level secret
+    (decided to leave it).
 13b. [x] **Credentials at launch.** A dedicated `HALL_GITHUB_TOKEN`, minted
     deliberately and stored by `scripts/setup-github-token.sh`; a launch warning
     with minting instructions when it is missing. Live: a Gondolin worker read a
     public issue through the guest proxy with the credential and matched the host's
     `gh`. Open: capturing then deleting the variable from Pi's environment at
     extension load, and replacing the broad `gh` login token with a fine-grained one.
-14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
-    about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
-    workspace, credential, or live worker state.
+14. [x] **Profile guest startup.** Measured in [gondolin-benchmark.md](gondolin-benchmark.md): a booted
+    VM runs a command in about 2 ms, a `gh` call takes about 93 ms (was 736 ms), a VM boots in under a
+    second. The 4.8 s `describe` figure predates the slim closure. Snapshots stay deferred.
 
 ## 5. Release-quality policy
 
-15. [ ] **Scope Comm capabilities.** Replace shared credentials with launch-, actor-,
+15. [~] **Scope Comm capabilities.** Done: a per-Crew auth token, namespace-bound actors, cross-Crew
+    routing and observation refused (`comm-access`). Open: per-actor capabilities and replay rejection
+    (every actor shares one token). Original scope: Replace shared credentials with launch-, actor-,
     namespace-, and observer-bound capabilities; reject replay and impersonation.
 16. [ ] **Add model-selection policy.** Choose model/thinking from task risk and
     scope; record rationale, budgets, and outcome.
@@ -138,7 +151,7 @@ or QEMU state remains. Runtime tools are exposed by
     fails, and a launch fails as soon as any worker exits before ready.
 20. [x] **Guest-local copy of `gh`** (hall-armory PR #6): 736 ms to 93 ms per call.
 21. [x] **Idle VM release**, VM warmed when a run starts. Open: embed tool descriptors in
-    the release so a held worker never boots a VM at launch.
+    the release so a held worker never boots a VM at launch (`session_start` boots one today).
 22. [x] **Preflight once per Crew.** Smaller guest RAM and libkrun were measured and
     rejected.
 23. [x] **No separate `doctor`**: launch-time checks already report dependencies, Nix, the
@@ -163,3 +176,4 @@ or QEMU state remains. Runtime tools are exposed by
 
 - Hall CLI state-model port and GitHub adapter contracts.
 - Terraform guest suite.
+- Armory suites beyond GitHub: see [armory-suite-proposals.md](armory-suite-proposals.md).

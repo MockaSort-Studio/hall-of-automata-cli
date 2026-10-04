@@ -1,44 +1,39 @@
 # Armory suite inventory
 
-Hall Armory owns catalog manifests and suite source. Hall CLI owns Crew, Env,
-and the generic host proxy. An Armory suite is a guest execution artifact, not
-a host Pi extension.
+Hall Armory owns catalog manifests and suite source. Hall CLI owns Crew, Env, and the generic host
+proxy. An Armory suite is a guest execution artifact, not a host Pi extension. The released
+`artifacts.json` is the only way a client learns of a suite
+([armory-distribution-decision.md](armory-distribution-decision.md)).
 
 ## Suite shape
 
 ```text
-suite source + manifest + locked Nix flake
-  -> guest extension implementation/runner
-  -> guest dependencies
-  -> native tool closures
-  -> operation descriptors
+suite source + manifest -> esbuild runner bundle + pinned native tool, on the guest's Node
+  -> immutable Nix closure, built and cached by hall-armory CI
+  -> released catalog (store paths, NAR hashes)
+  -> mounted read-only in the worker's own VM; operations described by the guest
+  -> host Pi registers only the approved descriptors as generic proxies
 ```
 
-The host Pi worker receives only approved descriptors and generic proxy
-closures. It does not import the suite implementation or native binary.
+The host Pi worker never imports a suite or runs its binary.
 
-## GitHub
+## Suites
 
-`collaboration/github` currently has a locked Nix flake that builds `gh` 2.101
-for Linux and a released extension package. The Nix closure mounts and executes
-in Gondolin successfully. The flake does not yet build the complete guest
-GitHub extension runner; therefore it is not yet an Env-activated suite.
-
-`gh` is not bytes in the Gondolin root image. It is an immutable Nix closure
-mounted only for worker profiles that select the GitHub suite.
+| Suite | Tools | Closure | Notes |
+| --- | --- | --- | --- |
+| `collaboration/pi-github-tools` | repository, issues, pull requests, discussions, projects, labels | 39 MB aarch64 / 42 MB x86_64, 2 store paths | Static `gh`; the credential is `HALL_GITHUB_TOKEN`, seen by the guest only as a placeholder. |
 
 ## Status
 
 | Capability | Status |
 | --- | --- |
-| Crew `actor.tools` profile record | Implemented |
-| Hall Armory locked Nix suite flake | Implemented for GitHub `gh` |
-| Nix closure build, exact-path mount, guest `gh` smoke | Proven locally |
-| Host npm/package cache for Env | Explicitly rejected |
-| Guest suite runner/descriptor protocol | Not implemented |
-| Nix-built guest extension bundle/dependencies | Not implemented |
-| Per-worker generic Pi proxy registration | Not implemented |
-| Crew end-to-end guest suite invocation | Not implemented |
+| Per-worker `actor.tools` profile and suite grants | Implemented |
+| Locked Nix suite build, cache, verified fetch | Implemented (Ubuntu and macOS fetch-only CI) |
+| Guest runner (`describe` / `invoke`) and per-worker proxy registration | Implemented |
+| Crew end-to-end guest suite invocation | Implemented and live-verified |
+| Host npm/package cache for Env | Rejected |
 | VM snapshot cache | Deferred |
+| Terraform suite | Deferred |
+| Further suites | [armory-suite-proposals.md](armory-suite-proposals.md) |
 
 See `microvm-armory-design.md` for the canonical model.

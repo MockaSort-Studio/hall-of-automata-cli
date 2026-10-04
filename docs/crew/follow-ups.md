@@ -208,7 +208,7 @@ below are historical notes, not a second backlog.
       the existing kickoff handling. Tracked:
       [#462](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/462).
 - [x] Wire a live `CommController`/dependency-ledger observer into the dashboard's render
-      path. `CommController` gained a `comm.observe_raw` WS method (`comm-raw-observer-sockets.mjs`)
+      path. `CommController` gained a `comm.observe_raw` WS method (now in `comm-controller-observers.mjs`)
       and `Runtime.observeRawComm()`; `monitor.ts` now keeps one live ledger
       (`monitor-live-ledger.mjs`, wired via `attachRawEnvelopeObserver`) per active Crew run
       instead of `planRowsFor` reseeding a fresh one on every dashboard open, so the Plan tab

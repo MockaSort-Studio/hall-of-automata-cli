@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import { LifecycleController } from "./lifecycle-controller.mjs";
+import { watchParent } from "./parent-watch.mjs";
 
 const config = JSON.parse(process.argv[2]);
 const controller = new LifecycleController(config);
@@ -44,19 +45,7 @@ const shutdown = () => {
   })();
   return stopping;
 };
-const parentIsAlive = () => {
-  if (!config.hostPid) return true;
-  try {
-    process.kill(config.hostPid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
-const parentWatch = setInterval(() => {
-  if (!parentIsAlive()) void shutdown();
-}, 1_000);
-parentWatch.unref();
+watchParent(config.hostPid, () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 process.once("SIGINT", () => void shutdown());
 process.stdout.write(`${JSON.stringify({ port: server.address().port })}\n`);
