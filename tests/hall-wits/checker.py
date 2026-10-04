@@ -140,7 +140,8 @@ def chk_eval_dispatch_plan(run_dir, exp):
     if not os.path.exists(path):
         return CheckResult("eval_dispatch_plan", False, "file not found")
     try:
-        plan = json.loads(open(path).read())
+        with open(path) as f:
+            plan = json.load(f)
     except json.JSONDecodeError as e:
         return CheckResult("eval_dispatch_plan", False, f"invalid JSON: {e}")
     missing = [f for f in exp["required_fields"] if f not in plan]
