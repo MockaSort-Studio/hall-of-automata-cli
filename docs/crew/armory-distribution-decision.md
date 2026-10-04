@@ -104,29 +104,29 @@ and then after a measured spike, not before.
 
 - CI: each system builds in about 30 s. The fetch-only verify (`--max-jobs 0`)
   passes on Ubuntu and on a macOS runner, so Macs substitute without a builder.
-- Cold-start profile (Apple silicon, empty store, a slow network that day, so
-  read ratios, not seconds; an earlier faster run took 3 min in total):
-
-  | Phase | Time | Store growth |
-  | --- | --- | --- |
-  | Resolve the catalog (`flake metadata`) | 3 s | 0 |
-  | Evaluate the suite flake | 716 s | +341 MB (nixpkgs source, 209 MB archive) |
-  | Fetch the closure (67 paths, 86 MiB download) | 1278 s | +352 MB |
-
-  Peak 848 MB = Nix install 155 + nixpkgs source 341 + closure 352. Evaluation is
-  about a third of the time and half of the disk growth, and none of it is
-  needed to run the suite. The nixpkgs source is an unrooted store path, so a
-  later collection removes it and every cold start fetches it again.
-- Nearly all closure paths come from cache.nixos.org (node, glibc, gh, libraries);
-  the Armory cache supplies only the small runner and wrapper.
+- Slim closure (hall-armory PR #3): the GitHub suite is the esbuild runner
+  bundle plus the upstream static `gh` (sha256-pinned), run on the guest's own
+  Node. Closure: 39 MB on aarch64 and 42 MB on x86_64, 2 paths, down from 352 MB
+  and 67 paths. CI checks it on both architectures: size and forbidden-runtime
+  guard, and `describe` plus `gh --version` inside `node:24-alpine`.
+- Local test (Apple silicon): the cached closure mounted through the project's
+  filtered store layer into a real Gondolin guest ran `describe` and `gh`; only
+  the 2 closure paths were visible.
+- Cold start, measured separately. Fetching the closure from the cache with
+  `nix copy`, no evaluation: 9 s, +37 MB. Flake evaluation (`nix build` of the
+  `github:` locator) with the closure already local: 44 s, +330 MB of nixpkgs
+  source. Evaluation is now about 80% of the time and 90% of the bytes of a cold
+  start and is not needed to run the suite. The earlier 352 MB closure plus the
+  341 MB nixpkgs source gave the 848 MB peak seen before the slimming.
 - Client, warm: 1.4 s. Each closure is rooted by `--out-link` under
   `~/.cache/hall/armory/roots/<suite>-<system>` (a newer revision overwrites
   the link). The link must be created in place; moving it unregisters the root.
-- The closure is larger than the work needs: it ships Node 24.20 (nodejs-slim
-  90 MB), glibc 47, icu 42, bash and several `-dev` outputs (headers) because
-  the wrapper script and nixpkgs `gh` pull them in. The Gondolin guest image
-  already provides Alpine (musl) with Node v24.14.1, `sh` and `curl`; it lacks
-  `gh`. A closure of the runner bundle plus a static `gh` would be about 45 MB.
+- Known behaviour: substitution queries go through the Nix daemon, which caches a
+  miss for an hour. A client that looked up a revision before CI pushed it keeps
+  planning a local build (and fetching build inputs) until that entry expires,
+  and the daemon's cache is root-owned. `nix copy --from <cache> <path>` bypasses
+  it. This is one more reason to resolve published store paths instead of
+  evaluating.
 - Building instead would need the same runtime plus build tools (a CI verify log
   showed 126 paths, 260 MiB download and 802 MiB unpacked) and a compile.
 
