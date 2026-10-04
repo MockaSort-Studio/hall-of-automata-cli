@@ -96,6 +96,10 @@ dependent to `blocked` itself, so those members are never released and the Crew
 still reaches a terminal state and reports it. A prerequisite that finished before
 the subscription is covered by an initial snapshot.
 
+No role starts a turn at launch. A Lead once did (`initialTurn: startup`), which
+let a Lead with dependencies run its task text before dispatch and its
+prerequisites; every role now waits for its first delivery.
+
 A Lead is an ordinary member for dispatch: a root receives its task at once, a
 Lead that depends on its specialists receives its task when they are done. This
 holds for leadless Crews unchanged. Lead-run activation (Main briefs only the Lead,

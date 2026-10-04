@@ -98,7 +98,9 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
     resident: true,
-    initialTurn: actor.role === "lead" ? "startup" : "first-delivery",
+    // No role starts a turn at launch: every task, a Lead's included, arrives through
+    // dispatch (roots) or dependent release, so a Lead cannot run ahead of its dependencies.
+    initialTurn: "first-delivery",
     role: actor.role,
   }));
   const root = join(ctx.cwd, dirname(paths.roster));

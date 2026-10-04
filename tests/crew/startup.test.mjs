@@ -209,3 +209,28 @@ test("prepareCrew broadcasts one manifest but gives specialists no direct first-
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("no role, including a Lead, starts a turn at launch; every task arrives through dispatch", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      {
+        task: "Integrate",
+        members: [
+          { name: "old-major", role: "lead", dependsOn: ["developer-snowball-00"], task: "Integrate after snowball" },
+          { name: "snowball", role: "developer", task: "Build" },
+        ],
+      },
+      { cwd },
+      ".pi",
+    );
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.deepEqual(config.agents.map((agent) => [agent.role, agent.initialTurn, agent.delivery]), [
+      ["lead", "first-delivery", undefined],
+      ["developer", "first-delivery", undefined],
+    ]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
