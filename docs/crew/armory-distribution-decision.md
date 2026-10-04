@@ -130,6 +130,22 @@ Measured from a true cold start (Apple silicon): 0.7 s to resolve the release,
 9 s to fetch, +38 MB in the store, in total 10 s, against 3 min and about 690 MB
 by evaluating the flake. The closure survives a garbage collection.
 
+## Credentials
+
+The GitHub suite's `gh` refuses to run without a token, even for public data. The
+host-owned policy (`credential-policy.mjs`) sources it from the `GITHUB_TOKEN`
+environment variable of the Pi process; the worker parent leases it in memory
+and the guest sees only a placeholder that Gondolin substitutes at
+`api.github.com` and `github.com`. Without the variable, `github_*` operations in
+a Gondolin worker fail with `gh`'s "gh auth login" message (found by the first
+live canary). The vault deliberately does not read `gh`'s keyring token: that
+token usually carries broad scopes, so handing it to workers must be an explicit
+choice. Prefer a fine-grained token scoped to the repositories a Crew needs:
+
+```bash
+GITHUB_TOKEN=<fine-grained token> pi
+```
+
 ## Cache policy
 
 - Only CI pushes (hall-armory `packages.yml`, per affected suite, after tests,
