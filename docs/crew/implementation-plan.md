@@ -103,9 +103,10 @@ or QEMU state remains. Runtime tools are exposed by
     `github_issue_view` canary through Crew (restart Pi first).
 13b. [x] **Credentials at launch.** A dedicated `HALL_GITHUB_TOKEN`, minted
     deliberately and stored by `scripts/setup-github-token.sh`; a launch warning
-    with minting instructions when it is missing. Open: a credentialed
-    `github_issue_view` canary through a Crew, and capturing then deleting the
-    variable from Pi's environment at extension load.
+    with minting instructions when it is missing. Live: a Gondolin worker read a
+    public issue through the guest proxy with the credential and matched the host's
+    `gh`. Open: capturing then deleting the variable from Pi's environment at
+    extension load, and replacing the broad `gh` login token with a fine-grained one.
 14. [ ] **Profile guest startup.** Measure cold/warm GitHub `describe` (currently
     about 4.8 s) and assess safe profile-cache/snapshot reuse without caching a
     workspace, credential, or live worker state.
