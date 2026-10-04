@@ -46,6 +46,13 @@ const args = [
   "--mode",
   "rpc",
   "--no-session",
+  // A worker must not load the project-local files in its worktree: Pi would
+  // auto-discover the worktree's copy of .pi/extensions and load the whole Crew
+  // extension (monitor, launch tools, runtime tools) that no worker can use, costing
+  // about 0.3 s and 50 MB per worker. User-level extensions (for example provider
+  // authentication) and the explicit --extension paths below still load, which is why
+  // this is --no-approve and not --no-extensions.
+  "--no-approve",
   "--tools",
   tools.join(","),
   "--extension",
@@ -56,11 +63,6 @@ if (config.sandbox?.kind === "gondolin") {
     "--extension",
     resolve(config.extensionCwd, ".pi", "extensions", "hall-crew", "env-runtime", "lib", "worker-gondolin-extension.mjs"),
   );
-  if (config.armory)
-    args.push(
-      "--extension",
-      resolve(config.extensionCwd, ".pi", "extensions", "hall-crew", "env-runtime", "lib", "armory-worker-proxy-extension.mjs"),
-    );
 }
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));
 if (config.model) args.push("--model", config.model);

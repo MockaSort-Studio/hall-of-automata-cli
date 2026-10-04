@@ -1,58 +1,37 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { resolveLiveArmorySuite, resolveLiveArmoryToolSuites } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-manifest.mjs";
+import { validateArmorySuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-manifest.mjs";
 
-const catalogUrl = "https://example.test/manifest.json";
-const suiteUrl = "https://example.test/collaboration/github/manifest.json";
-const catalog = {
-  format: "hall.armory/v1",
-  lockers: [{ name: "collaboration", suites: [{ extension: "github", manifest: "collaboration/github/manifest.json" }] }],
-};
-const suite = {
+const manifest = () => ({
   format: "hall.armory-suite/v1",
   extension: "github",
-  package: {
-    name: "@mockasort-studio/pi-github-tools",
-    version: "0.1.2",
-    integrity: "sha512-test",
-  },
+  package: { name: "@mockasort-studio/pi-github-tools", version: "0.1.2", integrity: "sha512-test" },
   native: { closure: ".", output: "guest" },
+  network: { allowedHosts: ["api.github.com"], credentials: [{ environment: "GITHUB_TOKEN", hosts: ["api.github.com"] }] },
   tools: ["github_issue_view", "github_pull_request_view"],
-};
-
-function fetcher(documents) {
-  return async (url) => ({ ok: true, status: 200, json: async () => documents[url] });
-}
-
-test("live Armory resolution follows the catalog suite path and narrows tools", async () => {
-  const resolved = await resolveLiveArmorySuite({
-    suite: "collaboration/github",
-    tools: ["github_issue_view"],
-    catalogUrl,
-    fetcher: fetcher({ [catalogUrl]: catalog, [suiteUrl]: suite }),
-  });
-  assert.equal(resolved.manifestUrl, suiteUrl);
-  assert.equal(resolved.suite.package.name, "@mockasort-studio/pi-github-tools");
-  assert.deepEqual(resolved.suite.tools, ["github_issue_view"]);
 });
 
-test("live Armory profile resolution groups only requested catalog operations", async () => {
-  const suites = await resolveLiveArmoryToolSuites({
-    tools: ["read", "github_pull_request_view"],
-    catalogUrl,
-    fetcher: fetcher({ [catalogUrl]: catalog, [suiteUrl]: suite }),
-  });
-  assert.deepEqual(suites, [{ suite: "collaboration/github", tools: ["github_pull_request_view"] }]);
+test("a requested subset narrows the suite's operations", () => {
+  const suite = validateArmorySuite(manifest(), ["github_issue_view"]);
+  assert.deepEqual(suite.tools, ["github_issue_view"]);
+  assert.deepEqual(suite.native, { closure: ".", output: "guest" });
 });
 
-test("live Armory resolution rejects tools absent from the suite allowlist", async () => {
-  await assert.rejects(
-    resolveLiveArmorySuite({
-      suite: "collaboration/github",
-      tools: ["github_not_real"],
-      catalogUrl,
-      fetcher: fetcher({ [catalogUrl]: catalog, [suiteUrl]: suite }),
-    }),
-    /undeclared tools/,
-  );
+test("no request means the suite's whole declared allowlist", () => {
+  assert.deepEqual(validateArmorySuite(manifest()).tools, ["github_issue_view", "github_pull_request_view"]);
+});
+
+test("an undeclared operation is refused", () => {
+  assert.throws(() => validateArmorySuite(manifest(), ["github_repo_delete"]), /undeclared tools/);
+});
+
+test("a wrong format, a missing output, or a malformed tool list is refused", () => {
+  assert.throws(() => validateArmorySuite({ ...manifest(), format: "other" }), /Unsupported Armory suite manifest format/);
+  assert.throws(() => validateArmorySuite({ ...manifest(), native: { closure: "." } }), /native Nix output is required/);
+  assert.throws(() => validateArmorySuite({ ...manifest(), tools: ["ok", ""] }), /invalid tool allowlist/);
+});
+
+test("a malformed network policy is refused", () => {
+  assert.throws(() => validateArmorySuite({ ...manifest(), network: { allowedHosts: "api.github.com" } }), /network policy is invalid/);
+  assert.throws(() => validateArmorySuite({ ...manifest(), network: { allowedHosts: [], credentials: [{ environment: "", hosts: [] }] } }), /credential policy is invalid/);
 });

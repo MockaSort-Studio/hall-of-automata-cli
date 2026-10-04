@@ -1,4 +1,4 @@
-export class GithubAdapterError extends Error {
+class GithubAdapterError extends Error {
   constructor(message, { cause, status, operation, resource } = {}) {
     super(message, { cause });
     this.name = "GithubAdapterError";

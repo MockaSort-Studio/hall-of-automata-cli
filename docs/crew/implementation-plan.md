@@ -134,15 +134,18 @@ or QEMU state remains. Runtime tools are exposed by
 
 ## 7. Gondolin hardening (from [gondolin-benchmark.md](gondolin-benchmark.md))
 
-19. [ ] **Fail closed.** A worker with a sandbox must exit, and the launch fail fast, when
-    its sandbox extension fails to load; today it reports ready and keeps host built-ins.
-20. [ ] **Guest-local copy of large closure binaries** on first use, from the suite wrapper
-    (`gh` 736 ms to 93 ms per call).
-21. [ ] **Boot the VM on first use**, not at worker start: embed tool descriptors in the
-    release catalog so idle Armory workers hold no VM.
-22. [ ] **Right-size the guest** (1 GiB allotted, 290-510 MB used) and run preflight once
-    per Crew.
-23. [ ] **`doctor` check** for dependencies, Nix, the cache and the token.
+19. [x] **Fail closed at launch.** The sandbox extension ends the worker when its setup
+    fails, and a launch fails as soon as any worker exits before ready.
+20. [x] **Guest-local copy of `gh`** (hall-armory PR #6): 736 ms to 93 ms per call.
+21. [x] **Idle VM release**, VM warmed when a run starts. Open: embed tool descriptors in
+    the release so a held worker never boots a VM at launch.
+22. [x] **Preflight once per Crew.** Smaller guest RAM and libkrun were measured and
+    rejected.
+23. [x] **No separate `doctor`**: launch-time checks already report dependencies, Nix, the
+    cache and the token, with a fallback; a second tool would be more code to drift.
+24. [ ] **Policy decision for a human:** active memory per worker is now QEMU's floor
+    (about 450-510 MB after use). Lowering it means sharing a VM across workers or running
+    read-only roles without one, both of which weaken isolation.
 
 ## Deferred until after Crew release
 

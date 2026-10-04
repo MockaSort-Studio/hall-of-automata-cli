@@ -35,10 +35,12 @@ await rt.launchCrew(agents, [], { namespace, members: handles.map((handle) => ({
 const readyMs = Math.round(performance.now() - t0);
 await sleep(4000);
 const idle = tree();
+// Workers that hold a VM while idle should give it back; sample again after the release window.
+const idleAfterRelease = mode === "armory" ? (await sleep(26_000), tree()) : undefined;
 const worktreeMB = handles.reduce((s, h) => s + du(`${cwd}/.pi/runtime/runs/${namespace}-${h}`), 0);
 const t1 = performance.now();
 await rt.stop();
 const stopMs = Math.round(performance.now() - t1);
 await sleep(1500);
 const after = tree();
-console.log(JSON.stringify({ mode, n, ready_ms: readyMs, ready_per_worker_ms: Math.round(readyMs / n), idle, diskPerWorkerMB: Math.round(worktreeMB / n), stop_ms: stopMs, residual_procs: after.procs, residual_qemu: after.count.qemu }));
+console.log(JSON.stringify({ mode, n, ready_ms: readyMs, ready_per_worker_ms: Math.round(readyMs / n), idle, idleAfterRelease: idleAfterRelease && { totalMB: idleAfterRelease.totalMB, qemu: idleAfterRelease.count.qemu }, diskPerWorkerMB: Math.round(worktreeMB / n), stop_ms: stopMs, residual_procs: after.procs, residual_qemu: after.count.qemu }));

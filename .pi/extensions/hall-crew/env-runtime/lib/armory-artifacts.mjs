@@ -1,7 +1,7 @@
 import { armoryCache } from "./armory-cache.mjs";
 
-export const ARMORY_REPOSITORY = "MockaSort-Studio/hall-armory";
-export const LATEST_RELEASE_URL = `https://github.com/${ARMORY_REPOSITORY}/releases/latest/download/artifacts.json`;
+const ARMORY_REPOSITORY = "MockaSort-Studio/hall-armory";
+const LATEST_RELEASE_URL = `https://github.com/${ARMORY_REPOSITORY}/releases/latest/download/artifacts.json`;
 export const pinnedReleaseUrl = (revision) =>
   `https://github.com/${ARMORY_REPOSITORY}/releases/download/armory-${revision}/artifacts.json`;
 

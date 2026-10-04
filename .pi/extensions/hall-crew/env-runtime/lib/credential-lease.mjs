@@ -1,15 +1,4 @@
-import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-
-export function issueCredentialLease(network, environment = process.env) {
-  const credentials = {};
-  for (const policy of network?.credentials ?? []) {
-    const value = environment[policy.environment];
-    delete environment[policy.environment];
-    if (value) credentials[policy.environment] = { value, hosts: policy.hosts };
-  }
-  return { id: randomUUID(), credentials };
-}
 
 export function consumeCredentialLease(fd = 3) {
   let lease;

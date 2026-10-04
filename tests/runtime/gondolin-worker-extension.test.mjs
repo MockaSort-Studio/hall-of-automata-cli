@@ -36,9 +36,8 @@ test("the Gondolin extension routes every workspace tool through one hidden work
   assert.match(source, /await activeVm\.close\(\)/);
 });
 
-test("the active VM is exposed module-level, surviving a same-process reload like the Comm connection", () => {
+test("VM state is module-level, so a same-process reload never boots a second VM", () => {
   const source = readFileSync(extension, "utf8");
-  assert.match(source, /export function getActiveGondolinVm\(\) \{\n  return vm;\n\}/);
   const vmDeclaredAt = source.indexOf("let vm;");
   const factoryDeclaredAt = source.indexOf("export default function gondolinWorkerExtension");
   assert.ok(vmDeclaredAt >= 0 && vmDeclaredAt < factoryDeclaredAt, "vm state must be module-level, not per-invocation");

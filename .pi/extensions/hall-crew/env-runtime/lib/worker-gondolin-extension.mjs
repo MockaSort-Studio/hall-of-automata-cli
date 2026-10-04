@@ -21,19 +21,51 @@ import { bashOperations } from "./gondolin-worker-shell.mjs";
 import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
 import { consumeCredentialLease, revokeCredentialLease } from "./credential-lease.mjs";
+import { lazyGuest, registerArmoryWorkerProxies } from "./armory-worker-proxies.mjs";
 
-// A resident worker's own new_session call (see worker.mjs) fires
-// session_shutdown -> reload -> session_start again in this same process,
-// re-invoking this factory with a fresh `pi`. `vm`/`starting` are
-// module-level, not per-invocation, so ensureVm() stays idempotent and
-// getActiveGondolinVm() always returns the one real VM for this worker's
-// whole lifetime instead of a second invocation racing its own separate,
-// orphaned VM boot -- exactly the class of bug fixed in
-// worker-comm-extension.mjs for the Comm connection.
+// A resident worker's own new_session call fires session_shutdown -> reload ->
+// session_start again in this process, re-invoking this factory with a fresh `pi`.
+// `vm`/`starting` are module-level so ensureVm() stays idempotent and never races a
+// second, orphaned boot (the same class of bug fixed in worker-comm-extension.mjs).
 let vm;
 let starting;
 let secretManager;
 const credentialLease = consumeCredentialLease();
+
+// A VM holds 300-450 MB of host memory, so it is released after IDLE_MS of idleness
+// (never mid-run or mid-tool) and booted again, about 0.8 s, on the next tool call.
+// Workspace files live on the host and the credential lease outlives the VM, so
+// nothing is lost. 0 disables release.
+const IDLE_MS = Number(process.env.HALL_VM_IDLE_MS ?? 20_000);
+let idleTimer;
+let inflight = 0;
+let warmSuites;
+
+async function releaseVm() {
+  clearTimeout(idleTimer);
+  const activeVm = vm ?? (await starting?.catch(() => undefined));
+  vm = undefined;
+  starting = undefined;
+  if (activeVm) await activeVm.close();
+  for (const { name } of secretManager?.listSecrets() ?? []) secretManager.deleteSecret(name);
+  secretManager = undefined;
+}
+
+function armIdleRelease() {
+  clearTimeout(idleTimer);
+  if (!(IDLE_MS > 0) || !(vm || starting)) return;
+  idleTimer = setTimeout(() => inflight === 0 && releaseVm().catch(() => undefined), IDLE_MS);
+  idleTimer.unref();
+}
+
+async function withVm(localCwd, use) {
+  inflight += 1;
+  try {
+    return await use(await ensureVm(localCwd));
+  } finally {
+    inflight -= 1;
+  }
+}
 
 async function startVm(localCwd) {
   const armory = readWorkerArmoryConfig();
@@ -63,24 +95,10 @@ async function startVm(localCwd) {
 }
 
 async function ensureVm(localCwd) {
+  clearTimeout(idleTimer);
   if (vm) return vm;
   if (!starting) starting = startVm(localCwd).finally(() => (starting = undefined));
   return starting;
-}
-
-/**
- * The active Gondolin VM for this worker process, if a sandboxed session has
- * started one. Other extensions (for example an Armory guest-only tool
- * adapter) call this to route their own execution into the same guest
- * instead of the host, without needing to manage VM lifecycle themselves.
- * Returns undefined outside a Gondolin-sandboxed worker.
- */
-export function getActiveGondolinVm() {
-  return vm;
-}
-
-export function ensureActiveGondolinVm() {
-  return ensureVm(process.cwd());
 }
 
 export default function gondolinWorkerExtension(pi) {
@@ -96,21 +114,40 @@ export default function gondolinWorkerExtension(pi) {
   const routed = (local, createOperations) => ({
     ...local,
     async execute(id, params, signal, onUpdate) {
-      return createOperations(await ensureVm(localCwd)).execute(id, params, signal, onUpdate);
+      return withVm(localCwd, (activeVm) => createOperations(activeVm).execute(id, params, signal, onUpdate));
     },
   });
 
-  pi.on("session_start", () => ensureVm(localCwd));
+  pi.on("session_start", async () => {
+    try {
+      await ensureVm(localCwd);
+      const armory = readWorkerArmoryConfig();
+      // The suite's tools are described by the guest once; the proxies then reach whichever
+      // VM is current, so releasing and re-booting the VM never re-registers anything.
+      if (armory.suites.length) {
+        warmSuites = (await registerArmoryWorkerProxies(pi, { config: armory, guest: lazyGuest(() => ensureVm(localCwd)) })).warm;
+        armIdleRelease();
+      }
+    } catch (error) {
+      // Pi logs an error thrown in a handler and carries on, which would leave a worker
+      // that reports ready with its sandboxed tools silently missing. End it instead:
+      // the launch then fails at once (see Runtime.launchCrew) rather than degrading.
+      console.error(`Gondolin sandbox setup failed: ${error?.message ?? error}`);
+      process.exit(70);
+    }
+  });
+  // A run is starting: never release mid-run, and have the VM and the suite ready by the
+  // time the model's first tool call arrives. Warming is best effort.
+  pi.on("agent_start", () => {
+    clearTimeout(idleTimer);
+    warmSuites?.().catch(() => undefined);
+  });
+  pi.on("agent_settled", armIdleRelease);
   // Only a real process-ending shutdown closes the VM -- see the
   // module-level comment above for why the VM itself survives a reload.
   pi.on("session_shutdown", async (event) => {
     if (event.reason !== "quit") return;
-    const activeVm = vm ?? (await starting?.catch(() => undefined));
-    vm = undefined;
-    starting = undefined;
-    if (activeVm) await activeVm.close();
-    for (const { name } of secretManager?.listSecrets() ?? []) secretManager.deleteSecret(name);
-    secretManager = undefined;
+    await releaseVm();
     revokeCredentialLease(credentialLease);
   });
 
@@ -145,7 +182,7 @@ export default function gondolinWorkerExtension(pi) {
   pi.registerTool({
     ...localGrep,
     async execute(_id, params, signal) {
-      return executeGrep(await ensureVm(localCwd), localCwd, params, signal);
+      return withVm(localCwd, (activeVm) => executeGrep(activeVm, localCwd, params, signal));
     },
   });
   pi.on("user_bash", async () => ({ operations: bashOperations(await ensureVm(localCwd), localCwd) }));

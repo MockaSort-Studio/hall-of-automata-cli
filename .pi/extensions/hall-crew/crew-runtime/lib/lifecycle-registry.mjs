@@ -12,7 +12,7 @@ import { join } from "node:path";
 // Runtime instances in the same cwd (see runtime-cleanup.test.mjs) each only
 // ever read or write their own PID's file, so no read-modify-write race is
 // possible between them.
-export const ownerDir = (cwd) => join(cwd, ".pi", "runtime", "lifecycle-owners");
+const ownerDir = (cwd) => join(cwd, ".pi", "runtime", "lifecycle-owners");
 
 export async function recordOwner(cwd, { pid, hostPid, port }) {
   const dir = ownerDir(cwd);
