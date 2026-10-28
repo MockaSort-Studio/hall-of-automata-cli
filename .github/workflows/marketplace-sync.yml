@@ -1,14 +1,6 @@
 name: Sync marketplace tag
 
 on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing plugin tag to publish
-        required: true
-        type: string
   workflow_call:
     inputs:
       tag:
@@ -22,7 +14,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     env:
-      TAG: ${{ inputs.tag || github.event.inputs.tag || github.ref_name }}
+      TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ secrets.marketplace_token || secrets.MARKETPLACE_PUSH_TOKEN }}
       MARKETPLACE: MockaSort-Studio/marketplace
     steps:
