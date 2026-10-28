@@ -48,8 +48,7 @@ jobs:
         run: |
           gh repo clone "$MARKETPLACE" marketplace
           cd marketplace
-          branch="automated/hall-of-automata-cli-$TAG"
-          git switch -C "$branch" origin/main
+          git switch main
           python3 - "$TAG" <<'PY'
           import json
           import sys
@@ -67,9 +66,4 @@ jobs:
           git config user.email "release-bot@users.noreply.github.com"
           git add .claude-plugin/marketplace.json
           git commit -m "Publish hall-of-automata-cli $TAG"
-          git push --force "https://x-access-token:$GH_TOKEN@github.com/$MARKETPLACE.git" "HEAD:refs/heads/$branch"
-          if [ "$(gh pr list --repo "$MARKETPLACE" --head "$branch" --base main --state open --json url --jq length)" = 0 ]; then
-            gh pr create --repo "$MARKETPLACE" --base main --head "$branch" \
-              --title "Publish hall-of-automata-cli $TAG" \
-              --body "Updates the marketplace reference to $TAG."
-          fi
+          git push "https://x-access-token:$GH_TOKEN@github.com/$MARKETPLACE.git" HEAD:main
