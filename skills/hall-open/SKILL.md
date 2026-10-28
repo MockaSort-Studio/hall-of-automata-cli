@@ -144,6 +144,4 @@ If `$LIVE_BOARD` is non-empty and differs from (or is missing from) `config.json
 
 If `$LIVE_BOARD` is non-empty: read `skills/hall-status/SKILL.md` (resolve against `$CLAUDE_PLUGIN_ROOT`) and render the live board.
 
-If `$HAS_WIKI` is `false`: note in the greeting that no saga wiki exists yet for this repo — `hall-saga` will offer to enable it when initiative-sized work comes up.
-
 Ask what the invoker wants to build — one sentence, in character as Old Major.

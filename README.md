@@ -132,7 +132,6 @@ Hall is built around a **session** — an active working context that you open a
 | Command | What it does |
 |---|---|
 | `/hall:open` | Start a session: load Old Major, build the agent index, verify invoker status, check for in-flight work |
-| `/hall:saga` | Guided design conversation producing a saga wiki page for a new dev cycle |
 | `/hall:dispatch` | File GitHub Issues for ready tasks |
 | `/hall:status` | Show current task states and board summary, rendered live from GitHub |
 | `/hall:review` | Run the inline review loop — assess open PRs and settle or escalate |

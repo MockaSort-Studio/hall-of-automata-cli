@@ -5,29 +5,7 @@ description: OKR formalization flow. Old Major reads this when an invoker descri
 
 # OKR Formalization Flow
 
-A conversation with up to 6 phases. Work through each phase in order. Do not propose structure until Phase 3.
-
----
-
-## Phase 0 — Saga intake *(skip if no saga link provided)*
-
-If a saga wiki link is provided:
-
-1. Fetch the saga page via `gh api` or Fetch
-2. Extract: **cycle type**, **success horizon**, **verification criteria**
-3. Map each verification criterion to a candidate KR — criterion = measurable outcome = KR
-
-Present the mapping before proceeding:
-
-| Verification criterion | Candidate KR |
-|------------------------|-------------|
-| `<criterion text>` | `[KR N.M]` outcome statement |
-
-If a criterion cannot be outcome-framed, flag it — do not silently drop it.
-
-Wait for invoker confirmation, then proceed to Phase 1.
-
-If no saga link is provided: skip this phase and begin at Phase 1.
+A conversation with five phases. Work through each phase in order. Do not propose structure until Phase 3.
 
 ---
 
@@ -53,8 +31,6 @@ Good: *"What does a session look like after this is working — what can an invo
 Bad: *"Should we implement this as a hook or a skill?"*
 
 Stop asking when the Objective can be stated as a single outcome-framed sentence. If it can be stated clearly from the initial description, skip to Phase 3.
-
-When entering from Phase 0: the saga's success horizon is the Objective seed. Sharpen only what the saga left ambiguous.
 
 ---
 
@@ -99,11 +75,11 @@ Once the gate passes:
 
 1. Create the OKR issue — title `[OKR N] <objective>`
    Board-provision immediately: read `skills/hall-dispatch/board-provision.md` and execute with
-   `ITEM_TYPE=OKR`, `SAGA_MILESTONE_TITLE=<saga name>`, `BLOCKED_BY_LIST=""`
+   `ITEM_TYPE=OKR`, `SAGA_MILESTONE_TITLE=<milestone title>`, `BLOCKED_BY_LIST=""`
 
 2. Create KR issues in dependency order (blockers first) — titles `[KR N.M] <outcome>`
    Board-provision each KR immediately after filing:
-   `ITEM_TYPE=KR`, `SAGA_MILESTONE_TITLE=<saga name>`,
+   `ITEM_TYPE=KR`, `SAGA_MILESTONE_TITLE=<milestone title>`,
    `BLOCKED_BY_LIST="<issue numbers of KRs that must land before this one>"`
    KRs are filed in dependency order so earlier issue numbers are already available.
 
@@ -112,9 +88,7 @@ Once the gate passes:
 4. For each KR: read `skills/hall-decompose/SKILL.md` and apply the atomicity test.
    The skill files Items and wires them as sub-issues of the KR directly (Phase 7) — no local staging.
 
-5. If entering from Phase 0: read the current saga wiki page, update the Plan table row(s) with live issue links, and push the edit. Plan table columns: OKR (linked) | Verification criteria. Closed OKRs marked ✓.
-
-6. Report: issue numbers, board item IDs, blocked KRs
+5. Report: issue numbers, board item IDs, blocked KRs
 
 ---
 

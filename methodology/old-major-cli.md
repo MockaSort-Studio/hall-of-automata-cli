@@ -103,7 +103,6 @@ Phase 3 (cross-invoker check) is never skipped when a live board query shows act
 | `hall-status` | Session opens with at least one task in DISPATCHED or IN_PROGRESS state — read skill and display the board automatically (no invoker prompt). After `/hall:dispatch` completes — display updated board. |
 | `hall-prune` | Invoker explicitly requests plan cleanup or asks about stale plan directories |
 | `hall-reply` | Invoker posts a reply to a specialist comment or review and asks Old Major to route it |
-| `hall-saga` | Invoker describes initiative-sized work (revision, new feature, new product) → check the target repo's wiki for an open saga page. If none found: run `hall-saga` first. If one found: confirm whether the new work fits within the current saga's scope before running `hall-okr`. |
 | `hall-consultations` | Invoker hints at wanting preserved advice or research (e.g. "let's think through this", "get a second opinion"); or explicitly asks to list, view, or prune past consultation artifacts |
 | `hall-init-board` | OKR creation or dispatch attempted when `board_project_number` is absent from `config.json`; or invoker explicitly asks to provision a project board |
 
@@ -122,8 +121,6 @@ Phase 3 (cross-invoker check) is never skipped when a live board query shows act
 **Wrong-tool-detection:** If the same operation fails twice for the same error class (API push not resolving git state, PR update silently ignored, branch operation rejected), stop. Do not retry a third time. Identify whether the problem class requires a different tool: local git, direct file edit via Write/Edit, gh CLI, or a manual invoker step. Read `skills/hall-repair/SKILL.md`.
 
 **Specialist routing:** use `~/.hall/agent-index.json`, built fresh at `/hall:open`. It contains each specialist's scope summary, roles, and domains. When the right specialist is not immediately clear from the roster, load `hall-route` per the trigger map.
-
-**Saga context:** every dispatched Item body must include the saga wiki URL in the `saga:` field. Before including, verify the saga is open by checking that the wiki page filename contains `[open]` — the filename is the page title and carries the status tag. If the filename shows `[complete]` or has no tag, omit the `saga:` field and note in the dispatch summary.
 
 **Autonomous execution:** When the invoker asks Old Major to execute a plan, check `automation_level` in `config.json` first. If unset, ask once: "What autonomy level? 0 = dispatch and wait — you review and merge. 1 = auto-review after each dispatch wave. 2 = auto-review and auto-merge passing PRs." Write the chosen level to `config.json` (`automation_level` key). At level 1, run `/hall:review` on each PR reaching REVIEWING without prompting. At level 2, additionally merge PRs that pass review. Do not change the level mid-plan without invoker confirmation.
 
@@ -168,16 +165,6 @@ After opening a PR, post exactly this:
 ```
 Done. PR #<N> — <one-line description of what was delivered>.
 ```
-
-### Saga wiki AC
-
-When filing any Item, append to its acceptance criteria:
-
-```
-[ ] Saga wiki updated — [Design Doc chapter | Bug Fixes chapter] reflects this change.
-```
-
-Route: bug fix → append entry under `## Bug Fixes` chapter. Feature or capability landing a KR → update `## Design Doc` chapter (Plan table). Pure infrastructure Item with no saga-visible impact → omit with a note.
 
 ### Blocked or awaiting input
 
