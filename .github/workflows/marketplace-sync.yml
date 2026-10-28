@@ -1,0 +1,61 @@
+name: Sync marketplace tag
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      marketplace_token:
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ secrets.marketplace_token || secrets.MARKETPLACE_PUSH_TOKEN }}
+      MARKETPLACE: MockaSort-Studio/marketplace
+    steps:
+      - name: Validate tag
+        run: |
+          test -n "$GH_TOKEN" || { echo "::error::MARKETPLACE_PUSH_TOKEN is not configured"; exit 1; }
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::invalid tag: $TAG"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Require a matching manifest version
+        run: |
+          version=$(jq -r '.version' .claude-plugin/plugin.json)
+          test "v$version" = "$TAG" || {
+            echo "::error::tag $TAG does not match plugin version $version"
+            exit 1
+          }
+
+      - name: Update marketplace entry
+        run: |
+          gh repo clone "$MARKETPLACE" marketplace
+          cd marketplace
+          git switch main
+          python3 - "$TAG" <<'PY'
+          import json
+          import sys
+          path = ".claude-plugin/marketplace.json"
+          data = json.load(open(path))
+          plugin = next(item for item in data["plugins"] if item["name"] == "hall-of-automata-cli")
+          plugin["source"]["ref"] = sys.argv[1]
+          open(path, "w").write(json.dumps(data, indent=2) + "\n")
+          PY
+          if git diff --quiet; then
+            echo "Marketplace already pins $TAG"
+            exit 0
+          fi
+          git config user.name "mockasort-release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git add .claude-plugin/marketplace.json
+          git commit -m "Publish hall-of-automata-cli $TAG"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$MARKETPLACE.git" HEAD:main
